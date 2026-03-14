@@ -4,7 +4,7 @@ overview: Build a containerized Cost-Aware AI Market Insights Engine on AWS usin
 todos:
   - id: phase1-scaffold
     content: "Phase 1a: Scaffold project structure (Dockerfile, docker-compose.yml, requirements.txt, ROADMAP.md, README.md)"
-    status: pending
+    status: done
   - id: phase1-ingestion
     content: "Phase 1b: Implement data ingestion service (yfinance ticker data + news headlines, APScheduler, DynamoDB writes)"
     status: pending
@@ -38,6 +38,8 @@ isProject: false
 # Cost-Aware AI Market Insights Engine -- System Design & Implementation Plan
 
 ## Architecture Overview
+
+![System Architecture](./system_architecture.png)
 
 A Dockerized Python (FastAPI) application running on **ECS Fargate**, persisting to **DynamoDB**, synthesizing insights via **AWS Bedrock**, and secured with **Secrets Manager** + least-privilege IAM -- all with rigorous AI cost tracking and budget enforcement.
 
@@ -122,15 +124,80 @@ Phase 5 migrates the Fargate task into a **private subnet** with no public IP. A
 
 ---
 
-## Phased Roadmap (ROADMAP.md)
+## Tangible Milestones & Phased Roadmap
 
-Development follows 5 phases. Phases 1-4 use a cost-effective public-subnet deployment (~~$21/mo). Phase 5 adds production networking (~~$72/mo).
+Development is structured into 5 tangible milestones. Phases 1-4 use a cost-effective public-subnet deployment (~$21/mo) to validate the core engine. Phase 5 adds production networking (~$72/mo).
 
-- **Phase 1 -- Dockerized Yahoo Finance Data Ingestion:** Scaffold the project, write the Dockerfile, implement yfinance data fetching with APScheduler, build FastAPI endpoints, verify everything works with `docker-compose up` locally.
-- **Phase 2 -- Deploy to Cloud (ECS Fargate, public subnet):** Write CloudFormation for VPC (public subnet only), deploy to ECS Fargate with `assignPublicIp: ENABLED`, configure Secrets Manager, set up IAM least-privilege task roles, wire API Gateway via Cloud Map + VPC Link (no ALB needed).
-- **Phase 3 -- Cloud AI Integration and Prompt Engineering:** Integrate AWS Bedrock (Claude Haiku), implement structured prompt construction with context window management, build the cost tracking and budget gate system.
-- **Phase 4 -- FinOps Monitoring and Cost Dashboards:** Add CloudWatch custom metrics, alarms at budget thresholds, a FinOps cost dashboard endpoint in the API, structured logging with X-Ray tracing.
-- **Phase 5 -- Production Networking and Security Hardening:** Add private subnet, NAT Gateway, ALB, migrate Fargate tasks to private subnet, add VPC Endpoints (DynamoDB, Secrets Manager), wire API Gateway through ALB, tighten security groups to remove public IP exposure.
+```mermaid
+timeline
+    title Project Implementation Milestones
+    Milestone 1 : Local Data Engine
+                : Docker + FastAPI setup
+                : yfinance ingestion
+                : Local DynamoDB
+    Milestone 2 : Cloud Deployment MVP
+                : CloudFormation VPC
+                : ECS Fargate deploy
+                : API Gateway + Cloud Map
+    Milestone 3 : AI Integration
+                : Bedrock Claude 3 Haiku
+                : Prompt Engineering
+                : Budget/Cost Gates
+    Milestone 4 : FinOps Observability
+                : CloudWatch Custom Metrics
+                : Budget Alarms
+                : Costs API Dashboard
+    Milestone 5 : Production Hardening
+                : Private Subnets
+                : NAT Gateway & ALB
+                : VPC Endpoints
+```
+
+### Milestone 1: Local Data Engine (The Foundation)
+**Goal:** Establish the project structure and build the data ingestion pipeline.
+**Deliverables:**
+- Dockerized FastAPI application with APScheduler.
+- `yfinance` integration to fetch market data and news headlines.
+- Local DynamoDB integration via `docker-compose`.
+- Working `/api/v1/health` and `/api/v1/insights` (mocked) endpoints.
+
+**Success Criteria:** Running `docker-compose up` successfully spins up the API, and periodic console logs confirm market data is being fetched and written to local DynamoDB.
+
+### Milestone 2: Cloud Deployment MVP (The Infrastructure)
+**Goal:** Deploy the baseline application to AWS using cost-optimized architecture.
+**Deliverables:**
+- CloudFormation template defining VPC (public subnets), ECS Fargate cluster, and DynamoDB tables.
+- IAM least-privilege roles and Secrets Manager configuration.
+- API Gateway configured with Cloud Map + VPC Link.
+
+**Success Criteria:** The health endpoint is publicly accessible via API Gateway, and the Fargate task runs stably in AWS without NAT Gateway or ALB costs.
+
+### Milestone 3: AI Integration & Cost Control (The Brain)
+**Goal:** Connect the engine to AWS Bedrock to generate insights while strictly enforcing daily budgets.
+**Deliverables:**
+- Bedrock `InvokeModel` integration (Claude 3 Haiku).
+- Prompt engineering for financial insight synthesis.
+- Cost tracking logic querying the `CostTracking` DynamoDB table before every Bedrock call.
+
+**Success Criteria:** The `/api/v1/insights` endpoint returns real, AI-generated summaries, and requests are correctly blocked or mocked if the simulated daily budget limit is reached.
+
+### Milestone 4: FinOps Observability (The Dashboard)
+**Goal:** Implement enterprise-grade monitoring and cost transparency.
+**Deliverables:**
+- CloudWatch custom metrics (e.g., `DailyAICost`, `InsightsGenerated`).
+- CloudWatch Alarms for budget threshold breaches (80%, 100%).
+- A new `/api/v1/costs/dashboard` endpoint returning spend trends.
+
+**Success Criteria:** CloudWatch shows active metrics for AI costs, and the API successfully returns historical tracking data for the dashboard.
+
+### Milestone 5: Production Security Hardening (The Fortress)
+**Goal:** Secure the application for production traffic by removing public IP access.
+**Deliverables:**
+- Expanded CloudFormation template including Private Subnets, NAT Gateway, and Application Load Balancer (ALB).
+- Fargate task migrated to the private subnet (`assignPublicIp: DISABLED`).
+- VPC Endpoints for DynamoDB and Secrets Manager.
+
+**Success Criteria:** The API remains fully functional via API Gateway, but the Fargate container is no longer directly accessible from internet scans, with all outbound AI traffic successfully routing via the NAT Gateway.
 
 ---
 
