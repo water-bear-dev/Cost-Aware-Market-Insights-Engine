@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>system_overview</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1
+id="cost-aware-ai-market-insights-engine-system-design-implementation-plan">Cost-Aware
+AI Market Insights Engine – System Design &amp; Implementation Plan</h1>
+<h2 id="architecture-overview">Architecture Overview</h2>
+<figure>
+<img src="./system_architecture.png" alt="System Architecture" />
+<figcaption aria-hidden="true">System Architecture</figcaption>
+</figure>
+<p>A Dockerized Python (FastAPI) application running on <strong>ECS
+Fargate</strong>, persisting to <strong>DynamoDB</strong>, synthesizing
+insights via <strong>AWS Bedrock</strong>, and secured with
+<strong>Secrets Manager</strong> + least-privilege IAM – all with
+rigorous AI cost tracking and budget enforcement.</p>
+<p>Development is split into two architecture stages: <strong>Phases
+1-4</strong> use a simplified public-subnet deployment to minimize cost
+during development, and <strong>Phase 5</strong> adds production-grade
+networking (private subnet, NAT Gateway, ALB).</p>
+<h4
+id="phases-1-4-development-architecture-public-subnet-no-albnat">Phases
+1-4: Development Architecture (public subnet, no ALB/NAT)</h4>
+<pre class="mermaid"><code>flowchart TB
+  Internet[&quot;Internet\n(API Consumers)&quot;] --&gt; APIGW[&quot;API Gateway\n(HTTP API + API Key)&quot;]
+
+  subgraph vpc [VPC]
+    subgraph publicSubnet [Public Subnet]
+      Fargate[&quot;ECS Fargate Task\n(Docker Container)\n0.5 vCPU / 1GB RAM\nassignPublicIp: ENABLED&quot;]
+    end
+  end
+
+  APIGW --&gt;|&quot;VPC Link\n(Cloud Map)&quot;| Fargate
+
+  Fargate --&gt;|&quot;direct outbound\nvia Internet Gateway&quot;| YahooFinance[&quot;Yahoo Finance\n(yfinance)&quot;]
+  Fargate --&gt;|&quot;direct outbound\nvia Internet Gateway&quot;| Bedrock[&quot;AWS Bedrock\n(Claude Haiku)&quot;]
+
+  Fargate --&gt; DynamoDB[&quot;DynamoDB\n(MarketData, Insights,\nCostTracking tables)&quot;]
+  Fargate -.-&gt; SecretsManager[&quot;AWS Secrets\nManager&quot;]
+
+  subgraph monitoring [Observability]
+    CWLogs[&quot;CloudWatch Logs&quot;]
+    CWMetrics[&quot;CloudWatch Metrics\n+ Alarms&quot;]
+    CWDashboard[&quot;FinOps Cost\nDashboard&quot;]
+  end
+
+  Fargate --&gt; CWLogs
+  Fargate --&gt; CWMetrics
+  CWMetrics --&gt; CWDashboard</code></pre>
+<p><strong>Phases 1-4 request flow:</strong></p>
+<pre><code>Internet --&gt; API Gateway --&gt; VPC Link (Cloud Map) --&gt; Fargate (public subnet, public IP)
+                                                        |
+                                              Internet Gateway (direct)
+                                                        |
+                                              Yahoo Finance / Bedrock</code></pre>
+<p>The container runs in a <strong>public subnet</strong> with
+<code>assignPublicIp: ENABLED</code>. It reaches external services
+(Yahoo Finance, Bedrock) directly through the Internet Gateway – no NAT
+Gateway needed. API Gateway connects to the Fargate task via
+<strong>Cloud Map service discovery</strong> and a <strong>VPC
+Link</strong>, eliminating the need for an ALB. A security group
+restricts inbound traffic to only the API Gateway VPC Link.</p>
+<h4 id="phase-5-production-architecture-private-subnet-nat-alb">Phase 5:
+Production Architecture (private subnet + NAT + ALB)</h4>
+<pre class="mermaid"><code>flowchart TB
+  Internet2[&quot;Internet\n(API Consumers)&quot;] --&gt; APIGW2[&quot;API Gateway\n(API Key Auth + Throttling)&quot;]
+
+  subgraph vpc2 [VPC]
+    subgraph pubSub2 [Public Subnet]
+      ALB2[&quot;Application\nLoad Balancer&quot;]
+      NAT2[&quot;NAT Gateway&quot;]
+    end
+
+    subgraph privSub2 [Private Subnet]
+      Fargate2[&quot;ECS Fargate Task\n(Docker Container)\n0.5 vCPU / 1GB RAM\nNo public IP&quot;]
+    end
+  end
+
+  APIGW2 --&gt; ALB2
+  ALB2 --&gt; Fargate2
+
+  Fargate2 --&gt;|&quot;outbound via NAT&quot;| NAT2
+  NAT2 --&gt; YahooFinance2[&quot;Yahoo Finance&quot;]
+  NAT2 --&gt; Bedrock2[&quot;AWS Bedrock&quot;]
+
+  Fargate2 --&gt;|&quot;VPC Endpoint&quot;| DynamoDB2[&quot;DynamoDB&quot;]
+  Fargate2 -.-&gt;|&quot;VPC Endpoint&quot;| SecretsManager2[&quot;Secrets Manager&quot;]</code></pre>
+<p>Phase 5 migrates the Fargate task into a <strong>private
+subnet</strong> with no public IP. All outbound traffic routes through
+the <strong>NAT Gateway</strong>. Inbound traffic enters only through
+the <strong>ALB</strong>, fronted by API Gateway. VPC Endpoints for
+DynamoDB and Secrets Manager bypass the NAT for AWS service traffic.</p>
+<hr />
+<h2 id="tangible-milestones-phased-roadmap">Tangible Milestones &amp;
+Phased Roadmap</h2>
+<p>Development is structured into 5 tangible milestones. Phases 1-4 use
+a cost-effective public-subnet deployment (~$21/mo) to validate the core
+engine. Phase 5 adds production networking (~$72/mo).</p>
+<pre class="mermaid"><code>timeline
+    title Project Implementation Milestones
+    Milestone 1 : Local Data Engine
+                : Docker + FastAPI setup
+                : yfinance ingestion
+                : Local DynamoDB
+    Milestone 2 : Cloud Deployment MVP
+                : CloudFormation VPC
+                : ECS Fargate deploy
+                : API Gateway + Cloud Map
+    Milestone 3 : AI Integration
+                : Bedrock Claude 3 Haiku
+                : Prompt Engineering
+                : Budget/Cost Gates
+    Milestone 4 : FinOps Observability
+                : CloudWatch Custom Metrics
+                : Budget Alarms
+                : Costs API Dashboard
+    Milestone 5 : Production Hardening
+                : Private Subnets
+                : NAT Gateway &amp; ALB
+                : VPC Endpoints</code></pre>
+<h3 id="milestone-1-local-data-engine-the-foundation">Milestone 1: Local
+Data Engine (The Foundation)</h3>
+<p><strong>Goal:</strong> Establish the project structure and build the
+data ingestion pipeline. <strong>Deliverables:</strong> - Dockerized
+FastAPI application with APScheduler. - <code>yfinance</code>
+integration to fetch market data and news headlines. - Local DynamoDB
+integration via <code>docker-compose</code>. - Working
+<code>/api/v1/health</code> and <code>/api/v1/insights</code> (mocked)
+endpoints.</p>
+<p><strong>Success Criteria:</strong> Running
+<code>docker-compose up</code> successfully spins up the API, and
+periodic console logs confirm market data is being fetched and written
+to local DynamoDB.</p>
+<h3 id="milestone-2-cloud-deployment-mvp-the-infrastructure">Milestone
+2: Cloud Deployment MVP (The Infrastructure)</h3>
+<p><strong>Goal:</strong> Deploy the baseline application to AWS using
+cost-optimized architecture. <strong>Deliverables:</strong> -
+CloudFormation template defining VPC (public subnets), ECS Fargate
+cluster, and DynamoDB tables. - IAM least-privilege roles and Secrets
+Manager configuration. - API Gateway configured with Cloud Map + VPC
+Link.</p>
+<p><strong>Success Criteria:</strong> The health endpoint is publicly
+accessible via API Gateway, and the Fargate task runs stably in AWS
+without NAT Gateway or ALB costs.</p>
+<h3 id="milestone-3-ai-integration-cost-control-the-brain">Milestone 3:
+AI Integration &amp; Cost Control (The Brain)</h3>
+<p><strong>Goal:</strong> Connect the engine to AWS Bedrock to generate
+insights while strictly enforcing daily budgets.
+<strong>Deliverables:</strong> - Bedrock <code>InvokeModel</code>
+integration (Claude 3 Haiku). - Prompt engineering for financial insight
+synthesis. - Cost tracking logic querying the <code>CostTracking</code>
+DynamoDB table before every Bedrock call.</p>
+<p><strong>Success Criteria:</strong> The <code>/api/v1/insights</code>
+endpoint returns real, AI-generated summaries, and requests are
+correctly blocked or mocked if the simulated daily budget limit is
+reached.</p>
+<h3 id="milestone-4-finops-observability-the-dashboard">Milestone 4:
+FinOps Observability (The Dashboard)</h3>
+<p><strong>Goal:</strong> Implement enterprise-grade monitoring and cost
+transparency. <strong>Deliverables:</strong> - CloudWatch custom metrics
+(e.g., <code>DailyAICost</code>, <code>InsightsGenerated</code>). -
+CloudWatch Alarms for budget threshold breaches (80%, 100%). - A new
+<code>/api/v1/costs/dashboard</code> endpoint returning spend
+trends.</p>
+<p><strong>Success Criteria:</strong> CloudWatch shows active metrics
+for AI costs, and the API successfully returns historical tracking data
+for the dashboard.</p>
+<h3
+id="milestone-5-production-security-hardening-the-fortress">Milestone 5:
+Production Security Hardening (The Fortress)</h3>
+<p><strong>Goal:</strong> Secure the application for production traffic
+by removing public IP access. <strong>Deliverables:</strong> - Expanded
+CloudFormation template including Private Subnets, NAT Gateway, and
+Application Load Balancer (ALB). - Fargate task migrated to the private
+subnet (<code>assignPublicIp: DISABLED</code>). - VPC Endpoints for
+DynamoDB and Secrets Manager.</p>
+<p><strong>Success Criteria:</strong> The API remains fully functional
+via API Gateway, but the Fargate container is no longer directly
+accessible from internet scans, with all outbound AI traffic
+successfully routing via the NAT Gateway.</p>
+<hr />
+<h2 id="component-details">Component Details</h2>
+<h3 id="docker-container-the-compute">1. Docker Container (The
+Compute)</h3>
+<ul>
+<li><strong>Base image:</strong> <code>python:3.12-slim</code></li>
+<li><strong>Application:</strong> Single FastAPI process with an
+embedded APScheduler for periodic data ingestion and synthesis.</li>
+<li><strong>Why a single container:</strong> Data ingestion, AI
+synthesis, and API serving are all I/O-bound tasks that share the same
+data models and DynamoDB client. A single container with an async
+scheduler avoids inter-service communication complexity.</li>
+</ul>
+<p><strong>Resource allocation (documented rationale):</strong></p>
+<ul>
+<li><strong>0.5 vCPU:</strong> Data fetching (yfinance) and API relaying
+(Bedrock, DynamoDB) are I/O-bound, not CPU-bound. 0.5 vCPU is sufficient
+for async I/O workloads.</li>
+<li><strong>1 GB RAM:</strong> <code>yfinance</code> +
+<code>pandas</code> + FastAPI runtime fits within ~512MB; 1GB provides
+headroom for concurrent requests and data buffering.</li>
+<li><strong>Cost estimate:</strong> Fargate pricing in us-east-1:
+~$0.04048/vCPU/hr + $0.004445/GB/hr = ~$0.025/hr = ~$18/month running
+24/7. Can reduce by scaling to 0 outside market hours via scheduled ECS
+service scaling.</li>
+</ul>
+<p><strong>Dockerfile structure:</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">FROM</span> python:3.12-slim <span class="kw">AS</span> base</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">WORKDIR</span> /app</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> requirements.txt .</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">RUN</span> <span class="ex">pip</span> install <span class="at">--no-cache-dir</span> <span class="at">-r</span> requirements.txt</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">COPY</span> src/ ./src/</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="kw">EXPOSE</span> 8000</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">HEALTHCHECK</span> <span class="kw">CMD</span> <span class="ex">curl</span> <span class="at">-f</span> http://localhost:8000/api/v1/health <span class="kw">||</span> <span class="bu">exit</span> 1</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">CMD</span> [<span class="st">&quot;uvicorn&quot;</span>, <span class="st">&quot;src.main:app&quot;</span>, <span class="st">&quot;--host&quot;</span>, <span class="st">&quot;0.0.0.0&quot;</span>, <span class="st">&quot;--port&quot;</span>, <span class="st">&quot;8000&quot;</span>]</span></code></pre></div>
+<p><strong>docker-compose.yml (local development):</strong></p>
+<ul>
+<li><code>app</code> service: builds from Dockerfile, maps port 8000,
+mounts source for hot reload</li>
+<li><code>dynamodb-local</code>: Amazon DynamoDB Local for offline
+development</li>
+<li>Environment variables for local config (budget, tickers,
+region)</li>
+</ul>
+<h3 id="scheduling-apscheduler-in-container">2. Scheduling – APScheduler
+(In-Container)</h3>
+<ul>
+<li><strong>Library:</strong> APScheduler running inside the FastAPI
+application (<code>lifespan</code> event).</li>
+<li><strong>Jobs:</strong>
+<ul>
+<li><code>ingest_market_data</code>: Runs every 15 minutes, Mon-Fri,
+9:30 AM - 4:00 PM ET.</li>
+<li><code>synthesize_insights</code>: Triggered after each successful
+ingestion run.</li>
+</ul></li>
+<li><strong>Mindful of:</strong>
+<ul>
+<li>APScheduler uses the container’s timezone – set
+<code>TZ=America/New_York</code> in the container environment, or use
+UTC with explicit conversion.</li>
+<li>Market holidays are not handled by cron alone – the ingestion job
+should check a holiday calendar or simply validate that
+<code>yfinance</code> returns fresh data.</li>
+<li>If the container restarts, APScheduler state is lost (acceptable –
+it just picks up on the next cron tick).</li>
+</ul></li>
+</ul>
+<h3 id="data-ingestion-service">3. Data Ingestion Service</h3>
+<ul>
+<li><strong>Responsibilities:</strong>
+<ul>
+<li>Accept a configured list of tickers (default: SPY, AAPL, MSFT,
+GOOGL, TSLA) from environment config.</li>
+<li>Fetch current price data (open, high, low, close, volume, change%)
+via <code>yfinance</code>.</li>
+<li>Fetch the top 5 recent news headlines for each ticker.</li>
+<li>Normalize and write raw data to the <strong>MarketData</strong>
+DynamoDB table.</li>
+<li>Trigger the synthesis service after successful ingestion.</li>
+</ul></li>
+<li><strong>Mindful of:</strong>
+<ul>
+<li><code>yfinance</code> is an unofficial wrapper – Yahoo can change
+endpoints without notice. Pin the version and wrap all calls in
+try/except.</li>
+<li>Implement retry with exponential backoff for transient
+failures.</li>
+<li>Validate data freshness: compare returned timestamps to current
+time, skip stale data.</li>
+<li>The container reaches Yahoo Finance via the NAT Gateway (outbound
+internet through the private subnet).</li>
+</ul></li>
+</ul>
+<h3 id="ai-synthesis-service">4. AI Synthesis Service</h3>
+<ul>
+<li><strong>Responsibilities:</strong>
+<ul>
+<li>Read latest market data from DynamoDB for all tracked tickers.</li>
+<li><strong>Budget Gate check</strong> (see Section 7): Query
+CostTracking for today’s spend. If budget exceeded, skip AI call and
+serve cached insight.</li>
+<li>Construct a structured prompt following this pattern:</li>
+</ul></li>
+</ul>
+<pre><code>    Given the following market data and news headlines for {date}:
+
+    Ticker: AAPL
+    Change: -2.3%
+    Headlines:
+    1. &quot;Apple faces EU antitrust fine...&quot;
+    2. &quot;iPhone sales decline in China...&quot;
+    ...
+
+    Explain in 2-3 sentences why this stock is moving today.
+    
+</code></pre>
+<ul>
+<li>Call <strong>AWS Bedrock</strong> (<code>bedrock-runtime</code> /
+<code>InvokeModel</code>) using <strong>Claude 3 Haiku</strong>
+(~$0.25/M input, $1.25/M output tokens).</li>
+<li>Parse the response, extract token counts from response
+metadata.</li>
+<li>Write insight to the <strong>Insights</strong> table, cost record to
+the <strong>CostTracking</strong> table.</li>
+<li><strong>Context Window Management:</strong>
+<ul>
+<li>Claude Haiku supports 200K tokens, but we target prompts under 2K
+tokens to minimize cost.</li>
+<li>Set <code>max_tokens: 512</code> for output (2-3 sentences don’t
+need more).</li>
+<li>Use <code>temperature: 0.3</code> for deterministic, factual
+summaries.</li>
+</ul></li>
+<li><strong>Mindful of:</strong>
+<ul>
+<li>Bedrock auth is via IAM (the Fargate task role) – no API keys needed
+for the AI provider itself.</li>
+<li>Bedrock responses include <code>inputTokenCount</code> and
+<code>outputTokenCount</code> in the response metadata – use these for
+precise cost tracking.</li>
+<li>Implement idempotency: hash the input data and skip re-synthesis if
+the hash matches the last run.</li>
+<li>The container reaches Bedrock via the NAT Gateway (Bedrock is a
+public AWS endpoint). Alternatively, configure a <strong>VPC Endpoint
+for Bedrock</strong> to avoid NAT costs for this traffic.</li>
+</ul></li>
+</ul>
+<h3 id="fastapi-application-the-api">5. FastAPI Application (The
+API)</h3>
+<ul>
+<li><strong>Framework:</strong> FastAPI with <code>uvicorn</code> ASGI
+server.</li>
+<li><strong>Endpoints:</strong>
+<ul>
+<li><code>GET /api/v1/insights</code> – Latest insights for all tickers
+(query param <code>?ticker=AAPL</code> for filtering).</li>
+<li><code>GET /api/v1/insights/{ticker}</code> – Latest insight for a
+specific ticker.</li>
+<li><code>GET /api/v1/costs</code> – Today’s cost summary (total spend,
+remaining budget, call count).</li>
+<li><code>GET /api/v1/costs/history</code> – Historical daily cost
+breakdown (paginated).</li>
+<li><code>GET /api/v1/health</code> – Health check (returns 200 +
+DynamoDB connectivity status).</li>
+<li><code>GET /api/v1/costs/dashboard</code> – (Phase 4) FinOps summary
+with daily/weekly/monthly trends.</li>
+</ul></li>
+<li><strong>Auth:</strong> API Gateway Usage Plan + API Key (passed via
+<code>x-api-key</code> header). The ALB itself is internal; API Gateway
+is the only public entry point.</li>
+<li><strong>Mindful of:</strong>
+<ul>
+<li>FastAPI auto-generates OpenAPI/Swagger docs at <code>/docs</code> –
+useful for testing but should be disabled or auth-gated in
+production.</li>
+<li>Return proper HTTP status codes: 429 (budget exhausted / rate
+limited), 503 (ingestion failure), 200 with <code>generated_at</code>
+timestamp so consumers know insight freshness.</li>
+</ul></li>
+</ul>
+<h3 id="dynamodb-tables-data-model-storage-format">6. DynamoDB Tables –
+Data Model &amp; Storage Format</h3>
+<p>DynamoDB is a NoSQL document store. Each item is a JSON-like
+attribute map (key-value pairs). There is no rigid schema – only the
+partition key and sort key are required. All other attributes are
+flexible per item. Data is accessed via <code>boto3</code> using the
+<code>dynamodb.Table</code> resource, which handles serialization
+between Python types and DynamoDB’s native type system (String
+<code>S</code>, Number <code>N</code>, List <code>L</code>, Map
+<code>M</code>, etc.).</p>
+<p><strong>MarketData Table</strong></p>
+<ul>
+<li>Partition key: <code>ticker</code> (String)</li>
+<li>Sort key: <code>timestamp</code> (String, ISO-8601)</li>
+<li>TTL attribute: <code>ttl</code> (Number, Unix epoch) – auto-expire
+after 30 days</li>
+</ul>
+<p>Example item:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ticker&quot;</span><span class="fu">:</span> <span class="st">&quot;AAPL&quot;</span><span class="fu">,</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;timestamp&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13T10:30:00Z&quot;</span><span class="fu">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;open&quot;</span><span class="fu">:</span> <span class="fl">178.52</span><span class="fu">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;high&quot;</span><span class="fu">:</span> <span class="fl">179.10</span><span class="fu">,</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;low&quot;</span><span class="fu">:</span> <span class="fl">175.83</span><span class="fu">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;close&quot;</span><span class="fu">:</span> <span class="fl">176.20</span><span class="fu">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;volume&quot;</span><span class="fu">:</span> <span class="dv">42318900</span><span class="fu">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;change_pct&quot;</span><span class="fu">:</span> <span class="fl">-2.3</span><span class="fu">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;headlines&quot;</span><span class="fu">:</span> <span class="ot">[</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Apple faces EU antitrust fine of $500M&quot;</span><span class="ot">,</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;iPhone sales decline 8% in China market&quot;</span><span class="ot">,</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Apple Vision Pro 2 rumors surface ahead of WWDC&quot;</span><span class="ot">,</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Warren Buffett trims Apple stake by 2%&quot;</span><span class="ot">,</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;App Store revenue hits record despite regulatory pressure&quot;</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;data_hash&quot;</span><span class="fu">:</span> <span class="st">&quot;a1b2c3d4e5f6&quot;</span><span class="fu">,</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ttl&quot;</span><span class="fu">:</span> <span class="dv">1744540200</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p><strong>Insights Table</strong></p>
+<ul>
+<li>Partition key: <code>ticker</code> (String)</li>
+<li>Sort key: <code>timestamp</code> (String, ISO-8601)</li>
+<li>GSI: <code>latest-insight-index</code> – PK=<code>ticker</code>,
+SK=<code>generated_at</code> for fast “get latest” queries</li>
+<li>TTL attribute: <code>ttl</code> (Number, Unix epoch) – auto-expire
+after 90 days</li>
+</ul>
+<p>Example item:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ticker&quot;</span><span class="fu">:</span> <span class="st">&quot;AAPL&quot;</span><span class="fu">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;timestamp&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13T10:30:15Z&quot;</span><span class="fu">,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;insight_text&quot;</span><span class="fu">:</span> <span class="st">&quot;Apple shares dropped 2.3% today, primarily driven by a reported 8% decline in iPhone sales in China and news of a potential $500M EU antitrust fine. Investor sentiment was further dampened by reports that Berkshire Hathaway trimmed its Apple position, though strong App Store revenue provided a partial counterbalance.&quot;</span><span class="fu">,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;model_used&quot;</span><span class="fu">:</span> <span class="st">&quot;anthropic.claude-3-haiku-20240307-v1:0&quot;</span><span class="fu">,</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;input_tokens&quot;</span><span class="fu">:</span> <span class="dv">1247</span><span class="fu">,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;output_tokens&quot;</span><span class="fu">:</span> <span class="dv">189</span><span class="fu">,</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;cost_usd&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="er">.000548</span><span class="fu">,</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;data_hash&quot;</span><span class="fu">:</span> <span class="st">&quot;a1b2c3d4e5f6&quot;</span><span class="fu">,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;generated_at&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13T10:30:15Z&quot;</span><span class="fu">,</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ttl&quot;</span><span class="fu">:</span> <span class="dv">1749724215</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p><strong>CostTracking Table</strong></p>
+<ul>
+<li>Partition key: <code>date</code> (String, YYYY-MM-DD)</li>
+<li>Sort key: <code>request_id</code> (String, UUID)</li>
+<li>GSI: <code>daily-summary-index</code> – PK=<code>date</code> for
+aggregation queries (sum of <code>cost_usd</code> for all items on a
+given date)</li>
+</ul>
+<p>Example item:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;date&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13&quot;</span><span class="fu">,</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;request_id&quot;</span><span class="fu">:</span> <span class="st">&quot;f47ac10b-58cc-4372-a567-0e02b2c3d479&quot;</span><span class="fu">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;ticker&quot;</span><span class="fu">:</span> <span class="st">&quot;AAPL&quot;</span><span class="fu">,</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;model&quot;</span><span class="fu">:</span> <span class="st">&quot;anthropic.claude-3-haiku-20240307-v1:0&quot;</span><span class="fu">,</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;input_tokens&quot;</span><span class="fu">:</span> <span class="dv">1247</span><span class="fu">,</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;output_tokens&quot;</span><span class="fu">:</span> <span class="dv">189</span><span class="fu">,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;estimated_cost_usd&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="er">.000520</span><span class="fu">,</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;actual_cost_usd&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="er">.000548</span><span class="fu">,</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;timestamp&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13T10:30:15Z&quot;</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p><strong>How data flows through the tables:</strong></p>
+<ol type="1">
+<li>Ingestion writes raw market data to <strong>MarketData</strong> (one
+item per ticker per run).</li>
+<li>Synthesis reads from MarketData, calls Bedrock, writes the
+AI-generated text to <strong>Insights</strong> (one item per ticker per
+run) and the cost record to <strong>CostTracking</strong> (one item per
+Bedrock call).</li>
+<li>The API reads from <strong>Insights</strong> (serve to consumers)
+and <strong>CostTracking</strong> (budget/spend queries).</li>
+</ol>
+<p><strong>Billing:</strong> All tables use <strong>on-demand
+(PAY_PER_REQUEST)</strong> mode – no capacity planning needed, pay only
+for actual reads/writes. At our scale (~5 tickers, ~26 runs/day), this
+costs essentially nothing (see cost estimate below).</p>
+<h3 id="cost-control-system-the-core-differentiator">7. Cost Control
+System (The Core Differentiator)</h3>
+<pre class="mermaid"><code>flowchart LR
+  SynthStart[&quot;Synthesis triggered\nafter ingestion&quot;] --&gt; QueryCost[&quot;Query CostTracking\nfor today&#39;s total&quot;]
+  QueryCost --&gt; CheckBudget{&quot;daily_spend\n&lt; daily_budget?&quot;}
+  CheckBudget --&gt;|Yes| EstimateTokens[&quot;Estimate input\ntoken count&quot;]
+  EstimateTokens --&gt; ProjectCost[&quot;Project cost:\nestimated_tokens * rate&quot;]
+  ProjectCost --&gt; WouldExceed{&quot;projected_total\n&lt; budget?&quot;}
+  WouldExceed --&gt;|Yes| CallBedrock[&quot;Call Bedrock&quot;]
+  WouldExceed --&gt;|No| ServeCached[&quot;Return cached\ninsight + warning&quot;]
+  CheckBudget --&gt;|No| ServeCached
+  CallBedrock --&gt; LogCost[&quot;Log actual cost\nto CostTracking&quot;]
+  LogCost --&gt; StoreInsight[&quot;Store insight\nin Insights table&quot;]</code></pre>
+<ul>
+<li><strong>Budget config</strong> stored in environment variables
+(injected via Secrets Manager or task definition):
+<code>DAILY_BUDGET_USD=5.00</code>,
+<code>MONTHLY_BUDGET_USD=100.00</code>.</li>
+<li><strong>Pre-call estimation:</strong> Count prompt characters,
+estimate tokens (~4 chars/token), multiply by model rate.</li>
+<li><strong>Post-call logging:</strong> Record actual tokens from
+Bedrock response metadata. Calculate
+<code>cost_usd = (input_tokens * input_rate) + (output_tokens * output_rate)</code>.</li>
+<li><strong>Alerts (Phase 4):</strong> CloudWatch Alarm on custom metric
+<code>DailyAICost</code> – trigger SNS notification at 80% and 100%
+thresholds.</li>
+<li><strong>API exposure:</strong> The <code>/costs</code> endpoint lets
+consumers see current spend, remaining budget, and per-request cost
+breakdown.</li>
+</ul>
+<h3 id="networking-security-the-fortress">8. Networking &amp; Security
+(The Fortress)</h3>
+<h4 id="phases-1-4-public-subnet-deployment">Phases 1-4: Public Subnet
+Deployment</h4>
+<pre class="mermaid"><code>flowchart TB
+  subgraph vpcDev [VPC 10.0.0.0/16]
+    subgraph pubSubDev [Public Subnet 10.0.1.0/24]
+      IGWDev[&quot;Internet Gateway&quot;]
+      FargateDev[&quot;ECS Fargate Task\nassignPublicIp: ENABLED&quot;]
+      CloudMap[&quot;Cloud Map\n(Service Discovery)&quot;]
+    end
+  end
+
+  APIGWDev[&quot;API Gateway&quot;] --&gt;|&quot;VPC Link&quot;| CloudMap --&gt; FargateDev
+  FargateDev --&gt;|&quot;direct outbound&quot;| IGWDev</code></pre>
+<ul>
+<li><strong>VPC:</strong> <code>10.0.0.0/16</code> with DNS support
+enabled.</li>
+<li><strong>Public subnet:</strong> <code>10.0.1.0/24</code> – hosts the
+Fargate task with a public IP assigned. Route table points to the
+Internet Gateway.</li>
+<li><strong>No NAT Gateway, no ALB</strong> – the Fargate task has a
+public IP and reaches external services directly.</li>
+<li><strong>Cloud Map:</strong> ECS service registers with Cloud Map for
+service discovery. API Gateway connects via a VPC Link using the Cloud
+Map service, eliminating the need for an ALB.</li>
+<li><strong>Security Group (Fargate):</strong> Inbound 8000 from the API
+Gateway VPC Link only. Outbound 443 to <code>0.0.0.0/0</code> (for Yahoo
+Finance, Bedrock, DynamoDB, Secrets Manager).</li>
+<li><strong>Trade-off:</strong> The container has a public IP, which is
+less secure than a private subnet. Acceptable during development;
+hardened in Phase 5.</li>
+</ul>
+<h4 id="phase-5-private-subnet-production-deployment">Phase 5: Private
+Subnet Production Deployment</h4>
+<pre class="mermaid"><code>flowchart TB
+  subgraph vpcProd [VPC 10.0.0.0/16]
+    subgraph pubSubProd [Public Subnets 10.0.1.0/24 + 10.0.3.0/24]
+      IGWProd[&quot;Internet Gateway&quot;]
+      ALBProd[&quot;ALB&quot;]
+      NATProd[&quot;NAT Gateway&quot;]
+    end
+    subgraph privSubProd [Private Subnet 10.0.2.0/24]
+      FargateProd[&quot;ECS Fargate Task\nNo public IP&quot;]
+    end
+  end
+
+  APIGWProd[&quot;API Gateway&quot;] --&gt; ALBProd --&gt; FargateProd
+  FargateProd --&gt;|&quot;outbound&quot;| NATProd --&gt; IGWProd
+  FargateProd --&gt;|&quot;VPC Endpoint&quot;| DDBProd[&quot;DynamoDB&quot;]
+  FargateProd --&gt;|&quot;VPC Endpoint&quot;| SMProd[&quot;Secrets Manager&quot;]</code></pre>
+<ul>
+<li><strong>Private subnet:</strong> <code>10.0.2.0/24</code> – Fargate
+task moves here, no public IP. Default route to NAT Gateway.</li>
+<li><strong>Public subnets:</strong> <code>10.0.1.0/24</code> +
+<code>10.0.3.0/24</code> (two AZs, required by ALB) – hosts ALB and NAT
+Gateway.</li>
+<li><strong>ALB:</strong> Replaces Cloud Map/VPC Link. API Gateway
+fronts the ALB.</li>
+<li><strong>NAT Gateway:</strong> Enables outbound internet access
+(Yahoo Finance, Bedrock) from the private subnet.</li>
+<li><strong>Security Groups:</strong>
+<ul>
+<li>ALB SG: Inbound 443 from API Gateway. Outbound 8000 to Fargate
+SG.</li>
+<li>Fargate SG: Inbound 8000 from ALB SG only. Outbound 443 to
+<code>0.0.0.0/0</code>.</li>
+</ul></li>
+<li><strong>VPC Endpoints (cost optimization):</strong>
+<ul>
+<li>DynamoDB Gateway Endpoint: <strong>Free</strong>, avoids NAT data
+processing charges.</li>
+<li>Secrets Manager Interface Endpoint: ~$7.30/mo, avoids NAT charges
+for secret fetches.</li>
+<li>Bedrock Interface Endpoint (optional): ~$7.30/mo, evaluate if
+traffic justifies cost.</li>
+</ul></li>
+</ul>
+<h4 id="iam-least-privilege-task-role-all-phases">IAM – Least Privilege
+Task Role (all phases)</h4>
+<ul>
+<li><code>dynamodb:PutItem</code>, <code>dynamodb:GetItem</code>,
+<code>dynamodb:Query</code> on the 3 specific table ARNs only.</li>
+<li><code>bedrock:InvokeModel</code> on the specific Claude Haiku model
+ARN only.</li>
+<li><code>secretsmanager:GetSecretValue</code> on the specific secret
+ARN only.</li>
+<li><code>logs:CreateLogStream</code>, <code>logs:PutLogEvents</code>
+for CloudWatch logging.</li>
+<li>No <code>*</code> wildcards. No admin access.</li>
+</ul>
+<h4 id="secrets-manager-all-phases">Secrets Manager (all phases)</h4>
+<ul>
+<li>Stores any future external API keys (Bedrock is IAM-authenticated,
+so no secret needed for it today).</li>
+<li>The container fetches secrets at startup via <code>boto3</code> –
+never stored in code, Dockerfile, or environment variables.</li>
+<li>Useful for: API Gateway key rotation, any future third-party data
+source credentials.</li>
+</ul>
+<h3 id="observability-finops-phase-4">9. Observability &amp; FinOps
+(Phase 4)</h3>
+<ul>
+<li><strong>CloudWatch Logs:</strong> Structured JSON logging from the
+container (use Python <code>structlog</code> or
+<code>aws-lambda-powertools</code> logging module).</li>
+<li><strong>CloudWatch Container Insights:</strong> Enable on the ECS
+cluster for CPU/memory/network metrics.</li>
+<li><strong>Custom CloudWatch Metrics (via <code>boto3</code>
+PutMetricData):</strong>
+<ul>
+<li><code>InsightsGenerated</code> (count)</li>
+<li><code>DailyAICost</code> (USD)</li>
+<li><code>BudgetUtilizationPct</code> (percentage)</li>
+<li><code>IngestionErrors</code> (count)</li>
+<li><code>IngestionLatencyMs</code> (milliseconds)</li>
+</ul></li>
+<li><strong>CloudWatch Alarms:</strong>
+<ul>
+<li>Budget threshold breaches (80%, 100%)</li>
+<li>Ingestion failures &gt; 3 consecutive</li>
+<li>Container health check failures</li>
+</ul></li>
+<li><strong>FinOps Cost Dashboard:</strong>
+<code>/api/v1/costs/dashboard</code> endpoint returning
+daily/weekly/monthly spend breakdown, projected monthly cost,
+cost-per-insight metric.</li>
+</ul>
+<h3 id="project-structure">10. Project Structure</h3>
+<pre><code>market-insights-engine/
+├── Dockerfile                        # Multi-stage Docker build
+├── docker-compose.yml                # Local dev (app + DynamoDB Local)
+├── requirements.txt                  # All Python dependencies
+├── ROADMAP.md                        # Phased delivery roadmap
+├── README.md                         # Project overview + setup instructions
+├── infrastructure/
+│   └── cloudformation.yaml           # VPC, ECS, ALB, DynamoDB, IAM, Secrets
+├── src/
+│   ├── __init__.py
+│   ├── main.py                       # FastAPI app + APScheduler setup
+│   ├── config.py                     # Environment config loader
+│   ├── models.py                     # Pydantic data models
+│   ├── ingestion/
+│   │   ├── __init__.py
+│   │   └── service.py                # yfinance data fetch + DynamoDB write
+│   ├── synthesis/
+│   │   ├── __init__.py
+│   │   ├── service.py                # Bedrock invocation + insight storage
+│   │   └── prompts.py                # Prompt templates
+│   ├── cost_tracking/
+│   │   ├── __init__.py
+│   │   └── service.py                # Budget gate, cost logging, estimation
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── insights.py               # /insights endpoints
+│   │   ├── costs.py                  # /costs + /costs/dashboard endpoints
+│   │   └── health.py                 # /health endpoint
+│   └── clients/
+│       ├── __init__.py
+│       ├── dynamo.py                 # DynamoDB client helpers
+│       ├── bedrock.py                # Bedrock client wrapper
+│       └── secrets.py                # Secrets Manager client
+├── tests/
+│   ├── unit/
+│   │   ├── test_ingestion.py
+│   │   ├── test_synthesis.py
+│   │   ├── test_cost_tracker.py
+│   │   └── test_api.py
+│   └── integration/
+│       └── test_e2e.py
+└── .github/
+    └── workflows/
+        └── deploy.yml                # CI/CD: test, docker build, push ECR, deploy</code></pre>
+<h3 id="infrastructure-as-code-cloudformation">11. Infrastructure as
+Code (CloudFormation)</h3>
+<p>The <code>infrastructure/cloudformation.yaml</code> will define all
+AWS resources, parameterized to support both development (Phases 1-4)
+and production (Phase 5) modes.</p>
+<p><strong>Phases 1-4 resources:</strong></p>
+<ul>
+<li><strong>Networking:</strong> VPC, 1 public subnet, Internet Gateway,
+route table</li>
+<li><strong>Compute:</strong> ECS Cluster, Fargate Service
+(assignPublicIp: ENABLED), Task Definition (0.5 vCPU, 1GB RAM), ECR
+Repository</li>
+<li><strong>Service Discovery:</strong> Cloud Map namespace + service
+(for API Gateway VPC Link)</li>
+<li><strong>Storage:</strong> 3 DynamoDB tables (MarketData, Insights,
+CostTracking) with GSIs and TTL</li>
+<li><strong>Security:</strong> Fargate Task IAM Role (least-privilege),
+Task Execution Role, Security Group (Fargate), Secrets Manager
+secret</li>
+<li><strong>API:</strong> API Gateway (HTTP API) with VPC Link to Cloud
+Map, Usage Plan + API Key</li>
+<li><strong>Monitoring:</strong> CloudWatch Log Group, CloudWatch Alarms
+(budget, health), SNS Topic for alerts</li>
+</ul>
+<p><strong>Phase 5 additions (via CloudFormation parameters or a
+separate stack):</strong></p>
+<ul>
+<li><strong>Networking:</strong> Second public subnet (AZ2), private
+subnet, NAT Gateway, updated route tables, DynamoDB Gateway Endpoint,
+Secrets Manager Interface Endpoint</li>
+<li><strong>Compute:</strong> Migrate Fargate to private subnet, remove
+assignPublicIp</li>
+<li><strong>Load Balancing:</strong> ALB + Target Group + Listener, ALB
+Security Group</li>
+<li><strong>API:</strong> Switch API Gateway from VPC Link/Cloud Map to
+ALB integration</li>
+</ul>
+<p>CloudFormation chosen over Terraform for: native AWS integration, no
+state file management, and direct integration with ECS/Fargate
+deployment.</p>
+<h3 id="key-risks-and-mitigations">12. Key Risks and Mitigations</h3>
+<ul>
+<li><strong>yfinance reliability:</strong> Unofficial API can break
+without notice. <strong>Mitigation:</strong> Pin version, wrap in
+try/except, alert on consecutive failures, abstract behind an interface
+for future swap to a paid data source.</li>
+<li><strong>Bedrock model availability:</strong> Not all models
+available in all regions. <strong>Mitigation:</strong> Deploy to
+<code>us-east-1</code> where Bedrock has broadest model support.
+Parameterize model ID in config.</li>
+<li><strong>Container cold start:</strong> If ECS scales from 0 to 1
+task, startup takes 30-60s. <strong>Mitigation:</strong> Keep
+<code>desiredCount: 1</code> during market hours; scale to 0 only
+overnight/weekends.</li>
+<li><strong>Public IP exposure (Phases 1-4):</strong> Container has a
+public IP in the public subnet. <strong>Mitigation:</strong> Security
+group restricts inbound to API Gateway VPC Link only. No SSH, no other
+ports open. Hardened in Phase 5.</li>
+<li><strong>DynamoDB hot partitions:</strong> All reads hitting the same
+popular tickers. <strong>Mitigation:</strong> On-demand billing mode
+handles burst well. Only 5 tickers, so partition spread is fine.</li>
+<li><strong>Cost overrun from Bedrock:</strong> Runaway synthesis loop
+could burn budget. <strong>Mitigation:</strong> Budget gate is the
+primary defense. Additionally, set Bedrock service quotas as a hard
+backstop.</li>
+<li><strong>NAT Gateway cost (Phase 5):</strong> NAT Gateway charges
+$0.045/hr ($33/month) + data processing fees.
+<strong>Mitigation:</strong> Use VPC Gateway Endpoint for DynamoDB
+(free). Consider keeping the Cloud Map + VPC Link approach instead of
+ALB if low traffic persists.</li>
+</ul>
+<h3 id="monthly-aws-cost-estimate-us-east-1">13. Monthly AWS Cost
+Estimate (us-east-1)</h3>
+<p>Assumptions: 5 tickers, ingestion every 15 min during market hours
+(6.5 hrs/day, 22 trading days/month = 572 runs/month), low API consumer
+traffic (10,000 requests/month).</p>
+<h4 id="per-service-breakdown">Per-Service Breakdown</h4>
+<p><strong>Compute – ECS Fargate</strong></p>
+<ul>
+<li>0.5 vCPU at $0.04048/hr = $14.78/mo (24/7)</li>
+<li>1 GB RAM at $0.004445/hr = $3.24/mo (24/7)</li>
+<li><strong>Subtotal: $18.02/mo</strong> running 24/7</li>
+<li>Optimized (market hours only, 143 hrs/mo): $3.53/mo</li>
+</ul>
+<p><strong>Networking – NAT Gateway</strong> (Phase 5 only)</p>
+<ul>
+<li>Hourly charge: $0.045/hr x 730 hrs = $32.85/mo</li>
+<li>Data processing: $0.045/GB x 2 GB = $0.09/mo</li>
+<li><strong>Subtotal: $32.94/mo</strong> (runs 24/7 regardless of
+traffic)</li>
+</ul>
+<p><strong>Networking – Application Load Balancer</strong> (Phase 5
+only)</p>
+<ul>
+<li>Base charge: $0.0225/hr x 730 hrs = $16.43/mo</li>
+<li>LCU charges at low traffic: $1-2/mo</li>
+<li><strong>Subtotal: $18.00/mo</strong></li>
+</ul>
+<p><strong>AI – AWS Bedrock (Claude 3 Haiku)</strong></p>
+<ul>
+<li>Input tokens: 1,500 tokens/request x 572 runs = 858K tokens/mo x
+$0.00025/1K = $0.21/mo</li>
+<li>Output tokens: 200 tokens/request x 572 runs = 114K tokens/mo x
+$0.00125/1K = $0.14/mo</li>
+<li><strong>Subtotal: $0.35/mo</strong> (with $5/day budget cap as
+safety net = max $110/mo)</li>
+</ul>
+<p><strong>Storage – DynamoDB (on-demand)</strong></p>
+<ul>
+<li>Write requests: 2,860 writes/mo (5 tickers x 572 runs) x
+$1.25/million = $0.004/mo</li>
+<li>Read requests: 10,000 API reads/mo x $0.25/million = $0.003/mo</li>
+<li>Storage: less than 1 MB total = $0.00/mo</li>
+<li><strong>Subtotal: $0.01/mo</strong> (essentially free at this
+scale)</li>
+</ul>
+<p><strong>API Gateway (HTTP API)</strong></p>
+<ul>
+<li>API calls: 10,000 requests/mo x $1.00/million = $0.01/mo</li>
+<li><strong>Subtotal: $0.01/mo</strong></li>
+</ul>
+<p><strong>Cloud Map (Phases 1-4, replaced by ALB in Phase
+5)</strong></p>
+<ul>
+<li>Service discovery: $0.10/mo per namespace + $0.10 per million
+queries</li>
+<li><strong>Subtotal: $0.10/mo</strong></li>
+</ul>
+<p><strong>Secrets Manager</strong></p>
+<ul>
+<li>1 secret x $0.40/secret/mo = $0.40</li>
+<li>API calls: $0.05/mo</li>
+<li><strong>Subtotal: $0.45/mo</strong></li>
+</ul>
+<p><strong>CloudWatch</strong></p>
+<ul>
+<li>Log ingestion: 1 GB/mo x $0.50/GB = $0.50</li>
+<li>Custom metrics: 5 metrics x $0.30/metric = $1.50</li>
+<li>Alarms: 3 alarms x $0.10/alarm = $0.30</li>
+<li><strong>Subtotal: $2.30/mo</strong></li>
+</ul>
+<p><strong>ECR (Container Registry)</strong></p>
+<ul>
+<li>Image storage: 500 MB x $0.10/GB = $0.05/mo</li>
+<li><strong>Subtotal: $0.05/mo</strong></li>
+</ul>
+<p><strong>VPC Endpoints (Phase 5, optional cost savers)</strong></p>
+<ul>
+<li>DynamoDB Gateway Endpoint: <strong>FREE</strong> (saves NAT data
+processing fees)</li>
+<li>Secrets Manager Interface Endpoint: $7.30/mo</li>
+<li>Bedrock Interface Endpoint: $7.30/mo</li>
+</ul>
+<hr />
+<h4 id="phases-1-4-development-cost-public-subnet-no-alb-no-nat">Phases
+1-4: Development Cost (public subnet, no ALB, no NAT)</h4>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Always-On 24/7</th>
+<th>Market-Hours Only</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ECS Fargate</td>
+<td>$18.02</td>
+<td>$3.53</td>
+</tr>
+<tr>
+<td>Bedrock (AI)</td>
+<td>$0.35</td>
+<td>$0.35</td>
+</tr>
+<tr>
+<td>DynamoDB</td>
+<td>$0.01</td>
+<td>$0.01</td>
+</tr>
+<tr>
+<td>API Gateway</td>
+<td>$0.01</td>
+<td>$0.01</td>
+</tr>
+<tr>
+<td>Cloud Map</td>
+<td>$0.10</td>
+<td>$0.10</td>
+</tr>
+<tr>
+<td>Secrets Manager</td>
+<td>$0.45</td>
+<td>$0.45</td>
+</tr>
+<tr>
+<td>CloudWatch</td>
+<td>$2.30</td>
+<td>$2.30</td>
+</tr>
+<tr>
+<td>ECR</td>
+<td>$0.05</td>
+<td>$0.05</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>$21/mo</strong></td>
+<td><strong>$7/mo</strong></td>
+</tr>
+</tbody>
+</table>
+<h4 id="phase-5-production-cost-private-subnet-nat-alb">Phase 5:
+Production Cost (private subnet + NAT + ALB)</h4>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Always-On 24/7</th>
+<th>Market-Hours Only</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ECS Fargate</td>
+<td>$18.02</td>
+<td>$3.53</td>
+</tr>
+<tr>
+<td>NAT Gateway</td>
+<td>$32.94</td>
+<td>$32.94</td>
+</tr>
+<tr>
+<td>ALB</td>
+<td>$18.00</td>
+<td>$18.00</td>
+</tr>
+<tr>
+<td>Bedrock (AI)</td>
+<td>$0.35</td>
+<td>$0.35</td>
+</tr>
+<tr>
+<td>DynamoDB</td>
+<td>$0.01</td>
+<td>$0.01</td>
+</tr>
+<tr>
+<td>API Gateway</td>
+<td>$0.01</td>
+<td>$0.01</td>
+</tr>
+<tr>
+<td>Secrets Manager</td>
+<td>$0.45</td>
+<td>$0.45</td>
+</tr>
+<tr>
+<td>CloudWatch</td>
+<td>$2.30</td>
+<td>$2.30</td>
+</tr>
+<tr>
+<td>ECR</td>
+<td>$0.05</td>
+<td>$0.05</td>
+</tr>
+<tr>
+<td><strong>TOTAL</strong></td>
+<td><strong>$72/mo</strong></td>
+<td><strong>$58/mo</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key takeaway:</strong> By deferring NAT Gateway ($33/mo) and
+ALB ($18/mo) to Phase 5, development runs at just
+<strong>$21/mo</strong> (or <strong>$7/mo</strong> with market-hours
+scaling) – a $51/mo saving. The actual variable costs (Bedrock at
+$0.35/mo, DynamoDB at $0.01/mo) are negligible. The dominant cost during
+development is the Fargate task itself.</p>
+<p><strong>Cost reduction levers:</strong></p>
+<ul>
+<li><strong>Scale Fargate to 0</strong> outside market hours via ECS
+Scheduled Scaling – saves $14.50/mo (biggest lever in Phases 1-4).</li>
+<li><strong>AWS Free Tier</strong> (first 12 months): DynamoDB gets 25
+GB + 25 WCU/RCU free, API Gateway gets 1M HTTP API calls/mo free.</li>
+<li>In Phase 5: Use <strong>VPC Endpoints</strong> for DynamoDB (free)
+and Secrets Manager ($7.30/mo) to reduce NAT data processing fees.</li>
+<li>In Phase 5: Consider keeping Cloud Map + VPC Link instead of ALB to
+save $18/mo permanently if traffic stays low.</li>
+</ul>
+</body>
+</html>
