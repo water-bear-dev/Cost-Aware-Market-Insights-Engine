@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Market Insights Engine</title>
+    <!-- Premium Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    <div class="background-glob"></div>
+    <div class="background-glob blur-globe"></div>
+
+    <div class="dashboard-container">
+        
+        <header class="header">
+            <div class="header-logo">
+                <div class="logo-icon"></div>
+                <h1>Market Insights Engine</h1>
+            </div>
+            <div class="health-indicator">
+                <div class="dot" id="db-health-dot"></div>
+                <span id="db-health-text">Checking System...</span>
+            </div>
+        </header>
+
+        <section class="finops-board">
+            <h2>Financial Operations (FinOps)</h2>
+            <div class="metrics-grid">
+                <div class="metric-card glass">
+                    <p class="metric-label">Daily Budget</p>
+                    <h3 class="metric-value blur-reveal" id="budget-total">$0.00</h3>
+                </div>
+                <div class="metric-card glass">
+                    <p class="metric-label">Current AI Spend</p>
+                    <h3 class="metric-value blur-reveal text-gradient" id="budget-spend">$0.00</h3>
+                </div>
+                <div class="metric-card glass w-large">
+                    <p class="metric-label">Budget Utilization</p>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="budget-progress"></div>
+                    </div>
+                    <p class="metric-subtext"><span id="budget-remaining">$0.00</span> Remaining</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="insights-board">
+            <h2>Synthesized AI Insights <span class="badge" id="ticker-count">0 Tracked</span></h2>
+            <div class="insights-grid" id="insights-container">
+                <!-- Data cards injected via JS -->
+            </div>
+        </section>
+
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

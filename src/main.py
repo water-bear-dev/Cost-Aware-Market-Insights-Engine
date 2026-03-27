@@ -2,6 +2,11 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 import structlog
+import os
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from src.clients.dynamo import init_tables
 from src.routes import health, insights, costs
@@ -39,6 +44,21 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 app = FastAPI(title="AI Market Insights Engine", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+def serve_dashboard():
+    return FileResponse("static/index.html")
 
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(insights.router, prefix="/api/v1")

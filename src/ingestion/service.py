@@ -4,11 +4,29 @@ import hashlib
 import structlog
 from decimal import Decimal
 import json
+import httpx
+import xml.etree.ElementTree as ET
 
 from src.config import settings
 from src.clients.dynamo import get_table
 
 logger = structlog.get_logger(__name__)
+
+def fetch_top_headline(ticker: str) -> str:
+    """Fetches the top aggregated headline for a ticker from Google News RSS."""
+    try:
+        url = f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
+        response = httpx.get(url, timeout=5.0)
+        response.raise_for_status()
+        
+        root = ET.fromstring(response.text)
+        item = root.find('.//item/title')
+        if item is not None and item.text:
+            return item.text
+        return None
+    except Exception as e:
+        logger.error("Failed to fetch Google News RSS", ticker=ticker, error=str(e))
+        return None
 
 def fetch_ticker_data(ticker_symbol: str) -> dict:
     try:
@@ -23,8 +41,12 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
         
         # News is an attribute of the Ticker object
         try:
-            news = ticker.news
-            headlines = [n.get('title', '') for n in news[:5]] if news else []
+            top_headline = fetch_top_headline(ticker_symbol)
+            if top_headline:
+                headlines = [top_headline]
+            else:
+                news = ticker.news
+                headlines = [n.get('title', '') for n in news[:1]] if news else []
         except Exception:
             headlines = []
             

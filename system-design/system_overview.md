@@ -6,7 +6,7 @@ todos:
     content: "Phase 1a: Scaffold project structure (Dockerfile, docker-compose.yml, requirements.txt)"
     status: done
   - id: phase1-local-mvp
-    content: "Phase 1b: Implement fully local MVP (yfinance, local DynamoDB, mock AI synthesis, local cost tracking)"
+    content: "Phase 1b: Implement fully local MVP (yfinance, Google News RSS, local DynamoDB, mock AI synthesis, local cost tracking)"
     status: pending
   - id: phase2-aws-infra
     content: "Phase 2a: CloudFormation for VPC, ECS Fargate, ECR, DynamoDB on AWS, deploy MVP securely"
@@ -124,7 +124,7 @@ timeline
     title Project Implementation Milestones
     Milestone 1 : Fully Local MVP
                 : Docker + FastAPI setup
-                : yfinance ingestion
+                : yfinance + Google News RSS
                 : Local DynamoDB
                 : Mock AI & Cost Tracking
     Milestone 2 : AWS Services & Cloud MVP
@@ -147,7 +147,7 @@ timeline
 **Goal:** Establish a 100% locally-executable version of the Engine before touching AWS infrastructure.
 **Deliverables:**
 - Dockerized FastAPI application with APScheduler.
-- `yfinance` integration to fetch market data and news headlines.
+- `yfinance` integration for market data, and Google News RSS aggregation for live headlines.
 - Local DynamoDB integration via `docker-compose`.
 - Local AI insight simulation (mocking) and stubbed cost tracking mechanism.
 - Working `/api/v1/health`, `/api/v1/insights`, and `/api/v1/costs` endpoints locally.
