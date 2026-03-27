@@ -11,7 +11,7 @@ services:
       - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
-      - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8000
+      - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8001
       - DAILY_BUDGET_USD=5.00
       - TICKERS=AAPL,MSFT,GOOGL,AMZN,META
     depends_on:
