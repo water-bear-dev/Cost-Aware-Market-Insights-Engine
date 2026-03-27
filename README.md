@@ -62,6 +62,6 @@ To run Phase 1 of the engine entirely locally, you must have `Docker` installed 
 
 ## Phased Rollout Roadmap
 - **[COMPLETE] Phase 1**: Fully Local MVP - Built the architecture entirely on local hardware implementing mock Bedrock requests and a local Dynamo store to validate the FinOps architecture without spending a dime in actual AWS fees. 
-- **[PENDING] Phase 2**: AWS Services Integration - Tying directly into AWS Bedrock (Claude-3-Haiku) to flip the mock engine into actual AI comprehension, deployed via ECS Fargate.
+- **[COMPLETE] Phase 2**: AWS Services Integration - Developed AWS CloudFormation templates to scaffold the VPC, ECR, and ECS Fargate cluster. Built Python logic utilizing `boto3` to hit Anthropics' Claude-3-Haiku. Run `./scripts/deploy.sh` to scaffold your AWS environment!
 - **[PENDING] Phase 3**: Cost Control Hardening - Advancing FinOps to use CloudWatch Custom metrics and AWS alarms.
 - **[PENDING] Phase 4**: Production Hardening - Locking down traffic using Private Subnets, NAT Gateways, ALBs, and robust VPC Endpoints.

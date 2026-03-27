@@ -1,6 +1,8 @@
 from datetime import datetime
 import structlog
 from decimal import Decimal
+import json
+import boto3
 from boto3.dynamodb.conditions import Key
 from src.clients.dynamo import get_table
 from src.cost_tracking.service import check_budget, log_cost
@@ -51,18 +53,53 @@ def synthesize_insights():
             logger.warning("Skipping synthesis due to budget", ticker=ticker)
             continue
             
-        input_tokens = 900
-        output_tokens = 85
-        
         headlines = latest_data.get('headlines', [])
         headline_text = headlines[0] if headlines else 'No news'
         
-        insight_text = (
-            f"[MOCK INSIGHT] {ticker} closed at ${float(latest_data.get('close_price', 0)):.2f} "
-            f"({float(latest_data.get('change_pct', 0)):.2f}%). "
-            f"Top headline: '{headline_text}'. "
-            "This is a mocked sentence replacing Bedrock's generation for local testing."
-        )
+        if getattr(settings, 'use_mock_ai', True):
+            input_tokens = 900
+            output_tokens = 85
+            insight_text = (
+                f"[MOCK INSIGHT] {ticker} closed at ${float(latest_data.get('close_price', 0)):.2f} "
+                f"({float(latest_data.get('change_pct', 0)):.2f}%). "
+                f"Top headline: '{headline_text}'. "
+                "This is a mocked sentence replacing Bedrock's generation for local testing."
+            )
+            model_used = 'local-mock'
+        else:
+            try:
+                bedrock = boto3.client('bedrock-runtime', region_name=settings.AWS_DEFAULT_REGION)
+                prompt = (
+                    f"Analyze the following stock data and headline. Provide a concise 2-sentence market insight.\n"
+                    f"Ticker: {ticker}\nClose: ${float(latest_data.get('close_price', 0)):.2f}\n"
+                    f"Change: {float(latest_data.get('change_pct', 0)):.2f}%\nHeadline: {headline_text}"
+                )
+                
+                body = {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 150,
+                    "messages": [
+                        {"role": "user", "content": [{"type": "text", "text": prompt}]}
+                    ]
+                }
+                
+                response = bedrock.invoke_model(
+                    modelId="anthropic.claude-3-haiku-20240307-v1:0",
+                    contentType="application/json",
+                    accept="application/json",
+                    body=json.dumps(body)
+                )
+                
+                response_body = json.loads(response.get('body').read())
+                insight_text = response_body.get('content')[0].get('text')
+                input_tokens = response_body.get('usage', {}).get('input_tokens', 0)
+                output_tokens = response_body.get('usage', {}).get('output_tokens', 0)
+                model_used = "anthropic.claude-3-haiku-20240307-v1:0"
+                
+            except Exception as e:
+                logger.error("Bedrock invocation failed", ticker=ticker, error=str(e))
+                continue
+
         
         cost_record = log_cost(ticker, input_tokens, output_tokens)
         cost_to_record = cost_record['actual_cost_usd'] if cost_record else Decimal('0.0')
@@ -75,7 +112,7 @@ def synthesize_insights():
             'timestamp': timestamp,
             'generated_at': timestamp,
             'insight_text': insight_text,
-            'model_used': 'local-mock',
+            'model_used': model_used,
             'input_tokens': input_tokens,
             'output_tokens': output_tokens,
             'cost_usd': cost_to_record,

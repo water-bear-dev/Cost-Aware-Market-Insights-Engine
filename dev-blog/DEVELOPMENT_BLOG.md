@@ -44,3 +44,16 @@ While `yfinance` provides excellent ticker pricing data, we wanted the Insights 
 We updated `src/ingestion/service.py` to ping the Google News RSS feed for each ticker during the ingestion cycle. We parse the XML tree using the built-in `xml.etree.ElementTree` to extract the single most relevant aggregated headline from top financial publishers (Bloomberg, Reuters, CNBC, etc.) across the web.
 
 This unified headline is then packaged into the DynamoDB `MarketData` item and injected directly into our Phase 1 mock-synthesis response, displaying live news straight on the frontend dashboard without spending a dime on paid news APIs.
+
+## Entry 5: Bridging the Cloud MVP via Bedrock and CloudFormation
+
+*Date: 2026-03-27*
+
+Phase 2 officially pulls the Insights Engine into AWS! Since our foundational local FinOps budget gates were successfully tested in Phase 1, we aggressively updated `src/synthesis/service.py` to implement the `boto3` Bedrock Runtime client. The Python service now automatically packs our aggregated Yahoo Finance / Google News context into an Anthropic Messages API payload, invoking `anthropic.claude-3-haiku-20240307-v1:0` to synthesize stunning, concise market updates. 
+
+Furthermore, we shifted the architecture off Docker Desktop into Infrastructure-as-Code. We created `infra/cloudformation.yml` defining exactly what the application needs to run in the cloud. We implemented `scripts/deploy.sh` to package, push, and stack the environment gracefully in a single terminal click!
+
+**Lessons from the Cloud:** 
+Deployment isn't always linear. We hit two real-world AWS hurdles that we quickly pivoted to solve:
+1. **STS Global Endpoints:** Our local terminal environment had trouble resolving global AWS endpoints. Setting an explicit `--region us-east-1` for identity checks solved the connection stall.
+2. **ECS Service Linked Roles:** We discovered that in fresh AWS accounts, the `AWSServiceRoleForECS` must be propagated before CloudFormation can successfully spin up Fargate clusters. We verified the role's existence and purged the failed "dead" stack to allow a clean, successful retry.
