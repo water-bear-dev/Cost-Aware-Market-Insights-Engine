@@ -165,6 +165,8 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:Query
                   - dynamodb:UpdateItem
+                  - dynamodb:ListTables
+                  - dynamodb:DescribeTable
                 Resource: "*"
 
   # ECS Cluster & Task
@@ -193,6 +195,9 @@ Resources:
       NetworkMode: awsvpc
       RequiresCompatibilities:
         - FARGATE
+      RuntimePlatform:
+        CpuArchitecture: ARM64
+        OperatingSystemFamily: LINUX
       Cpu: 512
       Memory: 1024
       ExecutionRoleArn: !GetAtt EcsTaskExecutionRole.Arn
@@ -212,10 +217,9 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Sub "/ecs/${EnvironmentName}"
+              awslogs-group: !Ref LogGroup
               awslogs-region: !Ref "AWS::Region"
               awslogs-stream-prefix: ecs
-              awslogs-create-group: "true"
 
   ECSService:
     Type: AWS::ECS::Service
@@ -233,6 +237,13 @@ Resources:
           Subnets:
             - !Ref PublicSubnet1
             - !Ref PublicSubnet2
+
+  # Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/ecs/${EnvironmentName}"
+      RetentionInDays: 7
 
 Outputs:
   ClusterName:

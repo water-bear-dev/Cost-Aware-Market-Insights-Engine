@@ -68,7 +68,7 @@ def synthesize_insights():
             model_used = 'local-mock'
         else:
             try:
-                bedrock = boto3.client('bedrock-runtime', region_name=settings.AWS_DEFAULT_REGION)
+                bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
                 prompt = (
                     f"Analyze the following stock data and headline. Provide a concise 2-sentence market insight.\n"
                     f"Ticker: {ticker}\nClose: ${float(latest_data.get('close_price', 0)):.2f}\n"
