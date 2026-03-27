@@ -1,0 +1,49 @@
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from apscheduler.schedulers.background import BackgroundScheduler
+import structlog
+
+from src.clients.dynamo import init_tables
+from src.routes import health, insights, costs
+from src.ingestion.service import ingest_market_data
+from src.synthesis.service import synthesize_insights
+
+logger = structlog.get_logger(__name__)
+
+scheduler = BackgroundScheduler()
+
+def scheduled_job():
+    logger.info("Running scheduled ingestion and synthesis Job")
+    try:
+        if ingest_market_data() > 0:
+            synthesize_insights()
+    except Exception as e:
+        logger.error("Job failed", error=str(e))
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    logger.info("Initializing app lifespan")
+    # Initialize DynamoDB tables safely
+    init_tables()
+    
+    # Run the job once on startup
+    scheduled_job()
+    
+    # Schedule to run every 15 minutes
+    scheduler.add_job(scheduled_job, 'interval', minutes=15)
+    scheduler.start()
+    
+    yield
+    # Shutdown
+    scheduler.shutdown()
+
+app = FastAPI(title="AI Market Insights Engine", lifespan=lifespan)
+
+app.include_router(health.router, prefix="/api/v1")
+app.include_router(insights.router, prefix="/api/v1")
+app.include_router(costs.router, prefix="/api/v1")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("src.main:app", host="0.0.0.0", port=8000, reload=True)

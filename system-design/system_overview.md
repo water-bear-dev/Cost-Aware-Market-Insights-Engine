@@ -1,36 +1,27 @@
 ---
 name: AI Market Insights Engine
-overview: Build a containerized Cost-Aware AI Market Insights Engine on AWS using ECS Fargate, DynamoDB, Bedrock, and API Gateway -- phased over 5 milestones, deferring expensive networking (NAT Gateway, ALB) to the final milestone.
+overview: Build a containerized Cost-Aware AI Market Insights Engine. Phase 1 is a fully local MVP. Phases 2-4 integrate AWS using ECS Fargate, Bedrock, DynamoDB, and API Gateway, deferring expensive networking (NAT Gateway, ALB) to Phase 4.
 todos:
   - id: phase1-scaffold
-    content: "Phase 1a: Scaffold project structure (Dockerfile, docker-compose.yml, requirements.txt, ROADMAP.md, README.md)"
+    content: "Phase 1a: Scaffold project structure (Dockerfile, docker-compose.yml, requirements.txt)"
     status: done
-  - id: phase1-ingestion
-    content: "Phase 1b: Implement data ingestion service (yfinance ticker data + news headlines, APScheduler, DynamoDB writes)"
+  - id: phase1-local-mvp
+    content: "Phase 1b: Implement fully local MVP (yfinance, local DynamoDB, mock AI synthesis, local cost tracking)"
     status: pending
-  - id: phase1-api
-    content: "Phase 1c: Implement FastAPI endpoints (/insights, /costs, /health) and Dockerfile, verify local docker-compose"
+  - id: phase2-aws-infra
+    content: "Phase 2a: CloudFormation for VPC, ECS Fargate, ECR, DynamoDB on AWS, deploy MVP securely"
     status: pending
-  - id: phase2-cloudformation
-    content: "Phase 2a: Write CloudFormation template for VPC public subnet, ECS Fargate (public IP), ECR repository, security groups"
+  - id: phase2-aws-bedrock
+    content: "Phase 2b: Integrate AWS Bedrock (Claude 3 Haiku) replacing mock AI, configure Secrets Manager"
     status: pending
-  - id: phase2-secrets
-    content: "Phase 2b: Configure Secrets Manager, IAM task role with least-privilege policies, deploy container to Fargate"
+  - id: phase3-finops
+    content: "Phase 3: Add CloudWatch metrics, alarms, budget gates, and FinOps cost dashboard"
     status: pending
-  - id: phase3-bedrock
-    content: "Phase 3a: Implement AI synthesis service (prompt engineering, Bedrock invocation, context window management)"
-    status: pending
-  - id: phase3-cost-control
-    content: "Phase 3b: Implement cost tracking and budget gate (per-request logging, daily budget cap, pre-call estimation)"
-    status: pending
-  - id: phase4-observability
-    content: "Phase 4: Add CloudWatch dashboards, custom metrics, alarms, and FinOps cost dashboard endpoint"
-    status: pending
-  - id: phase5-networking
-    content: "Phase 5: Add private subnet, NAT Gateway, ALB, API Gateway VPC Link -- full production networking and security hardening"
+  - id: phase4-networking
+    content: "Phase 4: Add private subnet, NAT Gateway, ALB, full production networking hardening"
     status: pending
   - id: cicd
-    content: "CI/CD: GitHub Actions workflow for lint, test, docker build, push to ECR, deploy CloudFormation"
+    content: "CI/CD: GitHub Actions workflow for lint, test, docker build, push to ECR"
     status: pending
 isProject: false
 ---
@@ -45,7 +36,7 @@ A Dockerized Python (FastAPI) application running on **ECS Fargate**, persisting
 
 Development is split into two architecture stages: **Phases 1-4** use a simplified public-subnet deployment to minimize cost during development, and **Phase 5** adds production-grade networking (private subnet, NAT Gateway, ALB).
 
-#### Phases 1-4: Development Architecture (public subnet, no ALB/NAT)
+#### Phases 2-3: Development Architecture (public subnet, no ALB/NAT)
 
 ```mermaid
 flowchart TB
@@ -78,7 +69,7 @@ flowchart TB
 
 
 
-**Phases 1-4 request flow:**
+**Phases 2-3 request flow:**
 
 ```
 Internet --> API Gateway --> VPC Link (Cloud Map) --> Fargate (public subnet, public IP)
@@ -90,7 +81,7 @@ Internet --> API Gateway --> VPC Link (Cloud Map) --> Fargate (public subnet, pu
 
 The container runs in a **public subnet** with `assignPublicIp: ENABLED`. It reaches external services (Yahoo Finance, Bedrock) directly through the Internet Gateway -- no NAT Gateway needed. API Gateway connects to the Fargate task via **Cloud Map service discovery** and a **VPC Link**, eliminating the need for an ALB. A security group restricts inbound traffic to only the API Gateway VPC Link.
 
-#### Phase 5: Production Architecture (private subnet + NAT + ALB)
+#### Phase 4: Production Architecture (private subnet + NAT + ALB)
 
 ```mermaid
 flowchart TB
@@ -120,84 +111,77 @@ flowchart TB
 
 
 
-Phase 5 migrates the Fargate task into a **private subnet** with no public IP. All outbound traffic routes through the **NAT Gateway**. Inbound traffic enters only through the **ALB**, fronted by API Gateway. VPC Endpoints for DynamoDB and Secrets Manager bypass the NAT for AWS service traffic.
+Phase 4 migrates the Fargate task into a **private subnet** with no public IP. All outbound traffic routes through the **NAT Gateway**. Inbound traffic enters only through the **ALB**, fronted by API Gateway. VPC Endpoints for DynamoDB and Secrets Manager bypass the NAT for AWS service traffic.
 
 ---
 
 ## Tangible Milestones & Phased Roadmap
 
-Development is structured into 5 tangible milestones. Phases 1-4 use a cost-effective public-subnet deployment (~$21/mo) to validate the core engine. Phase 5 adds production networking (~$72/mo).
+Development is structured into 4 tangible milestones. Phases 2-3 use a cost-effective public-subnet deployment (~$21/mo) to validate the core engine. Phase 4 adds production networking (~$72/mo).
 
 ```mermaid
 timeline
     title Project Implementation Milestones
-    Milestone 1 : Local Data Engine
+    Milestone 1 : Fully Local MVP
                 : Docker + FastAPI setup
                 : yfinance ingestion
                 : Local DynamoDB
-    Milestone 2 : Cloud Deployment MVP
+                : Mock AI & Cost Tracking
+    Milestone 2 : AWS Services & Cloud MVP
+                : Bedrock Claude 3 Haiku
                 : CloudFormation VPC
                 : ECS Fargate deploy
                 : API Gateway + Cloud Map
-    Milestone 3 : AI Integration
-                : Bedrock Claude 3 Haiku
-                : Prompt Engineering
+    Milestone 3 : Cost Control & FinOps
                 : Budget/Cost Gates
-    Milestone 4 : FinOps Observability
                 : CloudWatch Custom Metrics
                 : Budget Alarms
                 : Costs API Dashboard
-    Milestone 5 : Production Hardening
+    Milestone 4 : Production Hardening
                 : Private Subnets
                 : NAT Gateway & ALB
                 : VPC Endpoints
 ```
 
-### Milestone 1: Local Data Engine (The Foundation)
-**Goal:** Establish the project structure and build the data ingestion pipeline.
+### Milestone 1: Fully Local MVP (The Foundation)
+**Goal:** Establish a 100% locally-executable version of the Engine before touching AWS infrastructure.
 **Deliverables:**
 - Dockerized FastAPI application with APScheduler.
 - `yfinance` integration to fetch market data and news headlines.
 - Local DynamoDB integration via `docker-compose`.
-- Working `/api/v1/health` and `/api/v1/insights` (mocked) endpoints.
+- Local AI insight simulation (mocking) and stubbed cost tracking mechanism.
+- Working `/api/v1/health`, `/api/v1/insights`, and `/api/v1/costs` endpoints locally.
 
-**Success Criteria:** Running `docker-compose up` successfully spins up the API, and periodic console logs confirm market data is being fetched and written to local DynamoDB.
+**Success Criteria:** Running `docker-compose up` successfully spins up the API, fetches market data, generates mocked insights, and correctly tracks local mock budget constraints.
 
-### Milestone 2: Cloud Deployment MVP (The Infrastructure)
-**Goal:** Deploy the baseline application to AWS using cost-optimized architecture.
+### Milestone 2: AWS Services Integration & Cloud MVP (The Brain & Infrastructure)
+**Goal:** Integrate AWS Bedrock for AI insights and deploy the baseline application to AWS.
 **Deliverables:**
+- Bedrock `InvokeModel` integration (Claude 3 Haiku) replacing mocked AI insights.
 - CloudFormation template defining VPC (public subnets), ECS Fargate cluster, and DynamoDB tables.
 - IAM least-privilege roles and Secrets Manager configuration.
 - API Gateway configured with Cloud Map + VPC Link.
 
-**Success Criteria:** The health endpoint is publicly accessible via API Gateway, and the Fargate task runs stably in AWS without NAT Gateway or ALB costs.
+**Success Criteria:** The application returns real AI-generated summaries via Bedrock, the health endpoint is publicly accessible via API Gateway, and the Fargate task runs stably in AWS.
 
-### Milestone 3: AI Integration & Cost Control (The Brain)
-**Goal:** Connect the engine to AWS Bedrock to generate insights while strictly enforcing daily budgets.
+### Milestone 3: Cost Control & FinOps (The Guardrails)
+**Goal:** Implement enterprise-grade monitoring, budget enforcement, and cost transparency.
 **Deliverables:**
-- Bedrock `InvokeModel` integration (Claude 3 Haiku).
-- Prompt engineering for financial insight synthesis.
-- Cost tracking logic querying the `CostTracking` DynamoDB table before every Bedrock call.
-
-**Success Criteria:** The `/api/v1/insights` endpoint returns real, AI-generated summaries, and requests are correctly blocked or mocked if the simulated daily budget limit is reached.
-
-### Milestone 4: FinOps Observability (The Dashboard)
-**Goal:** Implement enterprise-grade monitoring and cost transparency.
-**Deliverables:**
+- Enforce strict CostTracking budget gates before every Bedrock call within the Cloud environment.
 - CloudWatch custom metrics (e.g., `DailyAICost`, `InsightsGenerated`).
 - CloudWatch Alarms for budget threshold breaches (80%, 100%).
-- A new `/api/v1/costs/dashboard` endpoint returning spend trends.
+- Complete FinOps dashboard output at `/api/v1/costs/dashboard`.
 
-**Success Criteria:** CloudWatch shows active metrics for AI costs, and the API successfully returns historical tracking data for the dashboard.
+**Success Criteria:** CloudWatch shows active metrics for AI costs, and requests are reliably blocked if the simulated daily budget limit is breached in production.
 
-### Milestone 5: Production Security Hardening (The Fortress)
+### Milestone 4: Production Security Hardening (The Fortress)
 **Goal:** Secure the application for production traffic by removing public IP access.
 **Deliverables:**
 - Expanded CloudFormation template including Private Subnets, NAT Gateway, and Application Load Balancer (ALB).
 - Fargate task migrated to the private subnet (`assignPublicIp: DISABLED`).
 - VPC Endpoints for DynamoDB and Secrets Manager.
 
-**Success Criteria:** The API remains fully functional via API Gateway, but the Fargate container is no longer directly accessible from internet scans, with all outbound AI traffic successfully routing via the NAT Gateway.
+**Success Criteria:** The API remains fully functional via the ALB, but the Fargate container is no longer directly accessible from internet scans, with all outbound AI traffic routing via the NAT Gateway.
 
 ---
 
@@ -418,12 +402,12 @@ flowchart LR
 - **Budget config** stored in environment variables (injected via Secrets Manager or task definition): `DAILY_BUDGET_USD=5.00`, `MONTHLY_BUDGET_USD=100.00`.
 - **Pre-call estimation:** Count prompt characters, estimate tokens (~4 chars/token), multiply by model rate.
 - **Post-call logging:** Record actual tokens from Bedrock response metadata. Calculate `cost_usd = (input_tokens * input_rate) + (output_tokens * output_rate)`.
-- **Alerts (Phase 4):** CloudWatch Alarm on custom metric `DailyAICost` -- trigger SNS notification at 80% and 100% thresholds.
+- **Alerts (Phase 3):** CloudWatch Alarm on custom metric `DailyAICost` -- trigger SNS notification at 80% and 100% thresholds.
 - **API exposure:** The `/costs` endpoint lets consumers see current spend, remaining budget, and per-request cost breakdown.
 
 ### 8. Networking & Security (The Fortress)
 
-#### Phases 1-4: Public Subnet Deployment
+#### Phases 2-3: Public Subnet Deployment
 
 ```mermaid
 flowchart TB
@@ -448,7 +432,7 @@ flowchart TB
 - **Security Group (Fargate):** Inbound 8000 from the API Gateway VPC Link only. Outbound 443 to `0.0.0.0/0` (for Yahoo Finance, Bedrock, DynamoDB, Secrets Manager).
 - **Trade-off:** The container has a public IP, which is less secure than a private subnet. Acceptable during development; hardened in Phase 5.
 
-#### Phase 5: Private Subnet Production Deployment
+#### Phase 4: Private Subnet Production Deployment
 
 ```mermaid
 flowchart TB
@@ -497,7 +481,7 @@ flowchart TB
 - The container fetches secrets at startup via `boto3` -- never stored in code, Dockerfile, or environment variables.
 - Useful for: API Gateway key rotation, any future third-party data source credentials.
 
-### 9. Observability & FinOps (Phase 4)
+### 9. Observability & FinOps (Phase 3)
 
 - **CloudWatch Logs:** Structured JSON logging from the container (use Python `structlog` or `aws-lambda-powertools` logging module).
 - **CloudWatch Container Insights:** Enable on the ECS cluster for CPU/memory/network metrics.
@@ -564,7 +548,7 @@ market-insights-engine/
 
 ### 11. Infrastructure as Code (CloudFormation)
 
-The `infrastructure/cloudformation.yaml` will define all AWS resources, parameterized to support both development (Phases 1-4) and production (Phase 5) modes.
+The `infrastructure/cloudformation.yaml` will define all AWS resources, parameterized to support both development (Phases 2-3) and production (Phase 5) modes.
 
 **Phases 1-4 resources:**
 
@@ -576,7 +560,7 @@ The `infrastructure/cloudformation.yaml` will define all AWS resources, paramete
 - **API:** API Gateway (HTTP API) with VPC Link to Cloud Map, Usage Plan + API Key
 - **Monitoring:** CloudWatch Log Group, CloudWatch Alarms (budget, health), SNS Topic for alerts
 
-**Phase 5 additions (via CloudFormation parameters or a separate stack):**
+**Phase 4 additions (via CloudFormation parameters or a separate stack):**
 
 - **Networking:** Second public subnet (AZ2), private subnet, NAT Gateway, updated route tables, DynamoDB Gateway Endpoint, Secrets Manager Interface Endpoint
 - **Compute:** Migrate Fargate to private subnet, remove assignPublicIp
@@ -590,7 +574,7 @@ CloudFormation chosen over Terraform for: native AWS integration, no state file 
 - **yfinance reliability:** Unofficial API can break without notice. **Mitigation:** Pin version, wrap in try/except, alert on consecutive failures, abstract behind an interface for future swap to a paid data source.
 - **Bedrock model availability:** Not all models available in all regions. **Mitigation:** Deploy to `us-east-1` where Bedrock has broadest model support. Parameterize model ID in config.
 - **Container cold start:** If ECS scales from 0 to 1 task, startup takes 30-60s. **Mitigation:** Keep `desiredCount: 1` during market hours; scale to 0 only overnight/weekends.
-- **Public IP exposure (Phases 1-4):** Container has a public IP in the public subnet. **Mitigation:** Security group restricts inbound to API Gateway VPC Link only. No SSH, no other ports open. Hardened in Phase 5.
+- **Public IP exposure (Phases 2-3):** Container has a public IP in the public subnet. **Mitigation:** Security group restricts inbound to API Gateway VPC Link only. No SSH, no other ports open. Hardened in Phase 5.
 - **DynamoDB hot partitions:** All reads hitting the same popular tickers. **Mitigation:** On-demand billing mode handles burst well. Only 5 tickers, so partition spread is fine.
 - **Cost overrun from Bedrock:** Runaway synthesis loop could burn budget. **Mitigation:** Budget gate is the primary defense. Additionally, set Bedrock service quotas as a hard backstop.
 - **NAT Gateway cost (Phase 5):** NAT Gateway charges $0.045/hr ($33/month) + data processing fees. **Mitigation:** Use VPC Gateway Endpoint for DynamoDB (free). Consider keeping the Cloud Map + VPC Link approach instead of ALB if low traffic persists.
@@ -669,7 +653,7 @@ Assumptions: 5 tickers, ingestion every 15 min during market hours (6.5 hrs/day,
 
 ---
 
-#### Phases 1-4: Development Cost (public subnet, no ALB, no NAT)
+#### Phases 2-3: Development Cost (public subnet, no ALB, no NAT)
 
 
 | Service         | Always-On 24/7 | Market-Hours Only |
@@ -685,7 +669,7 @@ Assumptions: 5 tickers, ingestion every 15 min during market hours (6.5 hrs/day,
 | **TOTAL**       | **$21/mo**     | **$7/mo**         |
 
 
-#### Phase 5: Production Cost (private subnet + NAT + ALB)
+#### Phase 4: Production Cost (private subnet + NAT + ALB)
 
 
 | Service         | Always-On 24/7 | Market-Hours Only |
@@ -708,6 +692,6 @@ Assumptions: 5 tickers, ingestion every 15 min during market hours (6.5 hrs/day,
 
 - **Scale Fargate to 0** outside market hours via ECS Scheduled Scaling -- saves $14.50/mo (biggest lever in Phases 1-4).
 - **AWS Free Tier** (first 12 months): DynamoDB gets 25 GB + 25 WCU/RCU free, API Gateway gets 1M HTTP API calls/mo free.
-- In Phase 5: Use **VPC Endpoints** for DynamoDB (free) and Secrets Manager ($7.30/mo) to reduce NAT data processing fees.
-- In Phase 5: Consider keeping Cloud Map + VPC Link instead of ALB to save $18/mo permanently if traffic stays low.
+- In Phase 4: Use **VPC Endpoints** for DynamoDB (free) and Secrets Manager ($7.30/mo) to reduce NAT data processing fees.
+- In Phase 4: Consider keeping Cloud Map + VPC Link instead of ALB to save $18/mo permanently if traffic stays low.
 
