@@ -64,7 +64,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
     except Exception as e:
         logger.error("Failed check for existing insight", ticker=ticker, error=str(e))
 
-    estimated_cost = 0.000375
+    estimated_cost = 0.0002  # Balanced Haiku estimation
     if not check_budget(estimated_cost):
         logger.warning("Skipping synthesis due to budget", ticker=ticker)
         return False
