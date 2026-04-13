@@ -137,6 +137,29 @@ As we wrap up the production launch, it's worth noting how the architecture adap
 2. **What Changed (The Decoupling)**: The biggest pivot was moving from **Static to Dynamic Tickers**. The initial design assumed a fixed portfolio. By introducing the `Tickers` DynamoDB table and a "Synthesis Fast-Path," we transformed the app from a passive dashboard into an interactive research engine.
 3. **The UX Filter**: Swapping the "FinOps Dashboard" (our internal pride and joy) to the secondary tab in favor of "AI Insights" was the final lesson in user-centric design—making the tool's value proposition visible at the very first frame.
 
+### Entry 11: The Bedrock Blindspot — A CloudWatch Confession
+*Date: 2026-04-13*
+
+After the production launch, the UI kept showing **"Awaiting AI Synthesis"** despite the deployment being confirmed healthy. A CloudWatch log pull revealed the culprit immediately:
+
+```
+AccessDeniedException: Model access is denied due to IAM user or service role is not authorized
+to perform the required AWS Marketplace actions (aws-marketplace:ViewSubscriptions,
+aws-marketplace:Subscribe)
+```
+
+**The trap**: The AWS Bedrock "Model Access" subscription page has been retired — serverless foundation models are now auto-enabled. However, Bedrock still internally validates two `aws-marketplace` IAM actions when calling Anthropic models. These aren't listed prominently in Bedrock's own docs, so it's easy to miss.
+
+**The IAM policy only had `bedrock:InvokeModel`. It needed three more:**
+- `aws-marketplace:ViewSubscriptions`
+- `aws-marketplace:Subscribe`
+- `aws-marketplace:Unsubscribe`
+
+**Two-part fix applied:**
+1. Updated `infra/cloudformation.yml` to add the three marketplace permissions to the ECS Task Role.
+2. Added a synthesis fallback in `service.py` — if Bedrock still denies (e.g. during IAM propagation), the engine generates a data-driven insight from live price + headline data rather than returning nothing. The UI stays populated no matter what.
+
+This is the kind of "invisible wall" that only shows up in production logs — it underscores why **CloudWatch log access is a first-class concern** in any cloud-native deployment.
+
 ---
 *Project Concluded - Managed by Antigravity*
-

@@ -229,6 +229,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
                   - dynamodb:PutItem
                   - dynamodb:GetItem
                   - dynamodb:Query
@@ -237,6 +238,9 @@ Resources:
                   - dynamodb:ListTables
                   - dynamodb:DescribeTable
                   - cloudwatch:PutMetricData
+                  - aws-marketplace:ViewSubscriptions
+                  - aws-marketplace:Subscribe
+                  - aws-marketplace:Unsubscribe
                 Resource: "*"
 
   # ECS Cluster & Task

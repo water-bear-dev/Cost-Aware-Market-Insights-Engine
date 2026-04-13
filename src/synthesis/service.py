@@ -113,8 +113,32 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             model_used = "anthropic.claude-3-haiku-20240307-v1:0"
             
         except Exception as e:
-            logger.error("Bedrock invocation failed", ticker=ticker, error=str(e))
-            return False
+            error_str = str(e)
+            logger.error("Bedrock invocation failed", ticker=ticker, error=error_str)
+            
+            # Graceful fallback: if model access not yet subscribed, generate a
+            # data-driven mock insight so the UI never shows "Awaiting Synthesis"
+            if "AccessDeniedException" in error_str or "aws-marketplace" in error_str:
+                logger.warning(
+                    "Bedrock model access not yet enabled. "
+                    "Visit AWS Console > Bedrock > Model Access to enable Claude 3 Haiku. "
+                    "Falling back to data-driven mock insight.",
+                    ticker=ticker
+                )
+                price = float(latest_data.get('close_price', 0))
+                change = float(latest_data.get('change_pct', 0))
+                direction = "gained" if change >= 0 else "lost"
+                sentiment = "positive" if change >= 0 else "cautious"
+                insight_text = (
+                    f"[Data Insight] {ticker} {direction} {abs(change):.2f}% to ${price:.2f}. "
+                    f"Market data is live — full AI synthesis will activate once Bedrock model access is enabled in the AWS Console. "
+                    f"Top headline: '{headline_text}'."
+                )
+                input_tokens = 0
+                output_tokens = 0
+                model_used = "data-fallback"
+            else:
+                return False
 
     cost_record = log_cost(ticker, input_tokens, output_tokens)
     cost_to_record = cost_record['actual_cost_usd'] if cost_record else Decimal('0.0')
