@@ -164,5 +164,54 @@ This is the kind of "invisible wall" that only shows up in production logs — i
 **✅ Verified Live — 2026-04-13 17:45 (ICT)**
 After deploying the CloudFormation fix, we ran `check_iam.py` (a boto3 verification script) directly against the live AWS account and confirmed all 13 permissions are active on role `market-insights-stack-EcsTaskRole-wV7qUFUhzNOJ`. The new ECS task (`c2b954b5967142fcb3cf896d22bc6d95`) is running with the corrected policy — Bedrock synthesis will fire on the next 5-minute cron cycle.
 
+### Entry 12: Bloomberg on a Budget — The v2 UI Overhaul
+*Date: 2026-04-13*
+
+With the Bedrock IAM fix confirmed, we turned our attention to what the market insights engine *feels* like to use. The v1 UI was functional, but the v2 goal was ambitious: **Bloomberg Terminal-grade interactivity on a sub-$5/day AI budget**.
+
+**The UX Philosophy Behind Each Feature:**
+
+1. **Async Diff-Patch Rendering** — The original design re-rendered every card from scratch every 15 seconds. On a slow connection this caused an ugly flash. The fix was a diff-and-patch renderer: we maintain a `lastMarketData` snapshot and only touch DOM nodes that have actually changed. The result is silky-smooth background updates.
+
+2. **The Delete Button** — One of the most-requested UX patterns in dashboards. `DELETE /api/v1/tickers/{ticker}` now cascades: it removes from the Tickers table, scrubs MarketData rows, and purges Insights. The card fades out over 300ms. No page reload.
+
+3. **Buy/Hold/Sell Signal** — We updated the Claude prompt to end every synthesis with `SIGNAL: BUY|HOLD|SELL`. This turns Claude from a *narrator* into a *trader*. The signal is parsed, stored in DynamoDB, and rendered as a green/grey/red pill next to the ticker name — the first thing a user reads.
+
+4. **The Expandable Modal** — Single biggest UX lift. Clicking any card opens a modal with a full interactive line chart (powered by Chart.js), a period selector (1D through MAX), key financials (52W high/low, P/E, market cap) and an analyst consensus bar fetched live from `yfinance`. The backdrop blurs the dashboard behind it for focus.
+
+5. **Batch Synthesis on Load** — Previously, the only way insights were generated was via the 5-minute cron or when a new ticker was manually added. Now, on every page load, we check for tickers with stale insights (>10 minutes old) and silently fire `POST /api/v1/tickers/{ticker}/synthesize` in the background. All tickers stay perpetually fresh.
+
+6. **Zoom Controls** — Simple but high-impact for power users tracking many tickers at once. CSS `transform: scale()` with a smooth transition handles it cleanly.
+
+**Stack Note:** All of this was achieved without adding any new npm packages or backend frameworks. The entire upgrade runs on the existing Fargate pod — zero infrastructure cost delta.
+
+### Entry 13: The Dedup Blindspot — Ensuring Full-Portfolio AI Coverage
+*Date: 2026-04-13*
+
+After the v2.0.0 UI rollout, we noticed a subtle but important gap: **only one ticker was getting AI synthesis** even though the batch trigger was firing. The root cause was a logic error in `triggerBatchSynthesis()`:
+
+```js
+// BEFORE (broken) — only checks staleness by time
+const isStale = !insight || (now - insight.timestamp) > TEN_MINUTES_MS;
+```
+
+Tickers that previously had a `data-fallback` or `local-mock` insight (generated before Bedrock was healthy) had a **recent timestamp** — they were synthesized during the IAM fix window. The stale check treated them as fresh and skipped them entirely.
+
+**The fix** adds a third condition — `needsRealAI`:
+
+```js
+// AFTER (fixed)
+const needsRealAI = insight && (
+    insight.model_used === 'data-fallback' || insight.model_used === 'local-mock'
+);
+if (hasNoInsight || isStale || needsRealAI) { ... }
+```
+
+This means on every page load, any ticker that hasn't yet received genuine Claude synthesis gets queued for a re-run — regardless of how recently the fallback ran.
+
+We also added **800ms staggered delays** between batch requests (`setTimeout(() => fetch(...), delay * 800)`) to avoid simultaneously invoking Bedrock for 8–10 tickers at once, which risked throttling errors and disrupted the per-request budget gate logic.
+
+**Lesson:** Deduplication logic that checks timestamps is fragile when the data it's deduplicating can come from fundamentally different sources (fallback vs. real AI). The fix is to also check *what generated the insight*, not just *when*.
+
 ---
 *Project Concluded - Managed by Antigravity*

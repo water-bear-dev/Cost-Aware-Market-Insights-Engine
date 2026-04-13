@@ -2,8 +2,11 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from src.clients.dynamo import get_table
 from src.ingestion.service import get_active_tickers, force_ingest_single_ticker
+from boto3.dynamodb.conditions import Key
+import structlog
 
 router = APIRouter()
+logger = structlog.get_logger(__name__)
 
 class TickerRequest(BaseModel):
     ticker: str
@@ -32,6 +35,73 @@ def add_ticker(req: TickerRequest):
             raise HTTPException(status_code=400, detail=f"Failed to fetch market data for {ticker}")
             
         return {"status": "added", "ticker": ticker}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/tickers/{ticker}")
+def delete_ticker(ticker: str):
+    """Remove a ticker from the watchlist and clean up its data."""
+    ticker = ticker.upper().strip()
+    
+    try:
+        # Remove from Tickers table
+        tickers_table = get_table('Tickers')
+        tickers_table.delete_item(Key={'ticker': ticker})
+        
+        # Clean up latest MarketData for this ticker
+        try:
+            market_table = get_table('MarketData')
+            response = market_table.query(
+                KeyConditionExpression=Key('ticker').eq(ticker)
+            )
+            for item in response.get('Items', []):
+                market_table.delete_item(Key={'ticker': item['ticker'], 'timestamp': item['timestamp']})
+        except Exception as e:
+            logger.warning("Could not clean up MarketData", ticker=ticker, error=str(e))
+        
+        # Clean up Insights for this ticker
+        try:
+            insights_table = get_table('Insights')
+            response = insights_table.query(
+                KeyConditionExpression=Key('ticker').eq(ticker)
+            )
+            for item in response.get('Items', []):
+                insights_table.delete_item(Key={'ticker': item['ticker'], 'timestamp': item['timestamp']})
+        except Exception as e:
+            logger.warning("Could not clean up Insights", ticker=ticker, error=str(e))
+        
+        logger.info("Ticker deleted", ticker=ticker)
+        return {"status": "deleted", "ticker": ticker}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/tickers/{ticker}/synthesize")
+def synthesize_ticker(ticker: str):
+    """Trigger immediate AI synthesis for a specific ticker."""
+    ticker = ticker.upper().strip()
+    
+    try:
+        market_table = get_table('MarketData')
+        response = market_table.query(
+            KeyConditionExpression=Key('ticker').eq(ticker),
+            ScanIndexForward=False,
+            Limit=1
+        )
+        items = response.get('Items', [])
+        if not items:
+            raise HTTPException(status_code=404, detail=f"No market data found for {ticker}")
+        
+        from src.synthesis.service import synthesize_single_insight
+        # Force synthesize by clearing data_hash temporarily
+        item = dict(items[0])
+        item['data_hash'] = ''  # bypass the dedup check
+        result = synthesize_single_insight(item)
+        
+        return {"status": "synthesized" if result else "skipped", "ticker": ticker}
     except HTTPException:
         raise
     except Exception as e:

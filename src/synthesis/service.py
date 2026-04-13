@@ -9,6 +9,14 @@ from src.cost_tracking.service import check_budget, log_cost
 
 logger = structlog.get_logger(__name__)
 
+def _derive_signal(change_pct: float) -> str:
+    """Derive a simple data-driven signal when AI is unavailable."""
+    if change_pct >= 2.0:
+        return "BUY"
+    elif change_pct <= -2.0:
+        return "SELL"
+    return "HOLD"
+
 def synthesize_insights():
     logger.info("Starting AI insight synthesis")
     market_table = get_table('MarketData')
@@ -70,14 +78,16 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         return False
         
     headlines = latest_data.get('headlines', [])
-    headline_text = headlines[0] if headlines else 'No news'
+    headline_text = headlines[0] if headlines else 'No recent news'
+    change_pct = float(latest_data.get('change_pct', 0))
     
     if getattr(settings, 'use_mock_ai', True):
         input_tokens = 900
         output_tokens = 85
+        signal = _derive_signal(change_pct)
         insight_text = (
             f"[MOCK INSIGHT] {ticker} closed at ${float(latest_data.get('close_price', 0)):.2f} "
-            f"({float(latest_data.get('change_pct', 0)):.2f}%). "
+            f"({change_pct:.2f}%). "
             f"Top headline: '{headline_text}'. "
             "This is a mocked response (Cloud-compatible)."
         )
@@ -86,14 +96,18 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"Analyze the following stock data and headline. Provide a concise 2-sentence market insight.\n"
-                f"Ticker: {ticker}\nClose: ${float(latest_data.get('close_price', 0)):.2f}\n"
-                f"Change: {float(latest_data.get('change_pct', 0)):.2f}%\nHeadline: {headline_text}"
+                f"Analyze the following stock data and headline. Write a concise 2-sentence market insight.\n"
+                f"Then on a new line, output exactly one of: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n"
+                f"Base the signal on price momentum, news sentiment and market context.\n\n"
+                f"Ticker: {ticker}\n"
+                f"Close: ${float(latest_data.get('close_price', 0)):.2f}\n"
+                f"Change: {change_pct:.2f}%\n"
+                f"Headline: {headline_text}"
             )
             
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 150,
+                "max_tokens": 200,
                 "messages": [
                     {"role": "user", "content": [{"type": "text", "text": prompt}]}
                 ]
@@ -107,31 +121,41 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             )
             
             response_body = json.loads(response.get('body').read())
-            insight_text = response_body.get('content')[0].get('text')
+            full_text = response_body.get('content')[0].get('text', '')
             input_tokens = response_body.get('usage', {}).get('input_tokens', 0)
             output_tokens = response_body.get('usage', {}).get('output_tokens', 0)
             model_used = "anthropic.claude-3-haiku-20240307-v1:0"
+            
+            # Parse signal from last line
+            signal = "HOLD"  # safe default
+            lines = full_text.strip().split('\n')
+            insight_lines = []
+            for line in lines:
+                stripped = line.strip()
+                if stripped.upper().startswith("SIGNAL:"):
+                    raw_signal = stripped.upper().replace("SIGNAL:", "").strip()
+                    if raw_signal in ("BUY", "SELL", "HOLD"):
+                        signal = raw_signal
+                else:
+                    insight_lines.append(line)
+            insight_text = '\n'.join(insight_lines).strip()
             
         except Exception as e:
             error_str = str(e)
             logger.error("Bedrock invocation failed", ticker=ticker, error=error_str)
             
-            # Graceful fallback: if model access not yet subscribed, generate a
-            # data-driven mock insight so the UI never shows "Awaiting Synthesis"
+            # Graceful fallback: AccessDeniedException → data-driven insight
             if "AccessDeniedException" in error_str or "aws-marketplace" in error_str:
                 logger.warning(
-                    "Bedrock model access not yet enabled. "
-                    "Visit AWS Console > Bedrock > Model Access to enable Claude 3 Haiku. "
-                    "Falling back to data-driven mock insight.",
+                    "Bedrock model access not yet enabled. Falling back to data-driven insight.",
                     ticker=ticker
                 )
                 price = float(latest_data.get('close_price', 0))
-                change = float(latest_data.get('change_pct', 0))
-                direction = "gained" if change >= 0 else "lost"
-                sentiment = "positive" if change >= 0 else "cautious"
+                direction = "gained" if change_pct >= 0 else "lost"
+                signal = _derive_signal(change_pct)
                 insight_text = (
-                    f"[Data Insight] {ticker} {direction} {abs(change):.2f}% to ${price:.2f}. "
-                    f"Market data is live — full AI synthesis will activate once Bedrock model access is enabled in the AWS Console. "
+                    f"[Data Insight] {ticker} {direction} {abs(change_pct):.2f}% to ${price:.2f}. "
+                    f"Market data is live — full AI synthesis activates once Bedrock model access is enabled. "
                     f"Top headline: '{headline_text}'."
                 )
                 input_tokens = 0
@@ -151,6 +175,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         'timestamp': timestamp,
         'generated_at': timestamp,
         'insight_text': insight_text,
+        'signal': signal,
         'model_used': model_used,
         'input_tokens': input_tokens,
         'output_tokens': output_tokens,
@@ -161,7 +186,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
     
     try:
         insights_table.put_item(Item=item)
-        logger.info("Saved new insight", ticker=ticker)
+        logger.info("Saved new insight", ticker=ticker, signal=signal)
         
         from src.clients.cloudwatch import emit_metric
         emit_metric('InsightsGenerated', 1.0, 'Count')

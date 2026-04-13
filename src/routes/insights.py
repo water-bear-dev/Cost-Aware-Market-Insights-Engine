@@ -19,7 +19,17 @@ def get_insights(ticker: Optional[str] = None):
             items = response.get('Items', [])
             if not items:
                 raise HTTPException(status_code=404, detail="Insight not found")
-            return items[0]
+            item = items[0]
+            return {
+                "ticker": item["ticker"],
+                "timestamp": item["timestamp"],
+                "insight_text": item.get("insight_text", ""),
+                "signal": item.get("signal", "HOLD"),
+                "model_used": item.get("model_used", ""),
+                "input_tokens": int(item.get("input_tokens", 0)),
+                "output_tokens": int(item.get("output_tokens", 0)),
+                "cost_usd": float(item.get("cost_usd", 0)),
+            }
         else:
             response = table.scan()
             latest = {}
@@ -27,8 +37,20 @@ def get_insights(ticker: Optional[str] = None):
                 t = item['ticker']
                 if t not in latest or item['timestamp'] > latest[t]['timestamp']:
                     latest[t] = item
-                    
-            return list(latest.values())
+            
+            results = []
+            for item in latest.values():
+                results.append({
+                    "ticker": item["ticker"],
+                    "timestamp": item["timestamp"],
+                    "insight_text": item.get("insight_text", ""),
+                    "signal": item.get("signal", "HOLD"),
+                    "model_used": item.get("model_used", ""),
+                    "input_tokens": int(item.get("input_tokens", 0)),
+                    "output_tokens": int(item.get("output_tokens", 0)),
+                    "cost_usd": float(item.get("cost_usd", 0)),
+                })
+            return results
             
     except HTTPException:
         raise

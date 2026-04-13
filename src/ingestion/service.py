@@ -12,21 +12,55 @@ from src.clients.dynamo import get_table
 
 logger = structlog.get_logger(__name__)
 
-def fetch_top_headline(ticker: str) -> str:
-    """Fetches the top aggregated headline for a ticker from Google News RSS."""
+def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
+    """Fetches up to max_count headlines with URLs from Google News RSS."""
+    results = []
     try:
         url = f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
         response = httpx.get(url, timeout=5.0)
         response.raise_for_status()
         
         root = ET.fromstring(response.text)
-        item = root.find('.//item/title')
-        if item is not None and item.text:
-            return item.text
-        return None
+        items = root.findall('.//item')
+        
+        for item in items[:max_count]:
+            title_el = item.find('title')
+            link_el = item.find('link')
+            source_el = item.find('source')
+            pubdate_el = item.find('pubDate')
+            
+            title = title_el.text if title_el is not None else ''
+            link = link_el.text if link_el is not None else ''
+            source = source_el.text if source_el is not None else ''
+            pubdate = pubdate_el.text if pubdate_el is not None else ''
+            
+            if title:
+                results.append({
+                    'title': title,
+                    'url': link,
+                    'source': source,
+                    'published': pubdate
+                })
     except Exception as e:
         logger.error("Failed to fetch Google News RSS", ticker=ticker, error=str(e))
-        return None
+    
+    # Fallback to yfinance news if Google News returned nothing
+    if not results:
+        try:
+            t = yf.Ticker(ticker)
+            news = t.news or []
+            for n in news[:max_count]:
+                results.append({
+                    'title': n.get('title', ''),
+                    'url': n.get('link', ''),
+                    'source': n.get('publisher', ''),
+                    'published': ''
+                })
+        except Exception:
+            pass
+    
+    return results
+
 
 def fetch_ticker_data(ticker_symbol: str) -> dict:
     try:
@@ -38,18 +72,8 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             return None
             
         latest = hist.iloc[-1]
+        headlines_data = fetch_headlines(ticker_symbol, max_count=5)
         
-        # News is an attribute of the Ticker object
-        try:
-            top_headline = fetch_top_headline(ticker_symbol)
-            if top_headline:
-                headlines = [top_headline]
-            else:
-                news = ticker.news
-                headlines = [n.get('title', '') for n in news[:1]] if news else []
-        except Exception:
-            headlines = []
-            
         open_price = float(latest['Open'])
         close_price = float(latest['Close'])
         change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
@@ -62,11 +86,13 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             'close_price': close_price,
             'volume': int(latest['Volume']),
             'change_pct': change_pct,
-            'headlines': headlines
+            'headlines': [h['title'] for h in headlines_data],  # keep for synthesis compat
+            'headline_links': headlines_data  # rich format for UI
         }
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
         return None
+
 
 def get_active_tickers() -> list[str]:
     """Fetch active tickers from the DynamoDB Tickers table."""
@@ -85,6 +111,7 @@ def get_active_tickers() -> list[str]:
     except Exception as e:
         logger.error("Failed to fetch active tickers", error=str(e))
         return settings.ticker_list
+
 
 def force_ingest_single_ticker(ticker: str) -> bool:
     """Ingests data for a single ticker outside of the normal schedule."""
@@ -111,6 +138,7 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         'volume': data['volume'],
         'change_pct': Decimal(str(data['change_pct'])),
         'headlines': data['headlines'],
+        'headline_links': json.dumps(data.get('headline_links', [])),
         'data_hash': data_hash,
         'ttl': ttl
     }
@@ -126,13 +154,14 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         logger.error("Failed to force ingest ticker", ticker=ticker, error=str(e))
         return False
 
+
 def ingest_market_data():
     """Runs on a schedule to fetch and store market data."""
     logger.info("Starting market data ingestion")
     table = get_table('MarketData')
     
     timestamp = datetime.utcnow().isoformat() + "Z"
-    ttl = int(datetime.utcnow().timestamp()) + (30 * 24 * 60 * 60) # 30 days
+    ttl = int(datetime.utcnow().timestamp()) + (30 * 24 * 60 * 60)  # 30 days
     
     tickers = get_active_tickers()
     success_count = 0
@@ -144,7 +173,6 @@ def ingest_market_data():
         data_string = f"{data['ticker']}{data['close_price']}{''.join(data['headlines'])}"
         data_hash = hashlib.md5(data_string.encode()).hexdigest()
         
-        # DynamoDB uses Decimal for floats
         item = {
             'ticker': data['ticker'],
             'timestamp': timestamp,
@@ -155,6 +183,7 @@ def ingest_market_data():
             'volume': data['volume'],
             'change_pct': Decimal(str(data['change_pct'])),
             'headlines': data['headlines'],
+            'headline_links': json.dumps(data.get('headline_links', [])),
             'data_hash': data_hash,
             'ttl': ttl
         }

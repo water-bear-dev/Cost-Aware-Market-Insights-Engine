@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Market Insights Engine</title>
-    <!-- Premium Google Fonts -->
+    <meta name="description" content="Cost-aware AI-powered market insights engine with real-time synthesis, FinOps tracking, and interactive analytics.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=2">
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
 
@@ -29,9 +29,47 @@
         </header>
 
         <div class="tab-navigation">
-            <button class="tab-btn" data-tab="finops-view">FinOps Dashboard</button>
             <button class="tab-btn active" data-tab="insights-view">AI Market Insights</button>
+            <button class="tab-btn" data-tab="finops-view">FinOps Dashboard</button>
         </div>
+
+        <!-- Insights Section (PRIMARY) -->
+        <section id="insights-view" class="tab-content active">
+            <div class="insights-controls glass" style="margin-bottom: 2.5rem; padding: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
+                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" />
+                            <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
+                            <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                            <span class="badge" id="ticker-count" style="margin-left: auto;">0/10 Tracked</span>
+                        </div>
+                    </div>
+                    <!-- Zoom Controls -->
+                    <div class="zoom-controls">
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); margin-right: 0.5rem;">Zoom</span>
+                        <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out">−</button>
+                        <button class="zoom-btn" id="zoom-reset-btn" title="Reset Zoom">⊙</button>
+                        <button class="zoom-btn" id="zoom-in-btn" title="Zoom In">+</button>
+                    </div>
+                </div>
+
+                <!-- Global Portfolio Chart -->
+                <div class="chart-container" style="position: relative; height: 280px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+
+            <div class="insights-board">
+                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Trading Details &amp; AI Synthesis</h2>
+                <div class="insights-grid" id="insights-container">
+                    <div class="loading-placeholder glass" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+                        <p style="color: var(--text-secondary);">Loading market data...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- FinOps Section -->
         <section id="finops-view" class="tab-content">
@@ -76,37 +114,58 @@
             </div>
         </section>
 
-        <!-- Insights Section -->
-        <section id="insights-view" class="tab-content active">
-            <div class="insights-controls glass glow-hover" style="margin-bottom: 2.5rem; padding: 2rem;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
-                    <div>
-                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
-                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center;">
-                            <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" />
-                            <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
-                            <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
-                            <span class="badge" id="ticker-count" style="margin-left: auto;">0/10 Tracked</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Global Visualisation Chart -->
-                <div class="chart-container" style="position: relative; height: 350px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
-                    <canvas id="portfolioChart"></canvas>
-                </div>
-            </div>
-
-            <div class="insights-board">
-                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Trading Details & AI Synthesis</h2>
-                <div class="insights-grid" id="insights-container">
-                    <!-- Data cards injected via JS -->
-                </div>
-            </div>
-        </section>
-
     </div>
 
-    <script src="/static/app.js?v=2"></script>
+    <!-- Ticker Detail Modal -->
+    <div id="ticker-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-ticker-title">
+        <div class="modal-panel glass">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-ticker-title" style="font-size: 2rem; font-weight: 700;"></h2>
+                    <p id="modal-ticker-name" style="color: var(--text-secondary); font-size: 0.9rem;"></p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <span id="modal-signal-badge" class="signal-badge"></span>
+                    <button id="modal-close-btn" class="zoom-btn" style="font-size: 1.2rem;" aria-label="Close modal">✕</button>
+                </div>
+            </div>
+
+            <!-- Period Selector -->
+            <div class="period-selector" id="period-selector">
+                <button class="period-btn" data-period="1d">1D</button>
+                <button class="period-btn active" data-period="1mo">1M</button>
+                <button class="period-btn" data-period="1w">1W</button>
+                <button class="period-btn" data-period="1y">1Y</button>
+                <button class="period-btn" data-period="5y">5Y</button>
+                <button class="period-btn" data-period="max">MAX</button>
+            </div>
+
+            <!-- History Chart -->
+            <div style="position: relative; height: 300px; margin: 1rem 0;">
+                <canvas id="modal-history-chart"></canvas>
+                <div id="modal-chart-loading" class="chart-loading">Loading chart...</div>
+            </div>
+
+            <div class="modal-body">
+                <!-- Key Stats -->
+                <div id="modal-stats" class="modal-stats-grid"></div>
+
+                <!-- Analyst Ratings -->
+                <div class="modal-section">
+                    <h4>Analyst Consensus</h4>
+                    <div id="modal-analyst" class="analyst-bar-container"></div>
+                </div>
+
+                <!-- AI Insight -->
+                <div class="modal-section">
+                    <h4>AI Synthesis</h4>
+                    <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.7; font-size: 0.95rem;"></p>
+                    <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=3"></script>
 </body>
 </html>
