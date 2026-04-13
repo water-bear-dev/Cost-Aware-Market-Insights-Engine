@@ -280,7 +280,7 @@ function renderTradingViewCards(marketData, insightsData) {
             </div>
             
             <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem; margin-top: 0.5rem">
-                <p class="insight-text" style="font-size: 0.9rem">${insight ? insight.insight_text : 'Awaiting AI Synthesis over market data... this usually runs on the 15-minute cron.'}</p>
+                <p class="insight-text" style="font-size: 0.9rem">${insight ? insight.insight_text : 'Awaiting AI Synthesis over market data... this usually runs on the 5-minute cron.'}</p>
             </div>
             
             ${newsHtml}

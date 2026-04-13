@@ -119,8 +119,8 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         table.put_item(Item=item)
         
         # Once inserted, synthesize immediately
-        from src.synthesis.service import synthesize_findings
-        synthesize_findings(item)
+        from src.synthesis.service import synthesize_single_insight
+        synthesize_single_insight(item)
         return True
     except Exception as e:
         logger.error("Failed to force ingest ticker", ticker=ticker, error=str(e))
