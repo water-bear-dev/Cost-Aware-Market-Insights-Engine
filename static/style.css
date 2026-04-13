@@ -1,17 +1,18 @@
 /* =====================================================
    Base Variables
    ===================================================== */
-:root {
     --bg-dark: #0f172a;
+    --bg-card: rgba(30, 41, 59, 0.6);
     --text-primary: #f8fafc;
     --text-secondary: #94a3b8;
-    --accent: #38bdf8;
-    --accent-glow: rgba(56, 189, 248, 0.4);
+    --accent: #0ea5e9;
+    --accent-glow: rgba(14, 165, 233, 0.4);
     --glass-bg: rgba(30, 41, 59, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.1);
     --positive: #10b981;
     --negative: #f43f5e;
     --warning: #f59e0b;
+    --link: #7dd3fc;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -146,8 +147,22 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1.5rem;
-    transform-origin: top left;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.insights-grid.density-compact {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+}
+
+.insights-grid.density-compact .insight-card {
+    font-size: 0.95em;
+}
+
+.insights-grid.density-wide {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .insight-card {
@@ -212,12 +227,12 @@ body {
 }
 
 /* News list */
-.news-list { list-style: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.05); }
-.news-list li { font-size: 0.82rem; margin-bottom: 0.5rem; display: flex; gap: 0.5rem; align-items: flex-start; }
-.news-list li::before { content: "•"; color: var(--accent); font-weight: bold; flex-shrink: 0; margin-top: 1px; }
-.news-list a { color: #e2e8f0; text-decoration: none; transition: color 0.2s ease; }
-.news-list a:hover { color: var(--accent); }
-.news-source { font-size: 0.72rem; color: var(--text-secondary); display: block; margin-top: 1px; }
+.news-list { list-style: none; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); }
+.news-list li { font-size: 0.85rem; margin-bottom: 0.75rem; display: flex; gap: 0.75rem; align-items: flex-start; }
+.news-list li::before { content: "•"; color: var(--accent); font-weight: bold; flex-shrink: 0; }
+.news-list a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(125, 211, 252, 0.3); transition: all 0.2s ease; line-height: 1.4; }
+.news-list a:hover { color: var(--text-primary); text-decoration-color: var(--accent); }
+.news-source { font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 2px; }
 
 .badge {
     background: rgba(56,189,248,0.1); color: var(--accent);
@@ -226,20 +241,59 @@ body {
 }
 
 /* =====================================================
-   Zoom Controls
+   Control Bars (Manage & Density)
    ===================================================== */
-.zoom-controls { display: flex; align-items: center; gap: 0.25rem; }
-.zoom-btn {
-    background: var(--glass-bg);
+.controls-row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 2rem; background: rgba(0,0,0,0.15);
+    padding: 0.75rem 1.25rem; border-radius: 12px;
     border: 1px solid var(--glass-border);
-    color: var(--text-primary);
-    width: 32px; height: 32px;
-    border-radius: 8px; cursor: pointer;
-    font-size: 1rem; font-weight: 600;
-    display: flex; align-items: center; justify-content: center;
+}
+.density-controls { display: flex; align-items: center; gap: 0.5rem; }
+.density-btn {
+    background: transparent; border: 1px solid var(--glass-border);
+    color: var(--text-secondary); padding: 0.4rem 0.75rem;
+    border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
     transition: all 0.2s ease;
 }
-.zoom-btn:hover { background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3); color: var(--accent); }
+.density-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
+.density-btn.active { background: rgba(14, 165, 233, 0.15); border-color: var(--accent); color: var(--accent); }
+
+.manage-watchlist-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem; color: var(--text-secondary);
+    background: transparent; border: 1px solid var(--glass-border);
+    padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s ease;
+}
+.manage-watchlist-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+.manage-watchlist-btn svg { width: 14px; height: 14px; opacity: 0.7; }
+
+/* =====================================================
+   Manage Panel (Floating)
+   ===================================================== */
+.manage-panel {
+    position: absolute; top: 100%; right: 0; margin-top: 0.5rem;
+    width: 280px; background: #1e293b; border: 1px solid var(--glass-border);
+    border-radius: 12px; padding: 1rem; z-index: 100;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: none; animation: fadeIn 0.2s ease;
+}
+.manage-panel.open { display: block; }
+.manage-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.manage-item { 
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0.75rem; background: rgba(255,255,255,0.03);
+    border-radius: 6px; border: 1px solid transparent;
+}
+.manage-item:hover { border-color: var(--glass-border); }
+.manage-item-ticker { font-weight: 700; font-size: 0.9rem; }
+.manage-item-delete {
+    background: transparent; border: none; color: var(--negative);
+    cursor: pointer; opacity: 0.6; transition: opacity 0.2s ease;
+    padding: 2px 4px; border-radius: 4px;
+}
+.manage-item-delete:hover { opacity: 1; background: rgba(244,63,94,0.1); }
 
 /* =====================================================
    Glass Inputs & Buttons

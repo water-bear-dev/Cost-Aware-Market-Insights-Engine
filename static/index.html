@@ -7,7 +7,7 @@
     <meta name="description" content="Cost-aware AI-powered market insights engine with real-time synthesis, FinOps tracking, and interactive analytics.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=3">
+    <link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 
@@ -46,13 +46,6 @@
                             <span class="badge" id="ticker-count" style="margin-left: auto;">0/10 Tracked</span>
                         </div>
                     </div>
-                    <!-- Zoom Controls -->
-                    <div class="zoom-controls">
-                        <span style="font-size: 0.8rem; color: var(--text-secondary); margin-right: 0.5rem;">Zoom</span>
-                        <button class="zoom-btn" id="zoom-out-btn" title="Zoom Out">−</button>
-                        <button class="zoom-btn" id="zoom-reset-btn" title="Reset Zoom">⊙</button>
-                        <button class="zoom-btn" id="zoom-in-btn" title="Zoom In">+</button>
-                    </div>
                 </div>
 
                 <!-- Global Portfolio Chart -->
@@ -62,7 +55,28 @@
             </div>
 
             <div class="insights-board">
-                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Trading Details &amp; AI Synthesis</h2>
+                <div class="controls-row">
+                    <div class="density-controls">
+                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-right:0.5rem">Grid Density</span>
+                        <button class="density-btn" data-density="compact">Compact</button>
+                        <button class="density-btn active" data-density="standard">Standard</button>
+                        <button class="density-btn" data-density="wide">Wide</button>
+                    </div>
+
+                    <div style="position:relative">
+                        <button class="manage-watchlist-btn" id="manage-toggle-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            Manage Watchlist
+                        </button>
+                        <div class="manage-panel" id="manage-panel">
+                            <h4 style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); margin-bottom:0.75rem; border-bottom:1px solid var(--glass-border); padding-bottom:0.8rem; padding-top:0.2rem">Edit Watchlist</h4>
+                            <ul class="manage-list" id="manage-list">
+                                <!-- Populated by JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="insights-grid" id="insights-container">
                     <div class="loading-placeholder glass" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
                         <p style="color: var(--text-secondary);">Loading market data...</p>
@@ -166,6 +180,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=4"></script>
 </body>
 </html>
