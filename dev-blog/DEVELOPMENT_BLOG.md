@@ -101,3 +101,24 @@ Previously, the engine relied on a hard-coded environment variable (`settings.ti
 
 **TradingView-UX:**
 To make the market data more actionable, we built a `GET /api/v1/market` endpoint and stitched this inside `app.js` alongside our insight queries. Cards now display current price, percentage change (stylized with positive/negative pills), and up to three aggregated Google News headlines for context—acting highly similar to TradingView's ticker cards. Finally, a `Chart.js` canvas aggregates the live asset prices to formulate a comparative portfolio visualization across the active tracked fleet.
+
+## Entry 9: Cloud Orchestration Finalization & The Last Mile
+
+*Date: 2026-04-13*
+
+With our new tabbed UI and dynamic ticker management system fully operational locally, the final challenge was ensuring our AWS Cloud environment mirrored this complexity without manual intervention. 
+
+**Infrastructure-as-Code Synchronization:**
+We updated our `infra/cloudformation.yml` template to natively provision the new `Tickers` DynamoDB table. This moves the application away from needing manual "seeding" or configuration through environment variables. By declaring the table in CloudFormation, every fresh deployment of the engine now comes "pre-configured" for dynamic watchlist management.
+
+**IAM Policy Hardening:**
+Our dynamic ticker logic requires the engine to "scan" the `Tickers` table to build its internal watchlist. We updated the **ECS Task Role** to include `dynamodb:Scan` permissions. We maintained high security by keeping this role strictly attached to the Fargate process, ensuring it can only interact with our 4 specific database tables.
+
+**The "One-Click" Deployment:**
+The project was finalized by running a clean `scripts/deploy.sh` execution. This process seamlessly handles:
+1. Local Docker building (now fully optimized for **ARM64/Graviton**).
+2. Pushing the new Tabbed/Chart-ready image to **Amazon ECR**.
+3. Triggering a CloudFormation stack update to provision the Load Balancer, Private Networking, and the Tickers database.
+
+The result is a Production-ready, Cost-Aware Market Insights Engine that provides TradingView-grade analytics with enterprise budget guardrails—running natively on AWS Fargate at an incredibly low operational cost.
+

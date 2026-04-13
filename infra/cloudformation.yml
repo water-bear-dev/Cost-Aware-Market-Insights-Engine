@@ -185,6 +185,18 @@ Resources:
           KeyType: "HASH"
       BillingMode: PAY_PER_REQUEST
 
+  TickersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "Tickers"
+      AttributeDefinitions:
+        - AttributeName: "ticker"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "ticker"
+          KeyType: "HASH"
+      BillingMode: PAY_PER_REQUEST
+
   # IAM Roles
   EcsTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -221,6 +233,7 @@ Resources:
                   - dynamodb:GetItem
                   - dynamodb:Query
                   - dynamodb:UpdateItem
+                  - dynamodb:Scan
                   - dynamodb:ListTables
                   - dynamodb:DescribeTable
                   - cloudwatch:PutMetricData
