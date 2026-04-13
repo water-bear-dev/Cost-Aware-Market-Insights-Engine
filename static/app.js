@@ -7,11 +7,13 @@ async function initDashboard() {
     
     // Initial fetch
     fetchCosts();
+    fetchDashboardCosts();
     fetchInsights();
     
     // Poll every 15s to catch new dynamo records
     setInterval(() => {
         fetchCosts();
+        fetchDashboardCosts();
         fetchInsights();
     }, 15000);
 }
@@ -55,6 +57,22 @@ async function fetchCosts() {
         }
     } catch (e) {
         console.error("Costs fetch failed", e);
+    }
+}
+
+async function fetchDashboardCosts() {
+    try {
+        const res = await fetch('/api/v1/costs/dashboard');
+        if (res.ok) {
+            const data = await res.json();
+            
+            // Format to 4 decimal places for precision, or 2 for high level
+            document.getElementById('dashboard-total-7d').textContent = `$${data.metrics.total_7_days_usd.toFixed(4)}`;
+            document.getElementById('dashboard-average-7d').textContent = `$${data.metrics.daily_average_usd.toFixed(4)}`;
+            document.getElementById('dashboard-projected-30d').textContent = `$${data.metrics.projected_30_days_usd.toFixed(4)}`;
+        }
+    } catch (e) {
+        console.error("Dashboard costs fetch failed", e);
     }
 }
 
