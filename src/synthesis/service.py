@@ -124,6 +124,11 @@ def synthesize_insights():
             insights_table.put_item(Item=item)
             success_count += 1
             logger.info("Saved new insight", ticker=ticker)
+            
+            # Phase 3 FinOps: Track successful AI insights
+            from src.clients.cloudwatch import emit_metric
+            emit_metric('InsightsGenerated', 1.0, 'Count')
+            
         except Exception as e:
             logger.error("Failed to save insight", ticker=ticker, error=str(e))
             

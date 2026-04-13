@@ -70,6 +70,20 @@ def log_cost(ticker: str, input_tokens: int, output_tokens: int) -> dict:
     try:
         table.put_item(Item=item)
         logger.info("Cost logged", ticker=ticker, cost=float(cost))
+        
+        # Phase 3 FinOps: Emit CloudWatch Metrics
+        from src.clients.cloudwatch import emit_metric
+        from src.config import settings
+        
+        # We emit the delta cost so it can be 'Sum'med in CloudWatch Alarms over a 1-day period
+        emit_metric('DailyAICost', float(cost), 'Count')
+        
+        # Calculate current utilization
+        spend = get_daily_spend()
+        budget = Decimal(str(settings.daily_budget_usd))
+        utilization = float((spend / budget) * 100) if budget else 0.0
+        emit_metric('BudgetUtilizationPct', utilization, 'Percent')
+        
         return item
     except Exception as e:
         logger.error("Failed to log cost", ticker=ticker, error=str(e))

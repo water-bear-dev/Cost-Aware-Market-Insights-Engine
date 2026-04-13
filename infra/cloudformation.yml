@@ -17,6 +17,10 @@ Parameters:
   ImageUrl:
     Type: String
     Description: URI of the Docker image to deploy
+  AlertEmail:
+    Type: String
+    Default: 'admin@example.com'
+    Description: Email address for budget and cost alarms
 
 Resources:
   # VPC and Internet Gateway
@@ -167,6 +171,7 @@ Resources:
                   - dynamodb:UpdateItem
                   - dynamodb:ListTables
                   - dynamodb:DescribeTable
+                  - cloudwatch:PutMetricData
                 Resource: "*"
 
   # ECS Cluster & Task
@@ -244,6 +249,51 @@ Resources:
     Properties:
       LogGroupName: !Sub "/ecs/${EnvironmentName}"
       RetentionInDays: 7
+
+  # FinOps Alerts
+  BudgetAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${EnvironmentName}-BudgetAlerts"
+
+  BudgetAlarmSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref BudgetAlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  BudgetWarningAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-BudgetWarning"
+      AlarmDescription: "Alert when daily AI cost exceeds $4.00"
+      Namespace: "MarketInsights"
+      MetricName: "DailyAICost"
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 4.0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref BudgetAlarmTopic
+
+  BudgetExhaustedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-BudgetExhausted"
+      AlarmDescription: "Alert when daily AI cost hits or exceeds $5.00 limit"
+      Namespace: "MarketInsights"
+      MetricName: "DailyAICost"
+      Statistic: Sum
+      Period: 86400
+      EvaluationPeriods: 1
+      Threshold: 5.0
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref BudgetAlarmTopic
 
 Outputs:
   ClusterName:
