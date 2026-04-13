@@ -68,6 +68,64 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
         return None
 
+def get_active_tickers() -> list[str]:
+    """Fetch active tickers from the DynamoDB Tickers table."""
+    table = get_table('Tickers')
+    try:
+        response = table.scan()
+        items = response.get('Items', [])
+        
+        # If empty, seed from config
+        if not items:
+            for t in settings.ticker_list:
+                table.put_item(Item={'ticker': t})
+            return settings.ticker_list
+            
+        return [item['ticker'] for item in items]
+    except Exception as e:
+        logger.error("Failed to fetch active tickers", error=str(e))
+        return settings.ticker_list
+
+def force_ingest_single_ticker(ticker: str) -> bool:
+    """Ingests data for a single ticker outside of the normal schedule."""
+    logger.info("Forcing ingestion for single ticker", ticker=ticker)
+    
+    table = get_table('MarketData')
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    ttl = int(datetime.utcnow().timestamp()) + (30 * 24 * 60 * 60)
+    
+    data = fetch_ticker_data(ticker)
+    if not data:
+        return False
+        
+    data_string = f"{data['ticker']}{data['close_price']}{''.join(data['headlines'])}"
+    data_hash = hashlib.md5(data_string.encode()).hexdigest()
+    
+    item = {
+        'ticker': data['ticker'],
+        'timestamp': timestamp,
+        'open_price': Decimal(str(data['open_price'])),
+        'high_price': Decimal(str(data['high_price'])),
+        'low_price': Decimal(str(data['low_price'])),
+        'close_price': Decimal(str(data['close_price'])),
+        'volume': data['volume'],
+        'change_pct': Decimal(str(data['change_pct'])),
+        'headlines': data['headlines'],
+        'data_hash': data_hash,
+        'ttl': ttl
+    }
+    
+    try:
+        table.put_item(Item=item)
+        
+        # Once inserted, synthesize immediately
+        from src.synthesis.service import synthesize_findings
+        synthesize_findings(item)
+        return True
+    except Exception as e:
+        logger.error("Failed to force ingest ticker", ticker=ticker, error=str(e))
+        return False
+
 def ingest_market_data():
     """Runs on a schedule to fetch and store market data."""
     logger.info("Starting market data ingestion")
@@ -76,8 +134,9 @@ def ingest_market_data():
     timestamp = datetime.utcnow().isoformat() + "Z"
     ttl = int(datetime.utcnow().timestamp()) + (30 * 24 * 60 * 60) # 30 days
     
+    tickers = get_active_tickers()
     success_count = 0
-    for t in settings.ticker_list:
+    for t in tickers:
         data = fetch_ticker_data(t)
         if not data:
             continue
@@ -107,5 +166,5 @@ def ingest_market_data():
         except Exception as e:
             logger.error("Failed to write to DynamoDB", ticker=t, error=str(e))
             
-    logger.info("Ingestion complete", success_count=success_count, total=len(settings.ticker_list))
+    logger.info("Ingestion complete", success_count=success_count, total=len(tickers))
     return success_count

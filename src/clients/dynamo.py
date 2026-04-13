@@ -77,6 +77,19 @@ def init_tables():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
+        
+    if "Tickers" not in tables:
+        logger.info("Creating Tickers table")
+        dynamodb.create_table(
+            TableName="Tickers",
+            KeySchema=[
+                {'AttributeName': 'ticker', 'KeyType': 'HASH'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'ticker', 'AttributeType': 'S'}
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
 
 def get_table(table_name: str):
     return get_dynamo_resource().Table(table_name)

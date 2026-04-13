@@ -6,6 +6,7 @@
     <title>AI Market Insights Engine</title>
     <!-- Premium Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -15,58 +16,92 @@
 
     <div class="dashboard-container">
         
-        <header class="header">
+        <header class="header" style="margin-bottom: 2rem;">
             <div class="header-logo">
                 <div class="logo-icon"></div>
                 <h1>Market Insights Engine</h1>
             </div>
+            
             <div class="health-indicator">
-                <div class="dot" id="db-health-dot"></div>
+                <div class="dot pulse-animation" id="db-health-dot"></div>
                 <span id="db-health-text">Checking System...</span>
             </div>
         </header>
 
-        <section class="finops-board">
-            <h2>Financial Operations (FinOps)</h2>
-            <div class="metrics-grid">
-                <div class="metric-card glass">
-                    <p class="metric-label">Daily Budget</p>
-                    <h3 class="metric-value blur-reveal" id="budget-total">$0.00</h3>
-                </div>
-                <div class="metric-card glass">
-                    <p class="metric-label">Current AI Spend</p>
-                    <h3 class="metric-value blur-reveal text-gradient" id="budget-spend">$0.00</h3>
-                </div>
-                <div class="metric-card glass w-large">
-                    <p class="metric-label">Budget Utilization</p>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar-fill" id="budget-progress"></div>
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="finops-view">FinOps Dashboard</button>
+            <button class="tab-btn" data-tab="insights-view">AI Market Insights</button>
+        </div>
+
+        <!-- FinOps Section -->
+        <section id="finops-view" class="tab-content active">
+            <div class="finops-board">
+                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Financial Operations</h2>
+                <div class="metrics-grid">
+                    <div class="metric-card glass glow-hover">
+                        <p class="metric-label dim-label">Daily Budget</p>
+                        <h3 class="metric-value blur-reveal" id="budget-total">$0.00</h3>
                     </div>
-                    <p class="metric-subtext"><span id="budget-remaining">$0.00</span> Remaining</p>
+                    <div class="metric-card glass glow-hover">
+                        <p class="metric-label dim-label">Current AI Spend</p>
+                        <h3 class="metric-value blur-reveal text-gradient" id="budget-spend">$0.00</h3>
+                    </div>
+                    <div class="metric-card glass w-large glow-hover">
+                        <p class="metric-label dim-label">Budget Utilization</p>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="budget-progress"></div>
+                        </div>
+                        <p class="metric-subtext"><span id="budget-remaining">$0.00</span> Remaining</p>
+                    </div>
                 </div>
-            </div>
-            
-            <h3 style="margin-top: 2rem; margin-bottom: 1rem; font-weight: 500; font-size: 1.25rem;">7-Day Run Rate Analysis</h3>
-            <div class="metrics-grid">
-                <div class="metric-card glass">
-                    <p class="metric-label">Total 7-Day Spend</p>
-                    <h3 class="metric-value blur-reveal" id="dashboard-total-7d">$0.00</h3>
-                </div>
-                <div class="metric-card glass">
-                    <p class="metric-label">Daily Average</p>
-                    <h3 class="metric-value blur-reveal" id="dashboard-average-7d">$0.00</h3>
-                </div>
-                <div class="metric-card glass w-large">
-                    <p class="metric-label">Projected 30-Day Run Rate</p>
-                    <h3 class="metric-value blur-reveal text-gradient" style="font-size: 2.5rem;" id="dashboard-projected-30d">$0.00</h3>
+                
+                <h3 style="margin-top: 2.5rem; margin-bottom: 1.5rem; font-weight: 500; font-size: 1.2rem; color: var(--text-secondary); text-transform: uppercase;">7-Day Run Rate Analysis</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card glass glow-hover">
+                        <p class="metric-label dim-label">Total 7-Day Spend</p>
+                        <h3 class="metric-value blur-reveal" id="dashboard-total-7d">$0.00</h3>
+                        <div class="sparkline-container" id="sparkline-7d"></div>
+                    </div>
+                    <div class="metric-card glass glow-hover">
+                        <p class="metric-label dim-label">Daily Average</p>
+                        <h3 class="metric-value blur-reveal" id="dashboard-average-7d">$0.00</h3>
+                        <div class="sparkline-container" id="sparkline-avg"></div>
+                    </div>
+                    <div class="metric-card glass w-large glow-hover">
+                        <p class="metric-label dim-label">Projected 30-Day Run Rate</p>
+                        <h3 class="metric-value blur-reveal text-gradient-purple" style="font-size: 2.5rem;" id="dashboard-projected-30d">$0.00</h3>
+                        <div class="sparkline-container" id="sparkline-30d"></div>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section class="insights-board">
-            <h2>Synthesized AI Insights <span class="badge" id="ticker-count">0 Tracked</span></h2>
-            <div class="insights-grid" id="insights-container">
-                <!-- Data cards injected via JS -->
+        <!-- Insights Section -->
+        <section id="insights-view" class="tab-content">
+            <div class="insights-controls glass glow-hover" style="margin-bottom: 2.5rem; padding: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
+                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center;">
+                            <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" />
+                            <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
+                            <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
+                            <span class="badge" id="ticker-count" style="margin-left: auto;">0/10 Tracked</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global Visualisation Chart -->
+                <div class="chart-container" style="position: relative; height: 350px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+
+            <div class="insights-board">
+                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Trading Details & AI Synthesis</h2>
+                <div class="insights-grid" id="insights-container">
+                    <!-- Data cards injected via JS -->
+                </div>
             </div>
         </section>
 
