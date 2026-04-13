@@ -35,8 +35,8 @@ async def lifespan(app: FastAPI):
     # Run the job once on startup
     scheduled_job()
     
-    # Schedule to run every 15 minutes
-    scheduler.add_job(scheduled_job, 'interval', minutes=15)
+    # Schedule to run every 5 minutes
+    scheduler.add_job(scheduled_job, 'interval', minutes=5)
     scheduler.start()
     
     yield
