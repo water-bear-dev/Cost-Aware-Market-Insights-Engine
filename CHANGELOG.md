@@ -8,6 +8,17 @@ All notable changes to this project will be documented in this file.
 - **Bedrock IAM Permissions**: Added `aws-marketplace:ViewSubscriptions`, `aws-marketplace:Subscribe`, and `aws-marketplace:Unsubscribe` to the ECS Task Role in `cloudformation.yml`. Bedrock internally validates these marketplace permissions when invoking Anthropic models, even though the Model Access subscription page has been retired. Without them the `InvokeModel` call threw `AccessDeniedException` for every ticker, resulting in the "Awaiting AI Synthesis" state persisting indefinitely.
 - **Synthesis Resilience Fallback**: Added graceful degradation in `synthesis/service.py` — if Bedrock returns an `AccessDeniedException`, the engine now generates a data-driven market summary from live price/headline data instead of silently returning `False`. The UI always shows meaningful content while IAM propagates.
 
+### Verified
+- **IAM Policy Confirmed Live**: Ran `check_iam.py` (boto3) against the real AWS role `market-insights-stack-EcsTaskRole-wV7qUFUhzNOJ` post-deploy. All 13 permissions confirmed active:
+  - `aws-marketplace:Subscribe` ✓
+  - `aws-marketplace:Unsubscribe` ✓
+  - `aws-marketplace:ViewSubscriptions` ✓
+  - `bedrock:InvokeModel` ✓
+  - `bedrock:InvokeModelWithResponseStream` ✓
+  - `cloudwatch:PutMetricData` ✓
+  - `dynamodb:DescribeTable / GetItem / ListTables / PutItem / Query / Scan / UpdateItem` ✓
+- **ECS Service Rollout Completed**: New task `c2b954b5967142fcb3cf896d22bc6d95` running with updated role. Bedrock synthesis expected on next 5-minute cron cycle.
+
 ---
 
 ## [1.0.0-PROD] - 2026-04-13

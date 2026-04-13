@@ -161,5 +161,8 @@ aws-marketplace:Subscribe)
 
 This is the kind of "invisible wall" that only shows up in production logs — it underscores why **CloudWatch log access is a first-class concern** in any cloud-native deployment.
 
+**✅ Verified Live — 2026-04-13 17:45 (ICT)**
+After deploying the CloudFormation fix, we ran `check_iam.py` (a boto3 verification script) directly against the live AWS account and confirmed all 13 permissions are active on role `market-insights-stack-EcsTaskRole-wV7qUFUhzNOJ`. The new ECS task (`c2b954b5967142fcb3cf896d22bc6d95`) is running with the corrected policy — Bedrock synthesis will fire on the next 5-minute cron cycle.
+
 ---
 *Project Concluded - Managed by Antigravity*
