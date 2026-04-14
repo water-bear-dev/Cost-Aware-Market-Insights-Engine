@@ -235,6 +235,7 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:UpdateItem
                   - dynamodb:Scan
+                  - dynamodb:DeleteItem
                   - dynamodb:ListTables
                   - dynamodb:DescribeTable
                   - cloudwatch:PutMetricData

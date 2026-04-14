@@ -213,5 +213,21 @@ We also added **800ms staggered delays** between batch requests (`setTimeout(() 
 
 **Lesson:** Deduplication logic that checks timestamps is fragile when the data it's deduplicating can come from fundamentally different sources (fallback vs. real AI). The fix is to also check *what generated the insight*, not just *when*.
 
+### Entry 14: Centralized Control and Better Density
+*Date: 2026-04-13*
+
+Shortly after the v2 rollout, we received crucial user feedback pointing out a few friction points in the UX:
+1. **Accidental Deletions:** Having a delete 'X' directly on every ticker card made it too easy to accidentally wipe a ticker from the dashboard.
+2. **Blurry Zoom:** The `transform: scale()` CSS method used for the zoom buttons caused the text and charts to look blurry, and it didn't reflow the grid nicely.
+3. **Contrast:** The hyperlinked news headlines were hard to read against the dark glass panels.
+
+To fix these without bloating the `app.js`, we implemented "UI V3" (v2.1.0):
+
+- **Manage Watchlist:** We stripped the delete buttons from the individual cards. We replaced this with a centralized "Manage Watchlist" button in the control bar. Clicking it toggles a clean dropdown panel where users can view all tracked tickers and delete them safely.
+- **Grid Density:** The zoom buttons were replaced by a "Grid Density" toggle. Instead of scaling the UI, this toggles CSS classes (`density-compact`, `density-standard`, `density-wide`) on the grid container itself, adjusting the `min-width` of the grid columns. This reflows the cards perfectly without any blurriness.
+- **Refined Aesthetics:** News links were bumped to a high-contrast `#7dd3fc` with a subtle underline to make their clickability obvious. 
+
+This concludes the major UX phase. The UI is now highly interactive, safe from accidental clicks, and respects the user's screen space much better.
+
 ---
 *Project Concluded - Managed by Antigravity*
