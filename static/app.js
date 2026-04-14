@@ -211,6 +211,23 @@ async function triggerBatchSynthesis() {
     } catch (e) {}
 }
 
+async function triggerBatchIngestion(marketData) {
+    if (!marketData || marketData.length === 0) return;
+    try {
+        const pendingTickers = marketData.filter(m => m.status === 'pending_data');
+        if (pendingTickers.length === 0) return;
+
+        for (let i = 0; i < pendingTickers.length; i++) {
+            const mkt = pendingTickers[i];
+            const delay = i * 2000; // 2 seconds between bursts
+            setTimeout(() => {
+                fetch(`/api/v1/tickers/${mkt.ticker}/ingest`, { method: 'POST' })
+                    .catch(() => {});
+            }, delay);
+        }
+    } catch (e) {}
+}
+
 /* =====================================================
    Health Check
    ===================================================== */
@@ -307,6 +324,9 @@ async function fetchMarketAndInsights() {
 
         lastMarketData = newMarket;
         lastInsightsData = newInsights;
+        
+        triggerBatchIngestion(marketArr);
+
     } catch (e) {
         console.error("Market & Insights fetch failed", e);
     }
@@ -432,10 +452,13 @@ function cardInnerHtml(mkt, insight) {
                 </div>
                 ${statusChip(null)}
             </div>
-            <div class="price-row">
-                <span style="font-size:1.8rem; font-weight:700; color:var(--text-secondary)">--</span>
+            <div class="price-row" style="display:flex; align-items:center; gap:0.5rem; justify-content:center; padding: 1.5rem 0;">
+                <svg class="spinner" viewBox="0 0 50 50" style="width:24px; height:24px; animation:spin 1s linear infinite;">
+                    <circle cx="25" cy="25" r="20" fill="none" stroke="var(--accent)" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                </svg>
             </div>
-            <p class="insight-text" style="color:var(--text-secondary)">Awaiting API ingestion for ${mkt.ticker}. The worker is fetching data...</p>
+            <p class="insight-text" style="color:var(--text-secondary); text-align:center;">Forcing data ingestion for ${mkt.ticker}...</p>
+            <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
         `;
     }
 

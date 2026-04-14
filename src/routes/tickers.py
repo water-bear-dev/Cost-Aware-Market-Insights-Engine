@@ -13,12 +13,12 @@ class TickerRequest(BaseModel):
     ticker: str
 
 @router.get("/tickers")
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 def get_tickers_route(request: Request):
     return get_active_tickers()
 
 @router.post("/tickers")
-@limiter.limit("5/minute")
+@limiter.limit("15/minute")
 def add_ticker(request: Request, req: TickerRequest):
     ticker = req.ticker.upper().strip()
     active = get_active_tickers()
@@ -45,7 +45,7 @@ def add_ticker(request: Request, req: TickerRequest):
 
 
 @router.delete("/tickers/{ticker}")
-@limiter.limit("10/minute")
+@limiter.limit("15/minute")
 def delete_ticker(request: Request, ticker: str):
     """Remove a ticker from the watchlist and clean up its data."""
     ticker = ticker.upper().strip()
@@ -83,8 +83,18 @@ def delete_ticker(request: Request, ticker: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/tickers/{ticker}/synthesize")
+@router.post("/tickers/{ticker}/ingest")
 @limiter.limit("5/minute")
+def ingest_ticker_manually(request: Request, ticker: str):
+    """Force market data fetching for a stalled or pending ticker."""
+    ticker = ticker.upper().strip()
+    success = force_ingest_single_ticker(ticker)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch market data for {ticker}")
+    return {"status": "ingested", "ticker": ticker}
+
+@router.post("/tickers/{ticker}/synthesize")
+@limiter.limit("10/minute")
 def synthesize_ticker(request: Request, ticker: str):
     """Trigger immediate AI synthesis for a specific ticker."""
     ticker = ticker.upper().strip()

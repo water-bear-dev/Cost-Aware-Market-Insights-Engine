@@ -249,4 +249,20 @@ Opening the deployment exposed raw proxy polling. Given the tight Anthropic Haik
 The final feedback iteration pointed out a UX flaw: the original placeholder "Zoom" buttons mapped to a CSS scaling trick over the grid (which made text blurry). We ripped this out entirely and replaced it natively with `chartjs-plugin-zoom` combined with `hammer.js`. Now, mouse wheels and trackpad pinches zoom intuitively into the localized X-axes of both the Portfolio overview chart and the Ticker historical candlestick chart themselves.
 
 ---
+
+### Entry 16: System Self-Healing and Dark Mode Restoration
+*Date: 2026-04-14*
+
+During testing following our recent rate-limiting upgrade, we uncovered two critical issues affecting user experience and data fluidity.
+
+**Dark Mode Regression:**
+A syntax error in `style.css` (specifically, an accidental truncation of the `:root {` block) caused the browser to lose access to all custom glassmorphic CSS variables. This forced the dashboard to fall back into a stark white mode. We restored the root selector immediately, returning the dashboard to the intended `#0f172a` minimal aesthetic.
+
+**The "White Screen of PENDING" and Auto-Recovery Loop:**
+Previously, we established a `pending_data` visual state for tickers that failed their initial upstream fetch (due to strict rate limits on `yfinance`). However, these tickets would stay stuck in a "pending" card until the backend background polling script executed 5 minutes later.
+- **The Fix:** We built a dedicated `POST /api/v1/tickers/{ticker}/ingest` endpoint bypassing caching buffers.
+- In `static/app.js`, we integrated a self-healing automation loop named `triggerBatchIngestion`. When the frontend UI receives tickers flagged with `pending_data`, the interface naturally updates the static text to an animated spinner. Behind the scenes, `triggerBatchIngestion` executes staggered background polling (buffered 2-seconds apart) to seamlessly force upstream metadata loads.
+- This results in a magical user experience: Rate-limited tickers momentarily enter a "pending" spinner state but quickly recover themselves autonomously within a few seconds without taking down the wider UI infrastructure.
+
+---
 *Project Concluded - Managed by Antigravity*

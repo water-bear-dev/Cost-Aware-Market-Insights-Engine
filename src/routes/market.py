@@ -20,7 +20,7 @@ PERIOD_MAP = {
 }
 
 @router.get("/market")
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 def get_market_data(request: Request):
     table = get_table('MarketData')
     try:
@@ -76,7 +76,7 @@ def get_market_data(request: Request):
 
 
 @router.get("/market/history/{ticker}")
-@limiter.limit("20/minute")
+@limiter.limit("60/minute")
 def get_ticker_history(request: Request, ticker: str, period: str = Query(default="1mo")):
     """Return OHLCV history + analyst recommendations for a ticker."""
     ticker = ticker.upper().strip()
