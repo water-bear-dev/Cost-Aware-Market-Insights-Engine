@@ -40,6 +40,9 @@ All notable changes to this project will be documented in this file.
 - **Visual Rhythm** — Adjusted card paddings, font weights, and spacing for a more premium, cohesive feel.
 - **Modal Close Logic** — Improved "Esc" and backdrop-click detection.
 
+### Fixed
+- **IAM Delete Permission** — Added `dynamodb:DeleteItem` permission to the ECS Task Role in `cloudformation.yml`, resolving a 500 Server Error that occurred when users attempted to delete tickers via the new Manage Watchlist panel.
+
 ---
 
 ## [2.0.1] - 2026-04-13
