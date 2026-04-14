@@ -1,7 +1,11 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from src.clients.dynamo import get_table
 import yfinance as yf
 import structlog
+import json
+
+from src.limiter import limiter
+from src.ingestion.service import get_active_tickers
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -16,9 +20,11 @@ PERIOD_MAP = {
 }
 
 @router.get("/market")
-def get_market_data():
+@limiter.limit("20/minute")
+def get_market_data(request: Request):
     table = get_table('MarketData')
     try:
+        active_tickers = get_active_tickers()
         response = table.scan()
         latest = {}
         for item in response.get('Items', []):
@@ -27,33 +33,51 @@ def get_market_data():
                 latest[t] = item
                 
         results = []
-        for v in latest.values():
-            import json
-            raw_links = v.get("headline_links", "[]")
-            try:
-                headline_links = json.loads(raw_links) if isinstance(raw_links, str) else raw_links
-            except Exception:
-                headline_links = []
+        for t in active_tickers:
+            if t in latest:
+                v = latest[t]
+                raw_links = v.get("headline_links", "[]")
+                try:
+                    headline_links = json.loads(raw_links) if isinstance(raw_links, str) else raw_links
+                except Exception:
+                    headline_links = []
 
-            results.append({
-                "ticker": v["ticker"],
-                "timestamp": v["timestamp"],
-                "open_price": float(v["open_price"]),
-                "high_price": float(v["high_price"]),
-                "low_price": float(v["low_price"]),
-                "close_price": float(v["close_price"]),
-                "volume": int(v["volume"]),
-                "change_pct": float(v["change_pct"]),
-                "headlines": v.get("headlines", []),
-                "headline_links": headline_links
-            })
+                results.append({
+                    "ticker": v["ticker"],
+                    "timestamp": v["timestamp"],
+                    "open_price": float(v["open_price"]),
+                    "high_price": float(v["high_price"]),
+                    "low_price": float(v["low_price"]),
+                    "close_price": float(v["close_price"]),
+                    "volume": int(v["volume"]),
+                    "change_pct": float(v["change_pct"]),
+                    "headlines": v.get("headlines", []),
+                    "headline_links": headline_links,
+                    "status": "active"
+                })
+            else:
+                # Missing MarketData but tracked
+                results.append({
+                    "ticker": t,
+                    "timestamp": "",
+                    "open_price": 0.0,
+                    "high_price": 0.0,
+                    "low_price": 0.0,
+                    "close_price": 0.0,
+                    "volume": 0,
+                    "change_pct": 0.0,
+                    "headlines": [],
+                    "headline_links": [],
+                    "status": "pending_data"
+                })
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/market/history/{ticker}")
-def get_ticker_history(ticker: str, period: str = Query(default="1mo")):
+@limiter.limit("20/minute")
+def get_ticker_history(request: Request, ticker: str, period: str = Query(default="1mo")):
     """Return OHLCV history + analyst recommendations for a ticker."""
     ticker = ticker.upper().strip()
     yf_period = PERIOD_MAP.get(period, "1mo")

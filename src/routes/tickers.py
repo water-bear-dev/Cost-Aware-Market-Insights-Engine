@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from src.clients.dynamo import get_table
 from src.ingestion.service import get_active_tickers, force_ingest_single_ticker
 from boto3.dynamodb.conditions import Key
 import structlog
+from src.limiter import limiter
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -12,11 +13,13 @@ class TickerRequest(BaseModel):
     ticker: str
 
 @router.get("/tickers")
-def get_tickers_route():
+@limiter.limit("20/minute")
+def get_tickers_route(request: Request):
     return get_active_tickers()
 
 @router.post("/tickers")
-def add_ticker(req: TickerRequest):
+@limiter.limit("5/minute")
+def add_ticker(request: Request, req: TickerRequest):
     ticker = req.ticker.upper().strip()
     active = get_active_tickers()
     if ticker in active:
@@ -42,7 +45,8 @@ def add_ticker(req: TickerRequest):
 
 
 @router.delete("/tickers/{ticker}")
-def delete_ticker(ticker: str):
+@limiter.limit("10/minute")
+def delete_ticker(request: Request, ticker: str):
     """Remove a ticker from the watchlist and clean up its data."""
     ticker = ticker.upper().strip()
     
@@ -80,7 +84,8 @@ def delete_ticker(ticker: str):
 
 
 @router.post("/tickers/{ticker}/synthesize")
-def synthesize_ticker(ticker: str):
+@limiter.limit("5/minute")
+def synthesize_ticker(request: Request, ticker: str):
     """Trigger immediate AI synthesis for a specific ticker."""
     ticker = ticker.upper().strip()
     

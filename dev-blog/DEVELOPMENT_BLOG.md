@@ -229,5 +229,24 @@ To fix these without bloating the `app.js`, we implemented "UI V3" (v2.1.0):
 
 This concludes the major UX phase. The UI is now highly interactive, safe from accidental clicks, and respects the user's screen space much better.
 
+### Entry 15: True Chart Zooming and the Invisible Ticker Problem
+*Date: 2026-04-14*
+
+During final production validation, we encountered two significant state desync issues and a major scalability risk as we opened up the dashboard.
+
+**The Invisible Ticker Desync:**
+We noticed an edge case where a user would add a ticker, but nothing would appear on the UI. The confusing part? If they tried adding it again, the backend correctly claimed "already tracked!" And soon after, "Maximum 10 tickers allowed" would spawn, yet the UI only displayed 2 tickers.
+- **Root Cause:** A data synchronization flaw. Tickers are stored in the `Tickers` DynamoDB table, but if their first API fetch via `yfinance` failed, they never reached the `MarketData` table. The frontend `/api/v1/market` only extracted from `MarketData`, causing these stuck tickers to remain forever invisible and perpetually taking up allotted space.
+- **The Fix:** We rewrote `/api/v1/market` to map over the full list of `active_tickers`. If a ticker exists in the tracker but fails the `MarketData` link, instead of hiding it, we construct a `status: "pending_data"` placeholder. The frontend UI now renders an elegant "Fetching Data..." transparent card for these, allowing users to safely delete the stalled assets.
+
+**Rate Limiting against Abuse:**
+Opening the deployment exposed raw proxy polling. Given the tight Anthropic Haiku Bedrock limitations and `yfinance` IP throttling rules, clicking a ticker repetitively quickly hammered the limits.
+- **The Fix:** We embedded the robust `slowapi` library into our FastAPI initialization stack. 
+    - Queries to `/api/v1/market` are restricted to 20/minute.
+    - Synchronous interactions to `/api/v1/tickers` (Add/Delete/Synthesize) are throttled heavily to 5/minute, enforcing strict application limits and shielding our downstream endpoints.
+
+**True Zoom Capabilities:**
+The final feedback iteration pointed out a UX flaw: the original placeholder "Zoom" buttons mapped to a CSS scaling trick over the grid (which made text blurry). We ripped this out entirely and replaced it natively with `chartjs-plugin-zoom` combined with `hammer.js`. Now, mouse wheels and trackpad pinches zoom intuitively into the localized X-axes of both the Portfolio overview chart and the Ticker historical candlestick chart themselves.
+
 ---
 *Project Concluded - Managed by Antigravity*

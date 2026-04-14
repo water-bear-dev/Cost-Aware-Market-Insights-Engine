@@ -15,11 +15,17 @@ This project is built around the fundamental philosophy that AI integration must
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
 
+## System Requirements
+
+- **Docker & Docker Compose**: The easiest way to spin up the local DynamoDB ledger alongside the application.
+- **AWS Account**: Required for production deployment and invoking the **Amazon Bedrock (Anthropic Claude 3 Haiku)** models.
+- **AWS CLI (`aws`)**: Must be configured with `aws configure` locally before running deployment scripts.
+- **Python 3.9+**: Required if bypassing Docker and testing via `uvicorn` natively.
+- **Model Subscriptions**: Ensure that you have requested access to `Anthropic Claude 3 Haiku` inside the AWS Bedrock console in your target region before going live.
+
 ## Quick Start (Running Locally)
 
-To run Phase 1 of the engine entirely locally, you must have `Docker` installed on your machine.
-*(On macOS, [Colima](https://github.com/abiosoft/colima) or Docker Desktop is recommended.)*
-
+To run the engine safely on your local machine (where AI synthesis will mock safely instead of hitting AWS):
 1. **Clone the repository:**
    ```bash
    git clone https://github.com/Cost-Aware-Market-Insights-Engine.git
@@ -41,6 +47,17 @@ To run Phase 1 of the engine entirely locally, you must have `Docker` installed 
 4. **Access the FinOps Dashboard:**
    Open your browser to [http://localhost:8000](http://localhost:8000/)
    The embedded scheduler will automatically fetch real ticker prices, generate mocked AI insight responses, and chart the cost utilization to your screen.
+
+## AWS Production Deployment
+
+Once local testing is complete, deploying the full CloudFormation stack and ECS instances is seamless:
+
+1. **Verify AWS CLI credentials** are loaded and map to your production account.
+2. **Execute the Deployment Pipeline**:
+   ```bash
+   sh scripts/deploy.sh
+   ```
+   *This automatically builds the Docker Image, pushes it to your private ECR, runs `cloudformation.yml` to scaffold IAM/VPC/Dynamo tables, and forces the ECS Fargate cluster to reboot onto your new code.*
 
 ## Project Structure
 

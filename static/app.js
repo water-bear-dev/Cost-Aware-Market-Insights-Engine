@@ -423,6 +423,22 @@ function updateCard(wrapper, mkt, insight) {
 }
 
 function cardInnerHtml(mkt, insight) {
+    // Fix for pending cards with no real data yet
+    if (mkt.status === 'pending_data') {
+        return `
+            <div class="card-header">
+                <div class="card-header-left">
+                    <span class="ticker-symbol">${mkt.ticker}</span>
+                </div>
+                ${statusChip(null)}
+            </div>
+            <div class="price-row">
+                <span style="font-size:1.8rem; font-weight:700; color:var(--text-secondary)">--</span>
+            </div>
+            <p class="insight-text" style="color:var(--text-secondary)">Awaiting API ingestion for ${mkt.ticker}. The worker is fetching data...</p>
+        `;
+    }
+
     const isPos = mkt.change_pct >= 0;
     const sign = isPos ? '+' : '';
     const changeClass = isPos ? 'pill-green' : 'pill-red';
@@ -496,7 +512,14 @@ function updatePortfolioChart(marketData) {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#f8fafc' } }, tooltip: { callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(2)}` } } },
+                plugins: { 
+                    legend: { labels: { color: '#f8fafc' } }, 
+                    tooltip: { callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(2)}` } },
+                    zoom: {
+                        pan: { enabled: true, mode: 'x' },
+                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                    }
+                },
                 scales: {
                     y: { beginAtZero: false, ticks: { color: '#94a3b8', callback: v => `$${v}` }, grid: { color: 'rgba(255,255,255,0.05)' } },
                     x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
@@ -637,6 +660,10 @@ async function loadModalChart(ticker, period) {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
+                    zoom: {
+                        pan: { enabled: true, mode: 'x' },
+                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(15,23,42,0.9)',
                         titleColor: '#94a3b8',

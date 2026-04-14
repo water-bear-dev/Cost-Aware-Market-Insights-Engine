@@ -12,6 +12,9 @@ from src.clients.dynamo import init_tables
 from src.routes import health, insights, costs, tickers, market
 from src.ingestion.service import ingest_market_data
 from src.synthesis.service import synthesize_insights
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+from src.limiter import limiter
 
 logger = structlog.get_logger(__name__)
 
@@ -44,6 +47,8 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown()
 
 app = FastAPI(title="AI Market Insights Engine", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
