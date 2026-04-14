@@ -17,7 +17,7 @@ let lastInsightsData = {};
    ===================================================== */
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
-    initZoomControls();
+    initControls(); // Replacement for Zoom
     initModal();
     initDashboard();
     setupTickerForm();
@@ -38,23 +38,75 @@ function initTabs() {
 }
 
 /* =====================================================
-   Zoom Controls
+   Control Bars (Manage & Density)
    ===================================================== */
-function initZoomControls() {
+function initControls() {
     const grid = document.getElementById('insights-container');
-    document.getElementById('zoom-in-btn').addEventListener('click', () => {
-        currentZoom = Math.min(currentZoom + 0.15, 1.6);
-        grid.style.transform = `scale(${currentZoom})`;
+    const manageBtn = document.getElementById('manage-toggle-btn');
+    const managePanel = document.getElementById('manage-panel');
+
+    // Density
+    document.querySelectorAll('.density-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const density = btn.dataset.density;
+            grid.className = 'insights-grid';
+            if (density !== 'standard') {
+                grid.classList.add(`density-${density}`);
+            }
+        });
     });
-    document.getElementById('zoom-out-btn').addEventListener('click', () => {
-        currentZoom = Math.max(currentZoom - 0.15, 0.5);
-        grid.style.transform = `scale(${currentZoom})`;
+
+    // Manage Panel Toggle
+    manageBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        managePanel.classList.toggle('open');
+        if (managePanel.classList.contains('open')) renderManageList();
     });
-    document.getElementById('zoom-reset-btn').addEventListener('click', () => {
-        currentZoom = 1.0;
-        grid.style.transform = 'scale(1)';
+
+    document.addEventListener('click', (e) => {
+        if (!managePanel.contains(e.target) && e.target !== manageBtn) {
+            managePanel.classList.remove('open');
+        }
     });
 }
+
+function renderManageList() {
+    const list = document.getElementById('manage-list');
+    const tickers = Object.keys(lastMarketData).sort();
+    
+    if (tickers.length === 0) {
+        list.innerHTML = '<li style="font-size:0.8rem; color:var(--text-secondary); text-align:center; padding:1rem;">Your watchlist is empty</li>';
+        return;
+    }
+
+    list.innerHTML = tickers.map(t => `
+        <li class="manage-item">
+            <span class="manage-item-ticker">${t}</span>
+            <button class="manage-item-delete" onclick="handleManageDelete('${t}', this)" title="Remove ${t}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+            </button>
+        </li>
+    `).join('');
+}
+
+window.handleManageDelete = async (ticker, btn) => {
+    btn.disabled = true;
+    const success = await deleteTickerLogic(ticker);
+    if (success) {
+        renderManageList();
+        // Remove from UI grid
+        const el = document.querySelector(`[data-ticker="${ticker}"]`);
+        if (el) {
+            el.classList.add('fade-out');
+            setTimeout(() => el.remove(), 300);
+        }
+    } else {
+        btn.disabled = false;
+    }
+};
 
 /* =====================================================
    Ticker Form
@@ -344,23 +396,16 @@ function buildCard(mkt, insight, index) {
     const wrapper = document.createElement('div');
     wrapper.dataset.ticker = mkt.ticker;
     wrapper.className = 'insight-card';
-    wrapper.style.animationDelay = `${index * 0.07}s`;
+    wrapper.style.animationDelay = `${index * 0.05}s`;
 
     const inner = document.createElement('div');
     inner.className = 'glass';
     inner.style.height = '100%';
     inner.innerHTML = cardInnerHtml(mkt, insight);
 
-    // Card body click → open modal (not on delete button)
-    inner.addEventListener('click', e => {
-        if (e.target.closest('.delete-btn')) return;
+    // Card body click → open modal
+    inner.addEventListener('click', () => {
         openModal(mkt.ticker);
-    });
-
-    // Delete button
-    inner.querySelector('.delete-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        deleteTicker(mkt.ticker, wrapper);
     });
 
     wrapper.appendChild(inner);
@@ -372,14 +417,9 @@ function updateCard(wrapper, mkt, insight) {
     if (!inner) return;
     inner.innerHTML = cardInnerHtml(mkt, insight);
 
-    inner.onclick = e => {
-        if (e.target.closest('.delete-btn')) return;
+    inner.onclick = () => {
         openModal(mkt.ticker);
     };
-    inner.querySelector('.delete-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        deleteTicker(mkt.ticker, wrapper);
-    });
 }
 
 function cardInnerHtml(mkt, insight) {
@@ -395,16 +435,13 @@ function cardInnerHtml(mkt, insight) {
                 <span class="ticker-symbol">${mkt.ticker}</span>
                 ${signal ? `<span class="signal-pill ${sClass}">${signal}</span>` : ''}
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-                ${statusChip(insight ? insight.model_used : null)}
-                <button class="delete-btn" title="Remove ${mkt.ticker}">✕</button>
-            </div>
+            ${statusChip(insight ? insight.model_used : null)}
         </div>
         <div class="price-row">
-            <span style="font-size:1.9rem;font-weight:700;">$${mkt.close_price.toFixed(2)}</span>
-            <span class="${changeClass}" style="margin-left:0.5rem;font-size:1rem;">${sign}${mkt.change_pct.toFixed(2)}%</span>
+            <span style="font-size:1.8rem; font-weight:700;">$${mkt.close_price.toFixed(2)}</span>
+            <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
         </div>
-        <p class="insight-text">${insight ? insight.insight_text : 'Awaiting AI synthesis — click to trigger manually.'}</p>
+        <p class="insight-text">${insight ? insight.insight_text : 'Awaiting AI synthesis — click to view history.'}</p>
         ${buildNewsHtml(mkt)}
     `;
 }
@@ -412,23 +449,24 @@ function cardInnerHtml(mkt, insight) {
 /* =====================================================
    Delete Ticker
    ===================================================== */
-async function deleteTicker(ticker, cardEl) {
+/* =====================================================
+   Delete Logic (Unified)
+   ===================================================== */
+async function deleteTickerLogic(ticker) {
     try {
-        cardEl.classList.add('fade-out');
         const res = await fetch(`/api/v1/tickers/${ticker}`, { method: 'DELETE' });
         if (res.ok) {
-            setTimeout(() => cardEl.remove(), 300);
             delete lastMarketData[ticker];
             delete lastInsightsData[ticker];
             updatePortfolioChart(Object.values(lastMarketData));
             const total = Object.keys(lastMarketData).length;
             document.getElementById('ticker-count').textContent = `${total}/10 Tracked`;
-        } else {
-            cardEl.classList.remove('fade-out');
+            return true;
         }
     } catch (e) {
-        cardEl.classList.remove('fade-out');
+        console.error("Delete failed", e);
     }
+    return false;
 }
 
 /* =====================================================

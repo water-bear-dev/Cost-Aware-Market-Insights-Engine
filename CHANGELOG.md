@@ -24,6 +24,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+---
+
+## [2.1.0] - 2026-04-13
+
+### Added
+- **Centralized Ticker Management** — Removed delete buttons from individual cards to prevent accidental removal. Added a "Manage Watchlist" panel in the header for safe, centralized deletions.
+- **Grid Density Controls** — Replaced global UI scaling (zoom) with a layout-aware grid density toggle:
+    - **Compact**: 260px min-width cards for high-density overview.
+    - **Standard**: 320px min-width (default).
+    - **Wide**: Single-column focus mode for deep reading.
+- **High-Contrast Links** — Upgraded news headlines to use a high-contrast cyan color (`#7dd3fc`) with underlines and improved hover states for better readability on dark backgrounds.
+
+### Changed
+- **Visual Rhythm** — Adjusted card paddings, font weights, and spacing for a more premium, cohesive feel.
+- **Modal Close Logic** — Improved "Esc" and backdrop-click detection.
+
+---
+
 ## [2.0.1] - 2026-04-13
 
 ### Fixed
