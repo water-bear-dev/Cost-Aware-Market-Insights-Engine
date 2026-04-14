@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.0] - 2026-04-14
+
+### Changed
+- **Portfolio Chart Visualization Upgrade** — Replaced the static, absolute value Doughnut/Bar chart representation with a dynamic **Time-Series Multi-Line Chart**. Because the platform tracks highly volatile assets against massive index funds, mapping absolute `$ USD` values distorted the visual significance. All tracked assets are now historically scraped for trailing month data, mathematically normalized down to a baseline percent change index, and plotted together on an interactive layout.
+- **Ingestion Limit Expansion** — To handle the newly concurrent background API sweeps needed for the Multi-Line visualizations, the backend limitation threshold for `/api/v1/tickers/{ticker}/ingest` was exponentially expanded from `5/minute` to `30/minute`.
+
 ## [2.2.1] - 2026-04-14
 
 ### Fixed

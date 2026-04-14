@@ -84,7 +84,7 @@ def delete_ticker(request: Request, ticker: str):
 
 
 @router.post("/tickers/{ticker}/ingest")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 def ingest_ticker_manually(request: Request, ticker: str):
     """Force market data fetching for a stalled or pending ticker."""
     ticker = ticker.upper().strip()

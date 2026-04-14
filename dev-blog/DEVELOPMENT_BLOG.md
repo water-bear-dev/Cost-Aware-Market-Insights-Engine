@@ -265,4 +265,19 @@ Previously, we established a `pending_data` visual state for tickers that failed
 - This results in a magical user experience: Rate-limited tickers momentarily enter a "pending" spinner state but quickly recover themselves autonomously within a few seconds without taking down the wider UI infrastructure.
 
 ---
+
+### Entry 17: Normalized Financial Visualization & the Cache Trap
+*Date: 2026-04-14*
+
+Our Auto-Recovery "pending" logic worked beautifully on a minor scale, but as users imported massively diverse portfolios, we hit two distinct architectural hurdles.
+
+**The Infinite Rate-Limit Loop:**
+The previous fix looped over missing tickers and requested ingestions every 15 seconds. However, if a user had over 5 tickers pending, they instantly crashed into the `5/minute` API rate-cap. Their IP got banned before the data could fetch, and the loop repeated relentlessly. We solved this by instituting a local JavaScript `Set()` memory trap to ensure no ticker is ever re-ingested twice per loaded session, while raising the endpoint threshold to `30/minute`.
+
+**Portfolio View - Scale Mismatches:**
+The Portfolio Summary card previously rendered an aesthetic Pie/Bar component. The flaw occurred if tracing `$0.01` volatile tokens alongside `$100,000` institutional holdings; the chart representation became uselessly distorted.
+- **The Fix:** We completely rewrote `updatePortfolioChart()`. The UI now executes background pulls of the trailing 1-month market history for every tracked item. We loop this array alongside a baseline initialization function: `((current_price - start_price) / start_price) * 100`. 
+- Every ticker represents exactly `0%` on day one, and curves beautifully along a unifying Time-Series multi-line grid graph.
+
+---
 *Project Concluded - Managed by Antigravity*
