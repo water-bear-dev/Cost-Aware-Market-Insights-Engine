@@ -211,22 +211,29 @@ async function triggerBatchSynthesis() {
     } catch (e) {}
 }
 
-const ingestionAttempted = new Set();
+const activeIngestion = new Set();
 const portfolioHistoryCache = {};
 
 async function triggerBatchIngestion(marketData) {
     if (!marketData || marketData.length === 0) return;
     try {
-        const pendingTickers = marketData.filter(m => m.status === 'pending_data' && !ingestionAttempted.has(m.ticker));
+        const pendingTickers = marketData.filter(m => m.status === 'pending_data' && !activeIngestion.has(m.ticker));
         if (pendingTickers.length === 0) return;
 
         for (let i = 0; i < pendingTickers.length; i++) {
             const mkt = pendingTickers[i];
-            ingestionAttempted.add(mkt.ticker);
+            activeIngestion.add(mkt.ticker);
             const delay = i * 2000; // 2 seconds between bursts
             setTimeout(() => {
                 fetch(`/api/v1/tickers/${mkt.ticker}/ingest`, { method: 'POST' })
-                    .catch(() => {});
+                    .then(res => {
+                        // Whether it succeeded or failed, clear the active flag so it can retry 
+                        // in the next 15s session if it's STILL pending
+                        activeIngestion.delete(mkt.ticker);
+                    })
+                    .catch(() => {
+                        activeIngestion.delete(mkt.ticker);
+                    });
             }, delay);
         }
     } catch (e) {}
@@ -515,87 +522,52 @@ async function deleteTickerLogic(ticker) {
 /* =====================================================
    Portfolio Chart
    ===================================================== */
-async function updatePortfolioChart(marketData) {
+function updatePortfolioChart(marketData) {
     if (!marketData || marketData.length === 0) return;
     
-    const activeTickers = marketData.filter(m => m.status === 'active').map(m => m.ticker);
-    if (activeTickers.length === 0) return;
+    // Sort by price for better bar visualization
+    const sorted = [...marketData].filter(m => m.status === 'active').sort((a,b) => b.close_price - a.close_price);
+    if (sorted.length === 0) return;
 
-    // Fetch missing histories
-    const fetches = activeTickers.map(async ticker => {
-        if (!portfolioHistoryCache[ticker]) {
-            try {
-                const res = await fetch(`/api/v1/market/history/${ticker}?period=1mo`);
-                if (res.ok) {
-                    const data = await res.json();
-                    portfolioHistoryCache[ticker] = data.history || [];
-                } else {
-                    portfolioHistoryCache[ticker] = [];
-                }
-            } catch(e) {
-                portfolioHistoryCache[ticker] = [];
-            }
-        }
-    });
-    await Promise.all(fetches);
-
-    // Extract common labels from the ticker with the most data points
-    let bestLabels = [];
-    activeTickers.forEach(t => {
-        if (portfolioHistoryCache[t] && portfolioHistoryCache[t].length > bestLabels.length) {
-            bestLabels = portfolioHistoryCache[t].map(h => h.date);
-        }
-    });
-
-    const colorsList = [
-        '#38bdf8', '#10b981', '#f43f5e', '#c084fc', 
-        '#f59e0b', '#fb7185', '#34d399', '#818cf8', '#a78bfa', '#fcd34d'
-    ];
-
-    const datasets = activeTickers.map((ticker, i) => {
-        const hist = portfolioHistoryCache[ticker] || [];
-        const basePrice = hist.length > 0 ? hist[0].close : 1;
-        
-        // Normalize against base price
-        const normalizedData = hist.map(h => {
-            return ((h.close - basePrice) / basePrice) * 100;
-        });
-
-        // align length if somehow mismatched (edge case fallback)
-        while(normalizedData.length < bestLabels.length && normalizedData.length > 0) {
-            normalizedData.unshift(normalizedData[0]); 
-        }
-
-        return {
-            label: ticker,
-            data: normalizedData,
-            borderColor: colorsList[i % colorsList.length],
-            backgroundColor: 'transparent',
-            borderWidth: 2,
-            pointRadius: 0,
-            pointHoverRadius: 4,
-            tension: 0.3
-        };
-    });
+    const labels = sorted.map(d => d.ticker);
+    const data = sorted.map(d => d.close_price);
+    const colors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(244,63,94,0.4)');
+    const borderColors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.9)' : 'rgba(244,63,94,0.9)');
 
     const ctx = document.getElementById('portfolioChart').getContext('2d');
 
     if (portfolioChartInstance) {
-        portfolioChartInstance.data.labels = bestLabels;
-        portfolioChartInstance.data.datasets = datasets;
-        portfolioChartInstance.update('none');
+        portfolioChartInstance.config.type = 'bar';
+        portfolioChartInstance.data.labels = labels;
+        portfolioChartInstance.data.datasets = [{ 
+            label: 'Price (USD)', 
+            data: data, 
+            backgroundColor: colors, 
+            borderColor: borderColors, 
+            borderWidth: 1, 
+            borderRadius: 6 
+        }];
+        portfolioChartInstance.options.scales.y.type = 'linear'; // Switch back to linear for bar chart
+        portfolioChartInstance.update();
     } else {
         portfolioChartInstance = new Chart(ctx, {
-            type: 'line',
-            data: { labels: bestLabels, datasets },
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ 
+                    label: 'Price (USD)', 
+                    data, 
+                    backgroundColor: colors, 
+                    borderColor: borderColors, 
+                    borderWidth: 1, 
+                    borderRadius: 6 
+                }]
+            },
             options: {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { 
-                    legend: { position: 'top', labels: { color: '#f8fafc', usePointStyle: true, pointStyle: 'circle' } }, 
-                    tooltip: { 
-                        mode: 'index', intersect: false,
-                        callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%` } 
-                    },
+                    legend: { labels: { color: '#f8fafc' } }, 
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: $${ctx.parsed.y.toFixed(2)}` } },
                     zoom: {
                         pan: { enabled: true, mode: 'x' },
                         zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
@@ -603,13 +575,12 @@ async function updatePortfolioChart(marketData) {
                 },
                 scales: {
                     y: { 
-                        title: { display: true, text: 'Change (%)', color: '#94a3b8' },
-                        ticks: { color: '#94a3b8', callback: v => `${v}%` }, 
+                        beginAtZero: true, 
+                        ticks: { color: '#94a3b8', callback: v => `$${v}` }, 
                         grid: { color: 'rgba(255,255,255,0.05)' } 
                     },
-                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { display: false } }
-                },
-                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                }
             }
         });
     }

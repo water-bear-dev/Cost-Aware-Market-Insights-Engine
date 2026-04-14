@@ -280,4 +280,35 @@ The Portfolio Summary card previously rendered an aesthetic Pie/Bar component. T
 - Every ticker represents exactly `0%` on day one, and curves beautifully along a unifying Time-Series multi-line grid graph.
 
 ---
+
+### Entry 18: Pure Absolute Pricing & Persistent Recovery
+*Date: 2026-04-14*
+
+Sometimes "mathematically perfect" UI decisions (like percentage normalization) aren't what the user actually needs for their workflow. We pivoted the portfolio chart away from percentages back to absolute USD values. 
+
+**The Scaling Paradox:** 
+By switching to absolute values, we immediately ran into the scaling issue where expensive stocks flattened cheaper ones. We solved this by implementing a **Logarithmic Y-Axis**, which preserves the visual magnitude of percentage moves while showing the real dollar price.
+
+**Eliminating the Infinite Spinner:**
+The "pending" states were stickier than expected because our previous "one-shot" ingestion attempt wasn't accounting for transient backend failures or Yahoo Finance empty responses.
+- **Backend Fix:** We now pull a 5-day window for every single ticker check. If today is a holiday or a Sunday, we successfully fall back to Friday's data instead of returning `None`.
+- **Frontend Fix:** We removed the binary "tried once" lock. Tickers now retry every 15 seconds until they succeed, but we added an "active ingestion" guard to prevent parallel hammering of the same ticker within the same cycle.
+- **Throttling:** We raised the ingestion limit to 5 per second, providing enough headroom for a large portfolio to fully self-heal in a single burst.
+
+---
+
+### Entry 19: The Pivot to Simplicity & Robust Fallbacks
+*Date: 2026-04-14*
+
+Complexity for complexity's sake often backfires. Our multi-line time-series experiment, while mathematically sound, introduced mapping bugs (the date/time mismatch) and didn't provide the immediate "at-a-glance" value the user wanted.
+
+**Reverting for Clarity:**
+We reverted the main portfolio visual to a **Bar Chart**. By focusing on absolute `close_price`, we provide immediate feedback on asset magnitude. To handle the disparate price scales, we ensured the chart is cleanly sorted by value.
+
+**Solving the "Stuck" Ingestion:**
+The primary cause of the persistent "Pending" banners was a reliance on `ticker.history(period="1d/5d")`. On certain days, Yahoo's API returns empty frames for these specific calls, even while the stocks are very much active.
+- **The Solution:** We implemented a prioritized fallback. If history fails, we ping `ticker.fast_info` then `ticker.info` for the `regularMarketPrice`. 
+- This ensures that as long as the ticker is valid, the engine *will* find a price, move the ticker into "Active" status, and clear the dashboard for analysis.
+
+---
 *Project Concluded - Managed by Antigravity*

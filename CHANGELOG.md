@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.3.2] - 2026-04-14
+
+### Changed
+- **Bar Chart Reversion** — Reverted the dashboard portfolio visualization to a vertical Bar Chart representing absolute USD prices for cleaner, high-contrast visibility across disparate asset classes.
+- **Fail-Safe Ingestion Fallbacks** — Integrated a multi-layered fallback mechanism in the backend ingestion service. If a primary historical data pull fails (common for cloud IPs on late-night/weekend windows), the system now automatically falls back to `ticker.fast_info` or `ticker.info` to extract current market pricing, ensuring all tickers move from "Pending" to "Active" regardless of history availability.
+
+## [2.3.1] - 2026-04-14
+
+### Changed
+- **Absolute Portfolio Valuation** — Transitioned the primary dashboard line chart from percentage-based normalization to absolute USD pricing. 
+- **Logarithmic Price Scaling** — Integrated a logarithmic Y-axis for the portfolio summary. This prevents higher-priced assets (e.g., MSFT) from visually suppressing the volatility of lower-priced tracked assets (e.g., PLTR), ensuring absolute price moves are proportionally visible.
+- **Persistent Ingestion Recovery** — Refactored the frontend ingestion loop to perform "retry until success". If a background pull fails, the system automatically re-queues the ticker for the next refresh cycle (15s) rather than locking it out.
+- **Enhanced API Burst Window** — Raised the `/ingest` rate limit threshold to `300/minute` (5 requests per second) to support rapid recovery for users with large, unpopulated portfolios.
+- **Fetch Resilience** — Updated backend market data logic to pull 5-day windows rather than 1-day windows, significantly reducing "stuck pending" states during global market closures or holidays.
+
 ## [2.3.0] - 2026-04-14
 
 ### Changed

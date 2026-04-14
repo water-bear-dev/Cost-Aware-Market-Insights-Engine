@@ -65,29 +65,56 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
 def fetch_ticker_data(ticker_symbol: str) -> dict:
     try:
         ticker = yf.Ticker(ticker_symbol)
-        hist = ticker.history(period="1d")
+        hist = ticker.history(period="5d")
         
-        if hist.empty:
-            logger.warning("No data found for ticker", ticker=ticker_symbol)
-            return None
+        latest = None
+        if not hist.empty:
+            latest = hist.iloc[-1]
+            open_price = float(latest['Open'])
+            close_price = float(latest['Close'])
+            high_price = float(latest['High'])
+            low_price = float(latest['Low'])
+            volume = int(latest['Volume'])
+            change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
+        else:
+            # Fallback to ticker.info or fast_info if history fails
+            logger.warning("History empty, attempting info fallback", ticker=ticker_symbol)
+            try:
+                # fast_info is preferred as it avoids the heavy .info call
+                info = getattr(ticker, 'fast_info', {})
+                close_price = info.get('lastPrice') or info.get('last_price')
+                
+                if not close_price:
+                    # Deep fallback to standard info
+                    raw_info = ticker.info
+                    close_price = raw_info.get('regularMarketPrice') or raw_info.get('currentPrice')
+                
+                if not close_price:
+                    logger.error("All fallbacks failed for ticker", ticker=ticker_symbol)
+                    return None
+                
+                close_price = float(close_price)
+                open_price = close_price # Best guess
+                high_price = close_price
+                low_price = close_price
+                volume = 0
+                change_pct = 0.0
+            except Exception as e:
+                logger.error("Info fallback failed", ticker=ticker_symbol, error=str(e))
+                return None
             
-        latest = hist.iloc[-1]
         headlines_data = fetch_headlines(ticker_symbol, max_count=5)
-        
-        open_price = float(latest['Open'])
-        close_price = float(latest['Close'])
-        change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
         
         return {
             'ticker': ticker_symbol,
             'open_price': open_price,
-            'high_price': float(latest['High']),
-            'low_price': float(latest['Low']),
+            'high_price': high_price,
+            'low_price': low_price,
             'close_price': close_price,
-            'volume': int(latest['Volume']),
+            'volume': volume,
             'change_pct': change_pct,
-            'headlines': [h['title'] for h in headlines_data],  # keep for synthesis compat
-            'headline_links': headlines_data  # rich format for UI
+            'headlines': [h['title'] for h in headlines_data],
+            'headline_links': headlines_data
         }
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
@@ -151,7 +178,7 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         synthesize_single_insight(item)
         return True
     except Exception as e:
-        logger.error("Failed to force ingest ticker", ticker=ticker, error=str(e))
+        logger.error("Failed to force ingest ticker", ticker=ticker, error=str(e), exc_info=True)
         return False
 
 
