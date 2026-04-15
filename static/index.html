@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=4">
+    <link rel="stylesheet" href="/static/style.css?v=5">
 </head>
 <body>
 
@@ -17,13 +17,12 @@
     <div class="background-glob blur-globe"></div>
 
     <div class="dashboard-container">
-        
+
         <header class="header" style="margin-bottom: 2rem;">
             <div class="header-logo">
                 <div class="logo-icon"></div>
                 <h1>Market Insights Engine</h1>
             </div>
-            
             <div class="health-indicator">
                 <div class="dot pulse-animation" id="db-health-dot"></div>
                 <span id="db-health-text">Checking System...</span>
@@ -35,7 +34,7 @@
             <button class="tab-btn" data-tab="finops-view">FinOps Dashboard</button>
         </div>
 
-        <!-- Insights Section (PRIMARY) -->
+        <!-- Insights Section -->
         <section id="insights-view" class="tab-content active">
             <div class="insights-controls glass" style="margin-bottom: 2.5rem; padding: 2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
@@ -49,8 +48,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Global Portfolio Chart -->
                 <div class="chart-container" style="position: relative; height: 280px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
                     <canvas id="portfolioChart"></canvas>
                 </div>
@@ -64,7 +61,6 @@
                         <button class="density-btn active" data-density="standard">Standard</button>
                         <button class="density-btn" data-density="wide">Wide</button>
                     </div>
-
                     <div style="position:relative">
                         <button class="manage-watchlist-btn" id="manage-toggle-btn">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -72,13 +68,10 @@
                         </button>
                         <div class="manage-panel" id="manage-panel">
                             <h4 style="font-size:0.75rem; text-transform:uppercase; color:var(--text-secondary); margin-bottom:0.75rem; border-bottom:1px solid var(--glass-border); padding-bottom:0.8rem; padding-top:0.2rem">Edit Watchlist</h4>
-                            <ul class="manage-list" id="manage-list">
-                                <!-- Populated by JS -->
-                            </ul>
+                            <ul class="manage-list" id="manage-list"></ul>
                         </div>
                     </div>
                 </div>
-
                 <div class="insights-grid" id="insights-container">
                     <div class="loading-placeholder glass" style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
                         <p style="color: var(--text-secondary);">Loading market data...</p>
@@ -108,7 +101,6 @@
                         <p class="metric-subtext"><span id="budget-remaining">$0.00</span> Remaining</p>
                     </div>
                 </div>
-                
                 <h3 style="margin-top: 2.5rem; margin-bottom: 1.5rem; font-weight: 500; font-size: 1.2rem; color: var(--text-secondary); text-transform: uppercase;">7-Day Run Rate Analysis</h3>
                 <div class="metrics-grid">
                     <div class="metric-card glass glow-hover">
@@ -135,6 +127,8 @@
     <!-- Ticker Detail Modal -->
     <div id="ticker-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-ticker-title">
         <div class="modal-panel glass">
+
+            <!-- Header -->
             <div class="modal-header">
                 <div>
                     <h2 id="modal-ticker-title" style="font-size: 2rem; font-weight: 700;"></h2>
@@ -146,11 +140,17 @@
                 </div>
             </div>
 
-            <!-- Period Selector -->
+            <!-- Hero Stats: Price, Change, Open, High, Low -->
+            <div id="modal-hero-stats" class="modal-hero-stats"></div>
+
+            <!-- Period Selector: 1D 1W 1M 3M 6M YTD 1Y 5Y MAX -->
             <div class="period-selector" id="period-selector">
                 <button class="period-btn" data-period="1d">1D</button>
-                <button class="period-btn active" data-period="1mo">1M</button>
                 <button class="period-btn" data-period="1w">1W</button>
+                <button class="period-btn active" data-period="1mo">1M</button>
+                <button class="period-btn" data-period="3mo">3M</button>
+                <button class="period-btn" data-period="6mo">6M</button>
+                <button class="period-btn" data-period="ytd">YTD</button>
                 <button class="period-btn" data-period="1y">1Y</button>
                 <button class="period-btn" data-period="5y">5Y</button>
                 <button class="period-btn" data-period="max">MAX</button>
@@ -163,8 +163,12 @@
             </div>
 
             <div class="modal-body">
-                <!-- Key Stats -->
-                <div id="modal-stats" class="modal-stats-grid"></div>
+
+                <!-- TradingView-style Key Statistics -->
+                <div class="modal-section">
+                    <h4>Key Statistics</h4>
+                    <div id="modal-key-stats" class="modal-key-stats-grid"></div>
+                </div>
 
                 <!-- Analyst Ratings -->
                 <div class="modal-section">
@@ -172,16 +176,30 @@
                     <div id="modal-analyst" class="analyst-bar-container"></div>
                 </div>
 
-                <!-- AI Insight -->
+                <!-- AI Synthesis -->
                 <div class="modal-section">
                     <h4>AI Synthesis</h4>
-                    <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.7; font-size: 0.95rem;"></p>
+                    <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.8; font-size: 0.95rem;"></p>
                     <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>
                 </div>
+
+                <!-- About the Company -->
+                <div class="modal-section" id="modal-about-section" style="display:none;">
+                    <h4>About</h4>
+                    <p id="modal-about-text" style="color: #cbd5e1; line-height: 1.7; font-size: 0.875rem;"></p>
+                    <div id="modal-about-meta" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;"></div>
+                </div>
+
+                <!-- Recent News Articles -->
+                <div class="modal-section" id="modal-news-section">
+                    <h4>Recent News</h4>
+                    <div id="modal-news-list" class="modal-news-articles"></div>
+                </div>
+
             </div>
         </div>
     </div>
 
-    <script src="/static/app.js?v=4"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

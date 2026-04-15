@@ -78,7 +78,19 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         return False
         
     headlines = latest_data.get('headlines', [])
-    headline_text = headlines[0] if headlines else 'No recent news'
+    headline_links = latest_data.get('headline_links', [])
+    # Build rich headline context (up to 5 articles)
+    if isinstance(headline_links, list) and headline_links:
+        news_items = []
+        for h in headline_links[:5]:
+            if isinstance(h, dict) and h.get('title'):
+                src = f" ({h['source']}" + (f", {h['published'][:16]}" if h.get('published') else '') + ")" if h.get('source') else ""
+                news_items.append(f"- {h['title']}{src}")
+        headline_text = '\n'.join(news_items) if news_items else (headlines[0] if headlines else 'No recent news')
+    elif headlines:
+        headline_text = '\n'.join(f'- {h}' for h in headlines[:5])
+    else:
+        headline_text = 'No recent news available'
     change_pct = float(latest_data.get('change_pct', 0))
     
     if getattr(settings, 'use_mock_ai', True):
@@ -96,18 +108,24 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"Analyze the following stock data and headline. Write a concise 2-sentence market insight.\n"
-                f"Then on a new line, output exactly one of: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n"
-                f"Base the signal on price momentum, news sentiment and market context.\n\n"
+                f"You are a professional equity analyst. Provide a detailed market synthesis for {ticker} based on the data and news below.\n"
+                f"Write 4-5 sentences covering: (1) current price action and momentum context, "
+                f"(2) what the recent news means for the stock thesis, "
+                f"(3) key risks or tailwinds, "
+                f"(4) a forward-looking outlook.\n"
+                f"Be specific — reference the actual headlines, numbers, and companies mentioned.\n"
+                f"Then on a new line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker}\n"
-                f"Close: ${float(latest_data.get('close_price', 0)):.2f}\n"
-                f"Change: {change_pct:.2f}%\n"
-                f"Headline: {headline_text}"
+                f"Close Price: ${float(latest_data.get('close_price', 0)):.2f}\n"
+                f"Open: ${float(latest_data.get('open_price', 0)):.2f}\n"
+                f"Day Change: {change_pct:.2f}%\n"
+                f"Volume: {int(latest_data.get('volume', 0)):,}\n\n"
+                f"Recent News Headlines:\n{headline_text}"
             )
-            
+
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 200,
+                "max_tokens": 600,
                 "messages": [
                     {"role": "user", "content": [{"type": "text", "text": prompt}]}
                 ]

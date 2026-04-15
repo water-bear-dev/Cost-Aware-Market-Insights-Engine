@@ -7,6 +7,8 @@ const sparklineInstances = {};
 let currentZoom = 1.0;
 let currentModalTicker = null;
 let currentPeriod = '1mo';
+let currentModalMkt = {};
+let currentModalInsight = null;
 
 // Snapshot of last known data for diff-and-patch
 let lastMarketData = {};
@@ -614,28 +616,23 @@ function openModal(ticker) {
         b.classList.toggle('active', b.dataset.period === '1mo');
     });
 
-    const mkt = lastMarketData[ticker] || {};
-    const insight = lastInsightsData[ticker] || null;
+    const mkt     = lastMarketData[ticker]  || {};
+    const insight  = lastInsightsData[ticker] || null;
+    currentModalMkt    = mkt;
+    currentModalInsight = insight;
 
     // Header
     document.getElementById('modal-ticker-title').textContent = ticker;
-    document.getElementById('modal-ticker-name').textContent = `Click a period to load historical chart`;
+    document.getElementById('modal-ticker-name').textContent  = 'Loading company info...';
 
     // Signal badge
-    const signal = insight ? (insight.signal || 'HOLD') : 'HOLD';
+    const signal   = insight ? (insight.signal || 'HOLD') : 'HOLD';
     const sigBadge = document.getElementById('modal-signal-badge');
-    sigBadge.className = `signal-badge ${signal.toLowerCase()}`;
+    sigBadge.className   = `signal-badge ${signal.toLowerCase()}`;
     sigBadge.textContent = signal;
 
-    // Stats
-    document.getElementById('modal-stats').innerHTML = `
-        <div class="stat-item"><div class="stat-label">Price</div><div class="stat-value">$${(mkt.close_price||0).toFixed(2)}</div></div>
-        <div class="stat-item"><div class="stat-label">Change</div><div class="stat-value ${mkt.change_pct>=0?'pill-green':'pill-red'}">${mkt.change_pct>=0?'+':''}${(mkt.change_pct||0).toFixed(2)}%</div></div>
-        <div class="stat-item"><div class="stat-label">Open</div><div class="stat-value">$${(mkt.open_price||0).toFixed(2)}</div></div>
-        <div class="stat-item"><div class="stat-label">High</div><div class="stat-value">$${(mkt.high_price||0).toFixed(2)}</div></div>
-        <div class="stat-item"><div class="stat-label">Low</div><div class="stat-value">$${(mkt.low_price||0).toFixed(2)}</div></div>
-        <div class="stat-item"><div class="stat-label">Volume</div><div class="stat-value">${((mkt.volume||0)/1e6).toFixed(2)}M</div></div>
-    `;
+    // Hero stats (price, change, open, high, low)
+    renderHeroStats(mkt);
 
     // AI Insight
     document.getElementById('modal-insight-text').textContent =
@@ -643,16 +640,118 @@ function openModal(ticker) {
     document.getElementById('modal-insight-meta').textContent =
         insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : '';
 
-    // Reset analyst section
-    document.getElementById('modal-analyst').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
+    // News articles from card data
+    renderModalNews(mkt);
+
+    // Clear key stats and analyst while loading
+    document.getElementById('modal-key-stats').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading statistics...</p>';
+    document.getElementById('modal-analyst').innerHTML    = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
+    document.getElementById('modal-about-section').style.display = 'none';
 
     // Show modal
     document.getElementById('ticker-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
 
-    // Load chart + analyst data
+    // Load enriched chart + key stats + company info
     loadModalChart(ticker, '1mo');
 }
+
+function renderHeroStats(mkt) {
+    const isPos = (mkt.change_pct || 0) >= 0;
+    const sign  = isPos ? '+' : '';
+    const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
+    document.getElementById('modal-hero-stats').innerHTML = `
+        <div class="hero-stat">
+            <div class="hero-stat-label">PRICE</div>
+            <div class="hero-stat-value">$${(mkt.close_price||0).toFixed(2)}</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-label">CHANGE</div>
+            <div class="hero-stat-value" style="color:${changeColor}">${sign}${(mkt.change_pct||0).toFixed(2)}%</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-label">OPEN</div>
+            <div class="hero-stat-value">$${(mkt.open_price||0).toFixed(2)}</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-label">HIGH</div>
+            <div class="hero-stat-value">$${(mkt.high_price||0).toFixed(2)}</div>
+        </div>
+        <div class="hero-stat">
+            <div class="hero-stat-label">LOW</div>
+            <div class="hero-stat-value">$${(mkt.low_price||0).toFixed(2)}</div>
+        </div>
+    `;
+}
+
+function renderKeyStats(info, mkt) {
+    const fmt = (v, prefix='', suffix='', decimals=2) =>
+        v !== null && v !== undefined ? `${prefix}${parseFloat(v).toFixed(decimals)}${suffix}` : '—';
+    const fmtVol = v => v ? (v >= 1e9 ? `${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `${(v/1e6).toFixed(2)}M` : `${(v/1e3).toFixed(1)}K`) : '—';
+
+    const stats = [
+        { label: 'Market Cap',     value: info.market_cap_fmt || '—' },
+        { label: 'P/E Ratio',      value: fmt(info.pe_ratio, '', '', 1) },
+        { label: 'Fwd P/E',        value: fmt(info.forward_pe, '', '', 1) },
+        { label: 'EPS (TTM)',      value: fmt(info.eps, '$') },
+        { label: 'Div. Yield',     value: info.dividend_yield ? `${(info.dividend_yield*100).toFixed(2)}%` : '—' },
+        { label: 'Beta',           value: fmt(info.beta, '', '', 2) },
+        { label: '52W High',       value: fmt(info['52w_high'], '$') },
+        { label: '52W Low',        value: fmt(info['52w_low'],  '$') },
+        { label: 'Volume',         value: fmtVol(mkt.volume) },
+        { label: 'Avg Volume',     value: fmtVol(info.avg_volume) },
+    ];
+
+    document.getElementById('modal-key-stats').innerHTML = stats.map(s => `
+        <div class="key-stat-item">
+            <div class="key-stat-label">${s.label}</div>
+            <div class="key-stat-value">${s.value}</div>
+        </div>
+    `).join('');
+}
+
+function renderModalNews(mkt) {
+    const container = document.getElementById('modal-news-list');
+    const links     = mkt.headline_links || [];
+    const headlines = mkt.headlines      || [];
+
+    if (links.length > 0) {
+        container.innerHTML = links.slice(0, 5).map(h => {
+            if (!h.title) return '';
+            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+            return `
+                <a class="news-article-card" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">
+                    <div class="news-article-source">${h.source || 'News'}${pub ? ` · ${pub}` : ''}</div>
+                    <div class="news-article-title">${h.title}</div>
+                    <svg class="news-article-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
+                </a>
+            `;
+        }).join('');
+    } else if (headlines.length > 0) {
+        container.innerHTML = headlines.slice(0, 5).map(h =>
+            `<div class="news-article-card no-link"><div class="news-article-title">${h}</div></div>`
+        ).join('');
+    } else {
+        container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">No recent news available.</p>';
+    }
+}
+
+function renderAboutSection(info) {
+    if (!info || !info.business_summary) return;
+    document.getElementById('modal-about-text').textContent = info.business_summary;
+    const metaEl = document.getElementById('modal-about-meta');
+    const tags = [
+        info.sector   ? { label: info.sector }   : null,
+        info.industry ? { label: info.industry } : null,
+        info.country  ? { label: info.country }  : null,
+        info.exchange ? { label: info.exchange }  : null,
+    ].filter(Boolean);
+    metaEl.innerHTML = tags.map(t =>
+        `<span class="about-tag">${t.label}</span>`
+    ).join('');
+    document.getElementById('modal-about-section').style.display = 'block';
+}
+
 
 function closeModal() {
     document.getElementById('ticker-modal').classList.remove('open');
@@ -680,17 +779,15 @@ async function loadModalChart(ticker, period) {
         });
         const closes = data.ohlcv.map(d => d.close);
 
-        // Update name if we have it
+        // Update company name
         if (data.info && data.info.name) {
             document.getElementById('modal-ticker-name').textContent = data.info.name;
         }
 
-        // Color line based on overall trend
+        // Color based on trend
         const trendColor = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
 
-        // Destroy old chart
         if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
-
         const ctx = document.getElementById('modal-history-chart').getContext('2d');
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
         gradient.addColorStop(0, trendColor + '33');
@@ -737,16 +834,10 @@ async function loadModalChart(ticker, period) {
             }
         });
 
-        // Update stats with info
+        // Key stats (only populated on first load when info is available)
         if (data.info) {
-            const extraStats = document.getElementById('modal-stats');
-            const existing = extraStats.innerHTML;
-            let infoHtml = '';
-            if (data.info['52w_high']) infoHtml += `<div class="stat-item"><div class="stat-label">52W High</div><div class="stat-value">$${parseFloat(data.info['52w_high']).toFixed(2)}</div></div>`;
-            if (data.info['52w_low']) infoHtml += `<div class="stat-item"><div class="stat-label">52W Low</div><div class="stat-value">$${parseFloat(data.info['52w_low']).toFixed(2)}</div></div>`;
-            if (data.info.pe_ratio) infoHtml += `<div class="stat-item"><div class="stat-label">P/E Ratio</div><div class="stat-value">${parseFloat(data.info.pe_ratio).toFixed(1)}</div></div>`;
-            if (data.info.market_cap) infoHtml += `<div class="stat-item"><div class="stat-label">Mkt Cap</div><div class="stat-value">$${(data.info.market_cap/1e9).toFixed(1)}B</div></div>`;
-            extraStats.innerHTML = existing + infoHtml;
+            renderKeyStats(data.info, currentModalMkt);
+            renderAboutSection(data.info);
         }
 
         // Analyst ratings

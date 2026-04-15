@@ -12,11 +12,14 @@ router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 PERIOD_MAP = {
-    "1d": "1d",
-    "1w": "5d",
+    "1d":  "1d",
+    "1w":  "5d",
     "1mo": "1mo",
-    "1y": "1y",
-    "5y": "5y",
+    "3mo": "3mo",
+    "6mo": "6mo",
+    "ytd": "ytd",
+    "1y":  "1y",
+    "5y":  "5y",
     "max": "max"
 }
 
@@ -90,11 +93,14 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
         
         # Choose interval based on period
         interval_map = {
-            "1d": "5m",
-            "5d": "15m",
+            "1d":  "5m",
+            "5d":  "15m",
             "1mo": "1d",
-            "1y": "1wk",
-            "5y": "1mo",
+            "3mo": "1d",
+            "6mo": "1d",
+            "ytd": "1d",
+            "1y":  "1wk",
+            "5y":  "1mo",
             "max": "1mo"
         }
         interval = interval_map.get(yf_period, "1d")
@@ -132,17 +138,28 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
         except Exception as e:
             logger.warning("Could not fetch analyst recommendations", ticker=ticker, error=str(e))
         
-        # Basic info
+        # Basic info — enriched for TradingView-style key stats panel
         info = {}
         try:
             raw_info = t.info
+            mc = raw_info.get("marketCap", 0) or 0
             info = {
-                "name": raw_info.get("longName", ticker),
-                "sector": raw_info.get("sector", ""),
-                "market_cap": raw_info.get("marketCap", 0),
-                "pe_ratio": raw_info.get("trailingPE", None),
-                "52w_high": raw_info.get("fiftyTwoWeekHigh", None),
-                "52w_low": raw_info.get("fiftyTwoWeekLow", None),
+                "name":            raw_info.get("longName", ticker),
+                "sector":          raw_info.get("sector", ""),
+                "industry":        raw_info.get("industry", ""),
+                "country":         raw_info.get("country", ""),
+                "exchange":        raw_info.get("exchange", ""),
+                "market_cap":      mc,
+                "market_cap_fmt":  f"${mc/1e12:.2f}T" if mc >= 1e12 else (f"${mc/1e9:.2f}B" if mc >= 1e9 else f"${mc/1e6:.0f}M"),
+                "pe_ratio":        raw_info.get("trailingPE", None),
+                "forward_pe":      raw_info.get("forwardPE", None),
+                "eps":             raw_info.get("trailingEps", None),
+                "dividend_yield":  raw_info.get("dividendYield", None),
+                "beta":            raw_info.get("beta", None),
+                "52w_high":        raw_info.get("fiftyTwoWeekHigh", None),
+                "52w_low":         raw_info.get("fiftyTwoWeekLow", None),
+                "avg_volume":      raw_info.get("averageVolume", None),
+                "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:600],
             }
         except Exception:
             info = {"name": ticker}

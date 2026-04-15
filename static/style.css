@@ -416,3 +416,171 @@ body {
     100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
 }
 .pulse-animation { animation: pulse 2s infinite; }
+
+/* =====================================================
+   Zoom / Close Button
+   ===================================================== */
+.zoom-btn {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+}
+.zoom-btn:hover { background: rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.4); color: var(--negative); }
+
+/* =====================================================
+   Modal Hero Stats Bar (Price, Change, Open, High, Low)
+   ===================================================== */
+.modal-hero-stats {
+    display: flex;
+    gap: 0;
+    background: rgba(15,23,42,0.5);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.hero-stat {
+    flex: 1;
+    padding: 0.9rem 1rem;
+    border-right: 1px solid var(--glass-border);
+    min-width: 0;
+}
+.hero-stat:last-child { border-right: none; }
+.hero-stat-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.3rem;
+}
+.hero-stat-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (max-width: 600px) {
+    .modal-hero-stats { flex-wrap: wrap; }
+    .hero-stat { flex: 0 0 50%; border-right: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border); }
+}
+
+/* =====================================================
+   TradingView-style Key Statistics Grid
+   ===================================================== */
+.modal-key-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.key-stat-item {
+    padding: 0.65rem 0.9rem;
+    border-right: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.02);
+    transition: background 0.2s ease;
+}
+.key-stat-item:hover { background: rgba(56,189,248,0.06); }
+/* Remove right border on last column, bottom border on last row via nth-child tricks */
+.key-stat-item:nth-child(5n) { border-right: none; }
+@media (max-width: 700px) {
+    .modal-key-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .key-stat-item:nth-child(5n) { border-right: 1px solid var(--glass-border); }
+    .key-stat-item:nth-child(2n) { border-right: none; }
+}
+.key-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.2rem;
+}
+.key-stat-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* =====================================================
+   News Article Cards (Modal Bottom)
+   ===================================================== */
+.modal-news-articles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+.news-article-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    position: relative;
+    cursor: pointer;
+}
+.news-article-card:hover {
+    background: rgba(56,189,248,0.07);
+    border-color: rgba(56,189,248,0.25);
+    transform: translateX(2px);
+}
+.news-article-card.no-link { cursor: default; }
+.news-article-card.no-link:hover { transform: none; background: rgba(255,255,255,0.03); }
+.news-article-source {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.news-article-title {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: #e2e8f0;
+    flex: 1;
+}
+.news-article-card:hover .news-article-title { color: var(--text-primary); }
+.news-article-arrow {
+    width: 16px; height: 16px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: transform 0.2s ease, color 0.2s ease;
+}
+.news-article-card:hover .news-article-arrow {
+    color: var(--accent);
+    transform: translate(2px, -2px);
+}
+
+/* =====================================================
+   About Section Tags
+   ===================================================== */
+.about-tag {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    background: rgba(99,102,241,0.12);
+    border: 1px solid rgba(99,102,241,0.25);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #a5b4fc;
+    letter-spacing: 0.3px;
+}
