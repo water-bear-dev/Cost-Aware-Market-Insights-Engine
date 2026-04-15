@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 import structlog
 import os
+import threading
+import time
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,14 +36,21 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing app lifespan")
     # Initialize DynamoDB tables safely
     init_tables()
-    
-    # Run the job once on startup
-    scheduled_job()
-    
+
+    # Run startup ingestion in background so the app becomes healthy immediately.
+    # A 10-second delay lets the container settle and avoids hitting yfinance
+    # from a cold AWS IP before all network routes are established.
+    def _delayed_startup():
+        time.sleep(10)
+        logger.info("Running delayed startup ingestion")
+        scheduled_job()
+
+    threading.Thread(target=_delayed_startup, daemon=True).start()
+
     # Schedule to run every 5 minutes
     scheduler.add_job(scheduled_job, 'interval', minutes=5)
     scheduler.start()
-    
+
     yield
     # Shutdown
     scheduler.shutdown()

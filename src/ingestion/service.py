@@ -122,18 +122,24 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
 
 
 def get_active_tickers() -> list[str]:
-    """Fetch active tickers from the DynamoDB Tickers table."""
+    """Fetch active tickers from the DynamoDB Tickers table (paginated)."""
     table = get_table('Tickers')
     try:
-        response = table.scan()
-        items = response.get('Items', [])
-        
+        items = []
+        scan_kwargs = {}
+        while True:
+            response = table.scan(**scan_kwargs)
+            items.extend(response.get('Items', []))
+            if 'LastEvaluatedKey' not in response:
+                break
+            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+
         # If empty, seed from config
         if not items:
             for t in settings.ticker_list:
                 table.put_item(Item={'ticker': t})
             return settings.ticker_list
-            
+
         return [item['ticker'] for item in items]
     except Exception as e:
         logger.error("Failed to fetch active tickers", error=str(e))

@@ -2,7 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.3.2] - 2026-04-14
+## [2.4.0] - 2026-04-15
+
+### Fixed
+- **DynamoDB Scan Pagination Bug (Primary Root Cause)** — `GET /api/v1/market` and `GET /api/v1/insights` previously called `table.scan()` which DynamoDB silently truncates at 1MB. As MarketData accumulated 5-minute writes across 5 tickers, rows for ticker 3–5 fell past that 1MB page and were silently lost — causing META, IBM, AMD to appear as `pending_data` despite valid data existing. Replaced with per-ticker `table.query(ScanIndexForward=False, Limit=1)` calls. This is both correct (always returns the actual latest row) and more efficient (O(n_tickers) reads vs full table scan).
+- **Paginated `get_active_tickers()` Scan** — The `Tickers` table scan in `src/ingestion/service.py` also lacked pagination. Applied the same `LastEvaluatedKey` loop to ensure all tracked tickers are always returned.
+- **Synchronous Startup Ingestion Race** — `main.py` previously called `scheduled_job()` synchronously during `lifespan()` before the app was ready. On ECS task replacement this hit yfinance for all tickers simultaneously from a fresh AWS IP, causing throttling and partial writes. Moved to a **daemon thread with 10-second delay** so the container becomes healthy first before ingestion fires.
+- **Ghost Insights for Removed Tickers** — `GET /api/v1/insights` returned stale insights for tickers like AAPL that were no longer in the Tickers watchlist. Endpoint now only returns insights for actively tracked tickers.
+
+
 
 ### Changed
 - **Bar Chart Reversion** — Reverted the dashboard portfolio visualization to a vertical Bar Chart representing absolute USD prices for cleaner, high-contrast visibility across disparate asset classes.

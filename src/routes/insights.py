@@ -1,16 +1,20 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Request
 from boto3.dynamodb.conditions import Key
 from src.clients.dynamo import get_table
+from src.ingestion.service import get_active_tickers
+from src.limiter import limiter
 from typing import Optional
 
 router = APIRouter()
 
 @router.get("/insights")
-def get_insights(ticker: Optional[str] = None):
+@limiter.limit("60/minute")
+def get_insights(request: Request, ticker: Optional[str] = None):
     table = get_table('Insights')
-    
+
     try:
         if ticker:
+            ticker = ticker.upper().strip()
             response = table.query(
                 KeyConditionExpression=Key('ticker').eq(ticker),
                 ScanIndexForward=False,
@@ -31,15 +35,19 @@ def get_insights(ticker: Optional[str] = None):
                 "cost_usd": float(item.get("cost_usd", 0)),
             }
         else:
-            response = table.scan()
-            latest = {}
-            for item in response.get('Items', []):
-                t = item['ticker']
-                if t not in latest or item['timestamp'] > latest[t]['timestamp']:
-                    latest[t] = item
-            
+            # Only return insights for actively tracked tickers (prevents ghost data)
+            active_tickers = get_active_tickers()
             results = []
-            for item in latest.values():
+            for t in active_tickers:
+                resp = table.query(
+                    KeyConditionExpression=Key('ticker').eq(t),
+                    ScanIndexForward=False,
+                    Limit=1
+                )
+                rows = resp.get('Items', [])
+                if not rows:
+                    continue
+                item = rows[0]
                 results.append({
                     "ticker": item["ticker"],
                     "timestamp": item["timestamp"],
@@ -51,7 +59,7 @@ def get_insights(ticker: Optional[str] = None):
                     "cost_usd": float(item.get("cost_usd", 0)),
                 })
             return results
-            
+
     except HTTPException:
         raise
     except Exception as e:

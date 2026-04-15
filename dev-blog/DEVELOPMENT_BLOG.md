@@ -311,4 +311,43 @@ The primary cause of the persistent "Pending" banners was a reliance on `ticker.
 - This ensures that as long as the ticker is valid, the engine *will* find a price, move the ticker into "Active" status, and clear the dashboard for analysis.
 
 ---
+
+### Entry 20: The Invisible Data Problem — DynamoDB Pagination and the Startup Throttle
+*Date: 2026-04-15*
+
+After the v2.3.x stabilization pass, a persistent and deceptive bug remained: on every page refresh, only the **first 2–3 tickers** showed live prices. The rest (META, IBM, AMD) were permanently stuck in `pending_data` spinner state despite Bedrock being healthy and insights existing for them.
+
+**The Live Diagnosis:**
+
+We fetched the raw API endpoints directly to establish ground truth:
+
+```
+GET /api/v1/tickers  → ["NVDA", "TSLA", "META", "IBM", "AMD"]
+GET /api/v1/market   → NVDA: active ✅ | TSLA: active ✅ | META: pending ❌ | IBM: pending ❌ | AMD: pending ❌
+GET /api/v1/insights → All 5 tickers have real Claude insights ✅ (+ ghost AAPL insight ⚠️)
+```
+
+The contradiction was the key: **Insights existed for META/IBM/AMD but MarketData did not.** This ruled out Bedrock, yfinance, and IAM as the cause. The failure was in how the API *read* data back out of DynamoDB.
+
+**Root Cause 1 — DynamoDB `scan()` Silently Truncates at 1MB (Primary)**
+
+`GET /api/v1/market` and `GET /api/v1/insights` both called `table.scan()` with no pagination logic. DynamoDB's `scan()` API returns up to 1MB per call and signals more data is available via `LastEvaluatedKey` — but if you ignore that key, you silently lose everything past that boundary.
+
+As our 5-minute ingestion cron wrote rows for all 5 tickers repeatedly, the MarketData table grew. The `scan()` page returned NVDA and TSLA (the most recently written) but silently dropped the older entries for META, IBM, and AMD. Our Python dedup logic (`if t not in latest`) only ever saw the first page, so those tickers never registered as having MarketData rows.
+
+**The Fix:** Replaced both `table.scan()` calls with per-ticker `table.query(KeyConditionExpression=Key('ticker').eq(t), ScanIndexForward=False, Limit=1)`. This retrieves exactly the latest row per ticker in a single DynamoDB operation, scales to any table size, and eliminates the pagination blind spot entirely.
+
+**Root Cause 2 — Synchronous Startup Ingestion Race**
+
+`main.py` called `scheduled_job()` *synchronously inside the `lifespan()` function* — meaning the container couldn't finish startup (and therefore couldn't pass ALB health checks) until all 5 tickers had been fetched from yfinance. On ECS task replacement, yfinance throttles after ~2 sequential requests from a fresh cloud IP, so tickers 3–5 never got written. The ECS health check eventually timed out and replaced the task — repeating the cycle.
+
+**The Fix:** Moved startup ingestion to a `daemon=True` Python thread with a 10-second delay. The app becomes healthy and passes the ALB health check immediately. After 10 seconds, the ingestion fires from an already-warm container with established network routes, dramatically reducing yfinance throttle probability.
+
+**Root Cause 3 — Ghost Insights for Removed Tickers**
+
+`GET /api/v1/insights` was scanning the entire Insights table and returning results for any ticker that ever had an insight written — including AAPL, which had been removed from the watchlist. The fix: only query insights for tickers that currently exist in the Tickers table.
+
+**Lesson:** `scan()` is rarely the right tool for lookup-by-key patterns. DynamoDB is a key-value system — use `query()` with your actual access patterns. The silent pagination truncation is especially insidious because the code *appears* to work at small scale and only fails as the table grows.
+
+---
 *Project Concluded - Managed by Antigravity*

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Request
 from src.clients.dynamo import get_table
+from boto3.dynamodb.conditions import Key
 import yfinance as yf
 import structlog
 import json
@@ -25,17 +26,19 @@ def get_market_data(request: Request):
     table = get_table('MarketData')
     try:
         active_tickers = get_active_tickers()
-        response = table.scan()
-        latest = {}
-        for item in response.get('Items', []):
-            t = item['ticker']
-            if t not in latest or item['timestamp'] > latest[t]['timestamp']:
-                latest[t] = item
-                
+
         results = []
         for t in active_tickers:
-            if t in latest:
-                v = latest[t]
+            # Query only the LATEST row per ticker — avoids full table scan pagination limits
+            resp = table.query(
+                KeyConditionExpression=Key('ticker').eq(t),
+                ScanIndexForward=False,
+                Limit=1
+            )
+            rows = resp.get('Items', [])
+
+            if rows:
+                v = rows[0]
                 raw_links = v.get("headline_links", "[]")
                 try:
                     headline_links = json.loads(raw_links) if isinstance(raw_links, str) else raw_links
@@ -56,7 +59,7 @@ def get_market_data(request: Request):
                     "status": "active"
                 })
             else:
-                # Missing MarketData but tracked
+                # Ticker tracked but no MarketData row yet — show pending state
                 results.append({
                     "ticker": t,
                     "timestamp": "",
