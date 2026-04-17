@@ -122,9 +122,10 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "volume": int(row['Volume'])
             })
         
-        # Analyst recommendations
+        # Analyst recommendations — handle modern yfinance structure
         analyst_summary = {"buy": 0, "hold": 0, "sell": 0, "strong_buy": 0, "strong_sell": 0}
         try:
+            # Try getting specific counts first
             recs = t.recommendations
             if recs is not None and not recs.empty:
                 latest_rec = recs.iloc[-1]
@@ -134,6 +135,16 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                     "hold": int(latest_rec.get('hold', 0)),
                     "sell": int(latest_rec.get('sell', 0)),
                     "strong_sell": int(latest_rec.get('strongSell', 0))
+                }
+            else:
+                # Fallback: Many tickers now provide these in t.info
+                raw_info = t.info
+                analyst_summary = {
+                    "strong_buy": int(raw_info.get('recommendationCount', {}).get('strongBuy', 0) or 0),
+                    "buy": int(raw_info.get('recommendationCount', {}).get('buy', 0) or 0),
+                    "hold": int(raw_info.get('recommendationCount', {}).get('hold', 0) or 0),
+                    "sell": int(raw_info.get('recommendationCount', {}).get('sell', 0) or 0),
+                    "strong_sell": int(raw_info.get('recommendationCount', {}).get('strongSell', 0) or 0)
                 }
         except Exception as e:
             logger.warning("Could not fetch analyst recommendations", ticker=ticker, error=str(e))
@@ -159,7 +170,8 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "52w_high":        raw_info.get("fiftyTwoWeekHigh", None),
                 "52w_low":         raw_info.get("fiftyTwoWeekLow", None),
                 "avg_volume":      raw_info.get("averageVolume", None),
-                "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:600],
+                "target_price":    raw_info.get("targetMeanPrice", None),
+                "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:800],
             }
         except Exception:
             info = {"name": ticker}

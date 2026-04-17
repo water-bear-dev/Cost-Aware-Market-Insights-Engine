@@ -108,24 +108,27 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"You are a professional equity analyst. Provide a detailed market synthesis for {ticker} based on the data and news below.\n"
-                f"Write 4-5 sentences covering: (1) current price action and momentum context, "
-                f"(2) what the recent news means for the stock thesis, "
-                f"(3) key risks or tailwinds, "
-                f"(4) a forward-looking outlook.\n"
-                f"Be specific — reference the actual headlines, numbers, and companies mentioned.\n"
-                f"Then on a new line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
+                f"You are a professional equity analyst at a top-tier investment bank. "
+                f"Provide a sophisticated market synthesis for {ticker} using the data and news provided.\n\n"
+                f"Structure your response into three clear sections (do not use headers, use bullet points for each detail):\n"
+                f"1. MARKET CONTEXT: Synthesize the current price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) "
+                f"using bullet points to cover volume, momentum, and technical levels.\n"
+                f"2. THESIS IMPACT: Analyze how the recent news specifically impacts the core investment thesis for {ticker}. "
+                f"Use bullet points to reference specific headlines and metrics.\n"
+                f"3. OUTLOOK & RISKS: Detail the immediate-term technical outlook and the most critical risks or tailwinds. "
+                f"Use bullet points for each distinct risk or catalyst.\n\n"
+                f"Be precise, professional, and data-driven. Reference the actual headlines.\n"
+                f"Then on the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker}\n"
-                f"Close Price: ${float(latest_data.get('close_price', 0)):.2f}\n"
-                f"Open: ${float(latest_data.get('open_price', 0)):.2f}\n"
-                f"Day Change: {change_pct:.2f}%\n"
-                f"Volume: {int(latest_data.get('volume', 0)):,}\n\n"
+                f"Close: ${float(latest_data.get('close_price', 0)):.2f} | Open: ${float(latest_data.get('open_price', 0)):.2f}\n"
+                f"High: ${float(latest_data.get('high_price', 0)):.2f} | Low: ${float(latest_data.get('low_price', 0)):.2f}\n"
                 f"Recent News Headlines:\n{headline_text}"
             )
 
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 600,
+                "max_tokens": 800,
+                "temperature": 0.3,
                 "messages": [
                     {"role": "user", "content": [{"type": "text", "text": prompt}]}
                 ]
@@ -144,19 +147,20 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             output_tokens = response_body.get('usage', {}).get('output_tokens', 0)
             model_used = "anthropic.claude-3-haiku-20240307-v1:0"
             
-            # Parse signal from last line
-            signal = "HOLD"  # safe default
+            # Parse signal and preserve structured paragraphs
+            signal = "HOLD"
             lines = full_text.strip().split('\n')
             insight_lines = []
             for line in lines:
                 stripped = line.strip()
+                if not stripped: continue
                 if stripped.upper().startswith("SIGNAL:"):
                     raw_signal = stripped.upper().replace("SIGNAL:", "").strip()
                     if raw_signal in ("BUY", "SELL", "HOLD"):
                         signal = raw_signal
                 else:
                     insight_lines.append(line)
-            insight_text = '\n'.join(insight_lines).strip()
+            insight_text = '\n\n'.join(insight_lines).strip()
             
         except Exception as e:
             error_str = str(e)

@@ -635,8 +635,8 @@ function openModal(ticker) {
     renderHeroStats(mkt);
 
     // AI Insight
-    document.getElementById('modal-insight-text').textContent =
-        insight ? insight.insight_text : 'No AI synthesis available yet.';
+    document.getElementById('modal-insight-text').innerHTML =
+        insight ? insight.insight_text.replace(/\n/g, '<br>') : 'No AI synthesis available yet.';
     document.getElementById('modal-insight-meta').textContent =
         insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : '';
 
@@ -661,13 +661,13 @@ function renderHeroStats(mkt) {
     const sign  = isPos ? '+' : '';
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
     document.getElementById('modal-hero-stats').innerHTML = `
-        <div class="hero-stat">
-            <div class="hero-stat-label">PRICE</div>
-            <div class="hero-stat-value">$${(mkt.close_price||0).toFixed(2)}</div>
+        <div class="hero-stat main">
+            <div class="hero-stat-label">LAST PRICE</div>
+            <div class="hero-stat-value main">$${(mkt.close_price||0).toFixed(2)}</div>
         </div>
-        <div class="hero-stat">
-            <div class="hero-stat-label">CHANGE</div>
-            <div class="hero-stat-value" style="color:${changeColor}">${sign}${(mkt.change_pct||0).toFixed(2)}%</div>
+        <div class="hero-stat main">
+            <div class="hero-stat-label">DAY CHANGE</div>
+            <div class="hero-stat-value main" style="color:${changeColor}">${sign}${(mkt.change_pct||0).toFixed(2)}%</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
@@ -698,6 +698,7 @@ function renderKeyStats(info, mkt) {
         { label: 'Beta',           value: fmt(info.beta, '', '', 2) },
         { label: '52W High',       value: fmt(info['52w_high'], '$') },
         { label: '52W Low',        value: fmt(info['52w_low'],  '$') },
+        { label: 'Mean Target',    value: fmt(info.target_price, '$') },
         { label: 'Volume',         value: fmtVol(mkt.volume) },
         { label: 'Avg Volume',     value: fmtVol(info.avg_volume) },
     ];

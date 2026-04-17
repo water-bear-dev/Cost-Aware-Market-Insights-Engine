@@ -349,5 +349,22 @@ As our 5-minute ingestion cron wrote rows for all 5 tickers repeatedly, the Mark
 
 **Lesson:** `scan()` is rarely the right tool for lookup-by-key patterns. DynamoDB is a key-value system — use `query()` with your actual access patterns. The silent pagination truncation is especially insidious because the code *appears* to work at small scale and only fails as the table grows.
 
+### Entry 21: The Bloomberg Polish — Bulleted Insights & Terminal UX
+*Date: 2026-04-17*
+
+While the engine was functionally "concluded" as a production microservice, the gap between a "tool" and a "terminal" lies in the density and readability of its data. We executed a specialized polish phase aimed at achieving **Bloomberg-grade visual hierarchy**.
+
+**1. Hero Stat Prominence:** 
+We refactored the ticker detail modal to distinguish between "Main" and "Secondary" metrics. The Last Price and Day Change now dominate the header on a distinct background layer with increased typography scale (1.8rem). This ensures the most critical data points hit the user's retina instantly upon opening the modal.
+
+**2. Structured "Stick" Insights:** 
+Analysis paragraphs can become a "wall of text" in high-stress market environments. We updated the Claude 3 Haiku prompt to enforce a **bulleted structure** across three domains: Market Context, Thesis Impact, and Outlook/Risks. By requiring "sticks" (bullet points) for each detail, we've significantly reduced cognitive load, allowing the user to scan for catalysts in seconds rather than reading full paragraphs.
+
+**3. Analyst Depth & Target Prices:** 
+We deepened the connection to yfinance's internal analyst maps. Beyond just the recommendation bar, we now extract and surface the **Mean Target Price**. We also hardened the analyst summary parsing to handle recent changes in yfinance's data structures, ensuring the "Strong Buy → Strong Sell" visualization remains active and accurate.
+
+**4. White-Space Harmony:** 
+To preserve the new structured output from Claude, we updated the CSS to handle preservation of newlines and added paragraph spacing. The insight text now breathes, reflecting a modern, premium finance dashboard aesthetic.
+
 ---
-*Project Concluded - Managed by Antigravity*
+*Project Managed by Antigravity*
