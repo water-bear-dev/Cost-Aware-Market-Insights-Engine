@@ -389,6 +389,9 @@ Finally, we updated the static headers in the detail modal. "Key Statistics" bec
 **5. Progressive Disclosure:**
 To further clean up the dashboard, we implemented a progressive disclosure pattern for AI insights. The main dashboard cards now only render the first bullet point (the "What's Happening" catalyst), reducing the card's vertical footprint. Clicking a ticker card opens the modal, which reveals the full 3-point synthesis. This "summary-first" approach keeps the high-density grid readable while still providing deep-dive context on demand.
 
+**6. Educational Transparency (How it Works):**
+To build trust in the "Cost-Aware" claim, we added a "How it Works" tab. This isn't just static text; it features an animated system diagram where "data particles" flow between nodes (External Data → Core Engine → DynamoDB → Bedrock). This helps users visualize the invisible "FinOps Gate" that protects their budget, transforming a technical constraint into a transparent value proposition.
+
 This iteration completes the cycle from *raw data* to *structured analysis* and finally to *accessible insight*.
 
 ---

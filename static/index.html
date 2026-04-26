@@ -32,6 +32,7 @@
         <div class="tab-navigation">
             <button class="tab-btn active" data-tab="insights-view">AI Market Insights</button>
             <button class="tab-btn" data-tab="finops-view">FinOps Dashboard</button>
+            <button class="tab-btn" data-tab="how-view">How it works</button>
         </div>
 
         <!-- Insights Section -->
@@ -117,6 +118,114 @@
                         <p class="metric-label dim-label">Projected 30-Day Run Rate</p>
                         <h3 class="metric-value blur-reveal text-gradient-purple" style="font-size: 2.5rem;" id="dashboard-projected-30d">$0.00</h3>
                         <div class="sparkline-container" id="sparkline-30d"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- How it Works Section -->
+        <section id="how-view" class="tab-content">
+            <div class="glass" style="padding: 3rem; margin-top: 1rem; border-radius: 24px; position: relative; overflow: hidden;">
+                <div class="bg-glow" style="top: -20%; right: -10%; background: radial-gradient(circle, rgba(125, 211, 252, 0.1) 0%, transparent 70%);"></div>
+                
+                <h2 class="text-gradient" style="font-size: 2.8rem; margin-bottom: 1.5rem; letter-spacing: -0.02em;">How It Works</h2>
+                <p style="color: var(--text-secondary); max-width: 800px; line-height: 1.8; margin-bottom: 4rem; font-size: 1.1rem;">
+                    The Cost-Aware Market Insights Engine is built on a "FinOps-first" architecture. Every AI synthesis request is gated by a cost-validation engine that checks real-time expenditures against your defined daily budget before invoking the Claude 3 LLM.
+                </p>
+
+                <!-- Infrastructure Diagram -->
+                <div class="diagram-wrapper">
+                    <div class="diagram-container">
+                        <div class="infra-node" data-node="sources">
+                            <div class="node-pulse"></div>
+                            <div class="node-icon">📡</div>
+                            <div class="node-info">
+                                <span class="node-label">External Data</span>
+                                <span class="node-tech">yfinance / Google News</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-line horizontal">
+                            <div class="flow-particle"></div>
+                        </div>
+
+                        <div class="infra-node" data-node="backend">
+                            <div class="node-pulse"></div>
+                            <div class="node-icon">⚙️</div>
+                            <div class="node-info">
+                                <span class="node-label">Core Engine</span>
+                                <span class="node-tech">FastAPI / Python</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-line horizontal">
+                            <div class="flow-particle reverse"></div>
+                        </div>
+
+                        <div class="infra-node" data-node="db">
+                            <div class="node-pulse"></div>
+                            <div class="node-icon">💾</div>
+                            <div class="node-info">
+                                <span class="node-label">DynamoDB</span>
+                                <span class="node-tech">NoSQL Storage</span>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Row -->
+                        <div class="diagram-row-spacer"></div>
+
+                        <div class="infra-node" data-node="finops">
+                            <div class="node-pulse alert"></div>
+                            <div class="node-icon">🛡️</div>
+                            <div class="node-info">
+                                <span class="node-label">FinOps Gate</span>
+                                <span class="node-tech">Cost Guardrails</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-line horizontal">
+                            <div class="flow-particle"></div>
+                        </div>
+
+                        <div class="infra-node" data-node="ai">
+                            <div class="node-pulse"></div>
+                            <div class="node-icon">🧠</div>
+                            <div class="node-info">
+                                <span class="node-label">Claude 3 AI</span>
+                                <span class="node-tech">Amazon Bedrock</span>
+                            </div>
+                        </div>
+
+                        <div class="flow-line horizontal">
+                            <div class="flow-particle"></div>
+                        </div>
+
+                        <div class="infra-node highlight" data-node="ui">
+                            <div class="node-pulse"></div>
+                            <div class="node-icon">💻</div>
+                            <div class="node-info">
+                                <span class="node-label">Dashboard</span>
+                                <span class="node-tech">User Interface</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="process-grid">
+                    <div class="process-card glass">
+                        <div class="process-step">01</div>
+                        <h3>Data Ingestion</h3>
+                        <p>A background service polls market metrics and headlines every 5 minutes, ensuring the engine stays current without excessive API calls.</p>
+                    </div>
+                    <div class="process-card glass">
+                        <div class="process-step">02</div>
+                        <h3>Budget Verification</h3>
+                        <p>The system estimates the USD cost of each AI request. It blocks generation if the daily spend threshold has been reached.</p>
+                    </div>
+                    <div class="process-card glass">
+                        <div class="process-step">03</div>
+                        <h3>Intelligent Synthesis</h3>
+                        <p>Claude 3 Haiku analyzes the raw data to extract high-impact insights, identifying catalysts and trends in human-friendly terms.</p>
                     </div>
                 </div>
             </div>

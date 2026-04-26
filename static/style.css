@@ -614,3 +614,196 @@ body {
     color: #a5b4fc;
     letter-spacing: 0.3px;
 }
+
+/* =====================================================
+   How it Works Section
+   ===================================================== */
+.diagram-wrapper {
+    margin: 2rem 0 5rem;
+    padding: 2rem;
+    background: rgba(0,0,0,0.2);
+    border-radius: 20px;
+    border: 1px solid var(--glass-border);
+}
+
+.diagram-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    position: relative;
+}
+
+.diagram-row-spacer {
+    flex-basis: 100%;
+    height: 3rem;
+}
+
+.infra-node {
+    position: relative;
+    width: 180px;
+    padding: 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.infra-node:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--accent-glow);
+    transform: translateY(-5px);
+}
+
+.infra-node.highlight {
+    border-color: var(--accent);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.node-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+}
+
+.node-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.node-label {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.node-tech {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Pulsing rings around nodes */
+.node-pulse {
+    position: absolute;
+    inset: -2px;
+    border-radius: 16px;
+    border: 2px solid var(--accent);
+    opacity: 0;
+    pointer-events: none;
+    animation: nodePulse 3s infinite;
+}
+
+.node-pulse.alert {
+    border-color: var(--warning);
+    animation-delay: 1.5s;
+}
+
+@keyframes nodePulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.15); opacity: 0; }
+}
+
+/* Flow lines and particles */
+.flow-line {
+    height: 2px;
+    background: var(--glass-border);
+    position: relative;
+    min-width: 40px;
+    flex-grow: 1;
+    max-width: 80px;
+}
+
+.flow-particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    top: -2px;
+    left: 0;
+    box-shadow: 0 0 10px var(--accent);
+    animation: flowAcross 2s infinite linear;
+}
+
+.flow-particle.reverse {
+    animation-direction: reverse;
+    background: var(--text-secondary);
+    box-shadow: 0 0 10px var(--text-secondary);
+}
+
+@keyframes flowAcross {
+    0% { left: 0%; opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+}
+
+/* Process Cards Grid */
+.process-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.process-card {
+    padding: 2.5rem 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.process-step {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 3rem;
+    font-weight: 800;
+    color: rgba(255,255,255,0.03);
+    line-height: 1;
+    pointer-events: none;
+}
+
+.process-card h3 {
+    color: var(--accent);
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.process-card p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 900px) {
+    .diagram-container {
+        flex-direction: column;
+        gap: 3rem;
+    }
+    .flow-line {
+        width: 2px;
+        height: 40px;
+        min-width: 2px;
+        max-width: 2px;
+    }
+    .flow-particle {
+        left: -2px !important;
+        top: 0;
+        animation: flowDown 2s infinite linear;
+    }
+    @keyframes flowDown {
+        0% { top: 0%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+    }
+}
