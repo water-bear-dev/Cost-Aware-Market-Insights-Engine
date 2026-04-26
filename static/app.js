@@ -14,6 +14,35 @@ let currentModalInsight = null;
 let lastMarketData = {};
 let lastInsightsData = {};
 
+let currentCurrency = 'USD';
+const EXCHANGE_RATES = {
+    'USD': { rate: 1.0, symbol: '$' },
+    'EUR': { rate: 0.92, symbol: '€' },
+    'GBP': { rate: 0.83, symbol: '£' },
+    'AUD': { rate: 1.54, symbol: 'A$' },
+    'JPY': { rate: 154.0, symbol: '¥' }
+};
+
+function formatPrice(value) {
+    if (value === null || value === undefined) return 'N/A';
+    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
+    const converted = value * rate;
+    // Special case for JPY which usually doesn't have decimals for small amounts, but let's keep 2 for consistency or 0 for JPY
+    const decimals = currentCurrency === 'JPY' ? 0 : 2;
+    return `${symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+}
+
+function formatLargePrice(value) {
+    if (value === null || value === undefined || value === 0) return '—';
+    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
+    const v = value * rate;
+    if (v >= 1e12) return `${symbol}${(v / 1e12).toFixed(2)}T`;
+    if (v >= 1e9)  return `${symbol}${(v / 1e9).toFixed(2)}B`;
+    if (v >= 1e6)  return `${symbol}${(v / 1e6).toFixed(2)}M`;
+    if (v >= 1e3)  return `${symbol}${(v / 1e3).toFixed(1)}K`;
+    return formatPrice(value);
+}
+
 /* =====================================================
    Bootstrap
    ===================================================== */
@@ -23,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initModal();
     initDashboard();
     setupTickerForm();
+    initCurrency();
 });
 
 /* =====================================================
@@ -109,6 +139,29 @@ window.handleManageDelete = async (ticker, btn) => {
         btn.disabled = false;
     }
 };
+
+/* =====================================================
+   Currency
+   ===================================================== */
+function initCurrency() {
+    const selector = document.getElementById('currency-selector');
+    if (!selector) return;
+    
+    selector.addEventListener('change', (e) => {
+        currentCurrency = e.target.value;
+        // Trigger re-render of all price-related elements
+        if (Object.keys(lastMarketData).length > 0) {
+            patchInsightsGrid(lastMarketData, lastInsightsData);
+            updatePortfolioChart(Object.values(lastMarketData));
+            fetchCosts();
+            fetchDashboardCosts();
+            // If modal is open, refresh it
+            if (currentModalTicker) {
+                renderModalContent(currentModalMkt, currentModalInsight);
+            }
+        }
+    });
+}
 
 /* =====================================================
    Ticker Form
@@ -267,9 +320,9 @@ async function fetchCosts() {
         const res = await fetch('/api/v1/costs');
         if (res.ok) {
             const data = await res.json();
-            document.getElementById('budget-total').textContent = `$${data.daily_budget_usd.toFixed(2)}`;
-            document.getElementById('budget-spend').textContent = `$${data.current_spend_usd.toFixed(4)}`;
-            document.getElementById('budget-remaining').textContent = `$${data.remaining_budget_usd.toFixed(2)}`;
+            document.getElementById('budget-total').textContent = formatPrice(data.daily_budget_usd);
+            document.getElementById('budget-spend').textContent = formatPrice(data.current_spend_usd);
+            document.getElementById('budget-remaining').textContent = formatPrice(data.remaining_budget_usd);
             const pBar = document.getElementById('budget-progress');
             pBar.style.width = `${Math.min(data.utilization_pct, 100)}%`;
             if (data.utilization_pct > 80) pBar.classList.add('danger');
@@ -283,9 +336,9 @@ async function fetchDashboardCosts() {
         const res = await fetch('/api/v1/costs/dashboard');
         if (res.ok) {
             const data = await res.json();
-            document.getElementById('dashboard-total-7d').textContent = `$${data.metrics.total_7_days_usd.toFixed(4)}`;
-            document.getElementById('dashboard-average-7d').textContent = `$${data.metrics.daily_average_usd.toFixed(4)}`;
-            document.getElementById('dashboard-projected-30d').textContent = `$${data.metrics.projected_30_days_usd.toFixed(4)}`;
+            document.getElementById('dashboard-total-7d').textContent = formatPrice(data.metrics.total_7_days_usd);
+            document.getElementById('dashboard-average-7d').textContent = formatPrice(data.metrics.daily_average_usd);
+            document.getElementById('dashboard-projected-30d').textContent = formatPrice(data.metrics.projected_30_days_usd);
             drawSparkline('sparkline-7d', [1,2,1.5,3,2.5,4,data.metrics.total_7_days_usd*100], '#38bdf8');
             drawSparkline('sparkline-avg', [1,1.5,1.2,1.8,1.5,1.9,data.metrics.daily_average_usd*500], '#c084fc');
             drawSparkline('sparkline-30d', [10,12,11,15,14,18,data.metrics.projected_30_days_usd*20], '#10b981');
@@ -490,7 +543,7 @@ function cardInnerHtml(mkt, insight) {
             ${statusChip(insight ? insight.model_used : null)}
         </div>
         <div class="price-row">
-            <span style="font-size:1.8rem; font-weight:700;">$${mkt.close_price.toFixed(2)}</span>
+            <span style="font-size:1.8rem; font-weight:700;">${formatPrice(mkt.close_price)}</span>
             <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
         </div>
         <div class="insight-text">
@@ -542,18 +595,14 @@ function updatePortfolioChart(marketData) {
     const ctx = document.getElementById('portfolioChart').getContext('2d');
 
     if (portfolioChartInstance) {
-        portfolioChartInstance.config.type = 'bar';
-        portfolioChartInstance.data.labels = labels;
-        portfolioChartInstance.data.datasets = [{ 
-            label: 'Price (USD)', 
-            data: data, 
-            backgroundColor: colors, 
-            borderColor: borderColors, 
-            borderWidth: 1, 
-            borderRadius: 6 
-        }];
-        portfolioChartInstance.options.scales.y.type = 'linear'; // Switch back to linear for bar chart
-        portfolioChartInstance.update();
+        portfolioChartInstance.options.scales.y.ticks.callback = v => {
+            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+            return `${symbol}${(v * rate).toFixed(0)}`;
+        };
+        portfolioChartInstance.options.plugins.tooltip.callbacks.label = ctx => {
+            return ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}`;
+        };
+        portfolioChartInstance.update('none');
     } else {
         portfolioChartInstance = new Chart(ctx, {
             type: 'bar',
@@ -570,9 +619,20 @@ function updatePortfolioChart(marketData) {
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                onClick: (e, elements) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const ticker = portfolioChartInstance.data.labels[index];
+                        openModal(ticker);
+                    }
+                },
                 plugins: { 
                     legend: { labels: { color: '#f8fafc' } }, 
-                    tooltip: { callbacks: { label: ctx => ` ${ctx.label}: $${ctx.parsed.y.toFixed(2)}` } },
+                    tooltip: { 
+                        callbacks: { 
+                            label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}` 
+                        } 
+                    },
                     zoom: {
                         pan: { enabled: true, mode: 'x' },
                         zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
@@ -581,7 +641,13 @@ function updatePortfolioChart(marketData) {
                 scales: {
                     y: { 
                         beginAtZero: true, 
-                        ticks: { color: '#94a3b8', callback: v => `$${v}` }, 
+                        ticks: { 
+                            color: '#94a3b8', 
+                            callback: v => {
+                                const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+                                return `${symbol}${(v * rate).toFixed(0)}`;
+                            }
+                        }, 
                         grid: { color: 'rgba(255,255,255,0.05)' } 
                     },
                     x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
@@ -624,9 +690,18 @@ function openModal(ticker) {
     currentModalMkt    = mkt;
     currentModalInsight = insight;
 
+    renderModalContent(mkt, insight);
+
+    // Load enriched chart + key stats + company info
+    loadModalChart(ticker, '1mo');
+}
+
+function renderModalContent(mkt, insight) {
+    const ticker = mkt.ticker || currentModalTicker;
+
     // Header
     document.getElementById('modal-ticker-title').textContent = ticker;
-    document.getElementById('modal-ticker-name').textContent  = 'Loading company info...';
+    if (!mkt.name) document.getElementById('modal-ticker-name').textContent  = 'Loading company info...';
 
     // Signal badge
     const signal   = insight ? (insight.signal || 'HOLD') : 'HOLD';
@@ -641,22 +716,25 @@ function openModal(ticker) {
     document.getElementById('modal-insight-text').innerHTML =
         insight ? formatInsight(insight.insight_text) : 'No AI synthesis available yet.';
     document.getElementById('modal-insight-meta').textContent =
-        insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : '';
+        insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : ''; // Keep cost in USD for FinOps accuracy
 
     // News articles from card data
     renderModalNews(mkt);
 
-    // Clear key stats and analyst while loading
-    document.getElementById('modal-key-stats').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading statistics...</p>';
-    document.getElementById('modal-analyst').innerHTML    = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
-    document.getElementById('modal-about-section').style.display = 'none';
+    // If we already have info from a previous load, re-render key stats too
+    if (mkt.info) {
+        renderKeyStats(mkt.info, mkt);
+        renderAboutSection(mkt.info);
+    } else {
+        // Clear key stats and analyst while loading
+        document.getElementById('modal-key-stats').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading statistics...</p>';
+        document.getElementById('modal-analyst').innerHTML    = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
+        document.getElementById('modal-about-section').style.display = 'none';
+    }
 
     // Show modal
     document.getElementById('ticker-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
-
-    // Load enriched chart + key stats + company info
-    loadModalChart(ticker, '1mo');
 }
 
 function renderHeroStats(mkt) {
@@ -666,7 +744,7 @@ function renderHeroStats(mkt) {
     document.getElementById('modal-hero-stats').innerHTML = `
         <div class="hero-stat main">
             <div class="hero-stat-label">LAST PRICE</div>
-            <div class="hero-stat-value main">$${(mkt.close_price||0).toFixed(2)}</div>
+            <div class="hero-stat-value main">${formatPrice(mkt.close_price)}</div>
         </div>
         <div class="hero-stat main">
             <div class="hero-stat-label">DAY CHANGE</div>
@@ -674,34 +752,37 @@ function renderHeroStats(mkt) {
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
-            <div class="hero-stat-value">$${(mkt.open_price||0).toFixed(2)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.open_price)}</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">HIGH</div>
-            <div class="hero-stat-value">$${(mkt.high_price||0).toFixed(2)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.high_price)}</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">LOW</div>
-            <div class="hero-stat-value">$${(mkt.low_price||0).toFixed(2)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.low_price)}</div>
         </div>
     `;
 }
 
 function renderKeyStats(info, mkt) {
-    const fmt = (v, prefix='', suffix='', decimals=2) =>
-        v !== null && v !== undefined ? `${prefix}${parseFloat(v).toFixed(decimals)}${suffix}` : '—';
+    const fmt = (v, isPrice=false, decimals=2) => {
+        if (v === null || v === undefined || v === '—') return '—';
+        if (isPrice) return formatPrice(parseFloat(v));
+        return parseFloat(v).toFixed(decimals);
+    };
     const fmtVol = v => v ? (v >= 1e9 ? `${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `${(v/1e6).toFixed(2)}M` : `${(v/1e3).toFixed(1)}K`) : '—';
 
     const stats = [
-        { label: 'Market Cap',     value: info.market_cap_fmt || '—' },
-        { label: 'P/E Ratio',      value: fmt(info.pe_ratio, '', '', 1) },
-        { label: 'Fwd P/E',        value: fmt(info.forward_pe, '', '', 1) },
-        { label: 'EPS (TTM)',      value: fmt(info.eps, '$') },
+        { label: 'Market Cap',     value: formatLargePrice(info.market_cap) },
+        { label: 'P/E Ratio',      value: fmt(info.pe_ratio, false, 1) },
+        { label: 'Fwd P/E',        value: fmt(info.forward_pe, false, 1) },
+        { label: 'EPS (TTM)',      value: fmt(info.eps, true) },
         { label: 'Div. Yield',     value: info.dividend_yield ? `${(info.dividend_yield*100).toFixed(2)}%` : '—' },
-        { label: 'Beta',           value: fmt(info.beta, '', '', 2) },
-        { label: '52W High',       value: fmt(info['52w_high'], '$') },
-        { label: '52W Low',        value: fmt(info['52w_low'],  '$') },
-        { label: 'Mean Target',    value: fmt(info.target_price, '$') },
+        { label: 'Beta',           value: fmt(info.beta, false, 2) },
+        { label: '52W High',       value: fmt(info['52w_high'], true) },
+        { label: '52W Low',        value: fmt(info['52w_low'],  true) },
+        { label: 'Mean Target',    value: fmt(info.target_price, true) },
         { label: 'Volume',         value: fmtVol(mkt.volume) },
         { label: 'Avg Volume',     value: fmtVol(info.avg_volume) },
     ];
@@ -828,18 +909,22 @@ async function loadModalChart(ticker, period) {
                         bodyColor: '#f8fafc',
                         borderColor: 'rgba(255,255,255,0.1)',
                         borderWidth: 1,
-                        callbacks: { label: ctx => ` $${ctx.parsed.y.toFixed(2)}` }
+                        callbacks: { label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}` }
                     }
                 },
                 scales: {
                     x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
-                    y: { ticks: { color: '#94a3b8', callback: v => `$${v}` }, grid: { color: 'rgba(255,255,255,0.04)' } }
+                    y: { ticks: { color: '#94a3b8', callback: v => {
+                        const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+                        return `${symbol}${(v * rate).toFixed(0)}`;
+                    } }, grid: { color: 'rgba(255,255,255,0.04)' } }
                 }
             }
         });
 
         // Key stats (only populated on first load when info is available)
         if (data.info) {
+            currentModalMkt.info = data.info; // Cache for currency refreshes
             renderKeyStats(data.info, currentModalMkt);
             renderAboutSection(data.info);
         }

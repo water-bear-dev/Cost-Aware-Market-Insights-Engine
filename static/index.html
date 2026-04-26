@@ -41,11 +41,24 @@
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
-                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
                             <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" />
                             <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
                             <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
-                            <span class="badge" id="ticker-count" style="margin-left: auto;">0/10 Tracked</span>
+                            
+                            <div style="margin-left: auto; display: flex; align-items: center; gap: 1.5rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em;">Currency</span>
+                                    <select id="currency-selector" class="glass-input" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(15,23,42,0.6);">
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                        <option value="AUD">AUD (A$)</option>
+                                        <option value="JPY">JPY (¥)</option>
+                                    </select>
+                                </div>
+                                <span class="badge" id="ticker-count">0/10 Tracked</span>
+                            </div>
                         </div>
                     </div>
                 </div>

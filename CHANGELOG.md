@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 - **Human-Centric Modal Headers** — Updated detail modal section headers to be friendlier: "Quick Stats", "What Experts Say", and "Latest AI Take".
 - **Enhanced Insight Formatting** — Switched insight containers to `<div>` elements with `white-space: pre-wrap` to preserve the structure of multi-point AI takes.
 - **Progressive Insight Disclosure** — Home page cards now only display the most critical "What's Happening" bullet point to reduce visual clutter. The full 3-point analysis remains accessible within the expanded ticker modal.
+- **Multi-Currency Support** — Added a real-time currency selector (USD, EUR, GBP, AUD, JPY) that instantly converts all prices, budget metrics, and chart axes across the entire dashboard.
+- **Interactive Portfolio Chart** — Tickers in the main portfolio graph are now clickable, allowing users to jump directly to a deep-dive modal from the visualization.
+- **Zero-Flicker Updates** — Disabled chart refresh animations for background data updates, ensuring a smoother, non-distracting user experience during market shifts.
 - **Interactive 'How it Works' Tab** — Added a dedicated education section outlining the engine's FinOps-first architecture. 
 - **Animated System Infrastructure** — Integrated a CSS-animated data flow diagram visualizing the journey from ingestion (yfinance/Google News) through the FinOps budget gate to AI synthesis (Claude 3).
 - **Process Card Breakdown** — Provided a detailed 3-step technical summary of the ingestion, verification, and synthesis pipeline.
