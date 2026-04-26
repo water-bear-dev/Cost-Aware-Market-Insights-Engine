@@ -493,7 +493,7 @@ function cardInnerHtml(mkt, insight) {
             <span style="font-size:1.8rem; font-weight:700;">$${mkt.close_price.toFixed(2)}</span>
             <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
         </div>
-        <p class="insight-text">${insight ? insight.insight_text : 'Awaiting AI synthesis — click to view history.'}</p>
+        <div class="insight-text">${insight ? formatInsight(insight.insight_text) : 'Awaiting AI synthesis — click to view history.'}</div>
         ${buildNewsHtml(mkt)}
     `;
 }
@@ -636,7 +636,7 @@ function openModal(ticker) {
 
     // AI Insight
     document.getElementById('modal-insight-text').innerHTML =
-        insight ? insight.insight_text.replace(/\n/g, '<br>') : 'No AI synthesis available yet.';
+        insight ? formatInsight(insight.insight_text) : 'No AI synthesis available yet.';
     document.getElementById('modal-insight-meta').textContent =
         insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : '';
 
@@ -876,4 +876,32 @@ function renderAnalystBar(summary) {
             <span class="analyst-count">${r.count}</span>
         </div>
     `).join('');
+}
+function formatInsight(text) {
+    if (!text) return '';
+    
+    // Simple mini-markdown for bullet points and bold
+    let formatted = text.trim();
+    
+    // Handle numbered or dash bullets
+    formatted = formatted.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.match(/^(\d+\.|-|\*)\s/)) {
+            let content = trimmed.replace(/^(\d+\.|-|\*)\s/, '');
+            // Bold the "Category:" if present
+            if (content.includes(':')) {
+                const parts = content.split(':');
+                const category = parts.shift();
+                const rest = parts.join(':');
+                content = `<strong>${category}:</strong>${rest}`;
+            }
+            return `<div class="insight-bullet">${content}</div>`;
+        }
+        return trimmed ? `<div>${trimmed}</div>` : '';
+    }).join('');
+
+    // Handle any remaining bold (simple **bold**)
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    return formatted;
 }

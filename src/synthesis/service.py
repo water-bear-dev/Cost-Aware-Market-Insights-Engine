@@ -98,30 +98,25 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         output_tokens = 85
         signal = _derive_signal(change_pct)
         insight_text = (
-            f"[MOCK INSIGHT] {ticker} closed at ${float(latest_data.get('close_price', 0)):.2f} "
-            f"({change_pct:.2f}%). "
-            f"Top headline: '{headline_text}'. "
-            "This is a mocked response (Cloud-compatible)."
+            f"1. What's Happening: {ticker} moved {change_pct:.2f}% to end at ${float(latest_data.get('close_price', 0)):.2f}.\n"
+            f"2. Why it Matters: The latest news about '{headline_text[:50]}...' is driving investor sentiment.\n"
+            f"3. What to Watch: Keep an eye on how the market reacts to upcoming volume levels."
         )
         model_used = 'local-mock'
     else:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"You are a professional equity analyst at a top-tier investment bank. "
-                f"Provide a sophisticated market synthesis for {ticker} using the data and news provided.\n\n"
-                f"Structure your response into three clear sections (do not use headers, use bullet points for each detail):\n"
-                f"1. MARKET CONTEXT: Synthesize the current price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) "
-                f"using bullet points to cover volume, momentum, and technical levels.\n"
-                f"2. THESIS IMPACT: Analyze how the recent news specifically impacts the core investment thesis for {ticker}. "
-                f"Use bullet points to reference specific headlines and metrics.\n"
-                f"3. OUTLOOK & RISKS: Detail the immediate-term technical outlook and the most critical risks or tailwinds. "
-                f"Use bullet points for each distinct risk or catalyst.\n\n"
-                f"Be precise, professional, and data-driven. Reference the actual headlines.\n"
-                f"Then on the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
+                f"You are a helpful investment assistant. "
+                f"Explain what's going on with {ticker} in simple, user-friendly terms using the data and news provided.\n\n"
+                f"Provide exactly 3 bullet points (no headers, no bold text):\n"
+                f"1. What's Happening: Explain the latest price move or major news in simple terms.\n"
+                f"2. Why it Matters: Explain how this affects the stock's outlook in plain English.\n"
+                f"3. What to Watch: Identify one clear thing the user should keep an eye on next.\n\n"
+                f"Be helpful, clear, and avoid jargon. Mention headlines naturally.\n"
+                f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker}\n"
-                f"Close: ${float(latest_data.get('close_price', 0)):.2f} | Open: ${float(latest_data.get('open_price', 0)):.2f}\n"
-                f"High: ${float(latest_data.get('high_price', 0)):.2f} | Low: ${float(latest_data.get('low_price', 0)):.2f}\n"
+                f"Close: ${float(latest_data.get('close_price', 0)):.2f} | Change: {change_pct:+.2f}%\n"
                 f"Recent News Headlines:\n{headline_text}"
             )
 

@@ -225,10 +225,29 @@ body {
     color: #cbd5e1; flex-grow: 1;
     border-top: 1px solid var(--glass-border);
     padding-top: 1rem; margin-top: 0.5rem;
+    white-space: pre-wrap;
 }
 #modal-insight-text {
     line-height: 1.8;
-    white-space: pre-wrap;
+}
+
+.insight-bullet {
+    position: relative;
+    padding-left: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.insight-bullet::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: bold;
+}
+
+.insight-text strong {
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 /* News list */

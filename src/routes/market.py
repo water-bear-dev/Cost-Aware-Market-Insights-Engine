@@ -171,7 +171,7 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "52w_low":         raw_info.get("fiftyTwoWeekLow", None),
                 "avg_volume":      raw_info.get("averageVolume", None),
                 "target_price":    raw_info.get("targetMeanPrice", None),
-                "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:800],
+                "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:3000],
             }
         except Exception:
             info = {"name": ticker}
