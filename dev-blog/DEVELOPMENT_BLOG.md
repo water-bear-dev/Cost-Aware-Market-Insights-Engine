@@ -366,5 +366,27 @@ We deepened the connection to yfinance's internal analyst maps. Beyond just the 
 **4. White-Space Harmony:** 
 To preserve the new structured output from Claude, we updated the CSS to handle preservation of newlines and added paragraph spacing. The insight text now breathes, reflecting a modern, premium finance dashboard aesthetic.
 
+### Entry 22: From "Equity Analyst" to "Investment Assistant"
+*Date: 2026-04-26*
+
+While the v2.5 phase achieved Bloomberg-level density, user feedback indicated that the language was drifting into "Institutional Jargon." Terms like *Key Catalyst* and *Thesis Status* are precise but can feel convoluted to everyday users. We executed a "friendly polish" to pivot the engine's persona from a cold analyst to a helpful assistant.
+
+**1. The "Investment Assistant" Persona:**
+We rewrote the Bedrock prompt to prioritize conversational clarity. Instead of abstract sections, we structured the AI's output around three instinctive questions:
+- **What's Happening?** (Market context)
+- **Why it Matters?** (Investment impact)
+- **What to Watch?** (Actionable follow-up)
+
+**2. Intelligent Formatting Logic:**
+To make this new structure "pop" visually, we updated the `formatInsight` utility in `app.js`. The renderer now performs a split-scan on every bullet point. If it detects a category label followed by a colon (e.g., "What's Happening:"), it automatically wraps that label in a `<strong>` tag. This provides institutional-grade scannability without requiring the AI to manage complex HTML or Markdown formatting consistently.
+
+**3. Tackling Truncated Intelligence:**
+We discovered a data gap in the "About" section for complex large-cap companies. The original 800-character limit was cutting off critical business model details for conglomerates like Amazon or Apple. We quadrupled the limit to **3,000 characters** in the market history route. Combined with the existing modal scroll architecture, this provides deep-dive research capabilities without cluttering the primary dashboard view.
+
+**4. Friendly UI Labels:**
+Finally, we updated the static headers in the detail modal. "Key Statistics" became **Quick Stats**, "Analyst Consensus" became **What Experts Say**, and "AI Synthesis" became **Latest AI Take**. 
+
+This iteration completes the cycle from *raw data* to *structured analysis* and finally to *accessible insight*.
+
 ---
 *Project Managed by Antigravity*

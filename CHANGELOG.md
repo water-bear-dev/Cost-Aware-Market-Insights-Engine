@@ -2,15 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.5.0] - 2026-04-17
+## [2.6.0] - 2026-04-26
 ### Added
-- **Structured Bulleted Analysis** — Updated AI synthesis prompt to require bullet points for each analysis section (Market Context, Thesis, Outlook), significantly improving readability and scannability.
-- **Bloomberg-Style Terminal UI** — Redesigned the ticker detail modal hero section to prioritize "Last Price" and "Day Change" with giant typography (1.8rem) and a background contrast layer.
-- **Mean Target Price Stats** — Integrated analyst target mean price into the key statistics grid, providing institutional valuation context alongside current pricing.
+- **User-Friendly AI Insights** — Reworded the AI synthesis prompt to use approachable categories: "What's Happening", "Why it Matters", and "What to Watch". This replaces convoluted technical jargon with clear, conversational summaries.
+- **Smart Category Bolding** — Enhanced the frontend insight renderer to automatically detect and bold category labels before colons, improving scannability on both the home page and in details view.
+- **Expanded Company Intelligence** — Increased the "About" section character limit from 800 to 3,000. This ensures that large-cap companies with extensive business models (like Amazon or Apple) are fully described without premature truncation.
 
 ### Changed
-- **Analyst Summary Parsing** — Refactored recommendation retrieval logic to handle modern `yfinance` internal maps, ensuring robust "Strong Buy → Strong Sell" bar rendering even when traditional attributes are empty.
-- **Typography Refinement** — Updated modal CSS to support `white-space` preservation, ensuring AI-generated bullet points and paragraphs are correctly spaced and indented.
+- **Human-Centric Modal Headers** — Updated detail modal section headers to be friendlier: "Quick Stats", "What Experts Say", and "Latest AI Take".
+- **Enhanced Insight Formatting** — Switched insight containers to `<div>` elements with `white-space: pre-wrap` to preserve the structure of multi-point AI takes.
+
+## [2.5.0] - 2026-04-17
 
 ## [2.4.0] - 2026-04-15
 
