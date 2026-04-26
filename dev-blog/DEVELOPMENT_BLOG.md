@@ -386,6 +386,9 @@ We discovered a data gap in the "About" section for complex large-cap companies.
 **4. Friendly UI Labels:**
 Finally, we updated the static headers in the detail modal. "Key Statistics" became **Quick Stats**, "Analyst Consensus" became **What Experts Say**, and "AI Synthesis" became **Latest AI Take**. 
 
+**5. Progressive Disclosure:**
+To further clean up the dashboard, we implemented a progressive disclosure pattern for AI insights. The main dashboard cards now only render the first bullet point (the "What's Happening" catalyst), reducing the card's vertical footprint. Clicking a ticker card opens the modal, which reveals the full 3-point synthesis. This "summary-first" approach keeps the high-density grid readable while still providing deep-dive context on demand.
+
 This iteration completes the cycle from *raw data* to *structured analysis* and finally to *accessible insight*.
 
 ---

@@ -493,7 +493,10 @@ function cardInnerHtml(mkt, insight) {
             <span style="font-size:1.8rem; font-weight:700;">$${mkt.close_price.toFixed(2)}</span>
             <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
         </div>
-        <div class="insight-text">${insight ? formatInsight(insight.insight_text) : 'Awaiting AI synthesis — click to view history.'}</div>
+        <div class="insight-text">
+            ${insight ? formatInsight(insight.insight_text, true) : 'Awaiting AI synthesis — click to view history.'}
+            ${insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : ''}
+        </div>
         ${buildNewsHtml(mkt)}
     `;
 }
@@ -877,14 +880,17 @@ function renderAnalystBar(summary) {
         </div>
     `).join('');
 }
-function formatInsight(text) {
+function formatInsight(text, onlyFirst = false) {
     if (!text) return '';
     
     // Simple mini-markdown for bullet points and bold
     let formatted = text.trim();
     
     // Handle numbered or dash bullets
-    formatted = formatted.split('\n').map(line => {
+    const lines = formatted.split('\n');
+    let bullets = [];
+    
+    for (const line of lines) {
         const trimmed = line.trim();
         if (trimmed.match(/^(\d+\.|-|\*)\s/)) {
             let content = trimmed.replace(/^(\d+\.|-|\*)\s/, '');
@@ -895,10 +901,14 @@ function formatInsight(text) {
                 const rest = parts.join(':');
                 content = `<strong>${category}:</strong>${rest}`;
             }
-            return `<div class="insight-bullet">${content}</div>`;
+            bullets.push(`<div class="insight-bullet">${content}</div>`);
+            if (onlyFirst) break; // Stop after first bullet if requested
+        } else if (trimmed && !onlyFirst) {
+            bullets.push(`<div>${trimmed}</div>`);
         }
-        return trimmed ? `<div>${trimmed}</div>` : '';
-    }).join('');
+    }
+
+    formatted = bullets.join('');
 
     // Handle any remaining bold (simple **bold**)
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
