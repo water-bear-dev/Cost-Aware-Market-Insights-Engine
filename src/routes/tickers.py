@@ -5,12 +5,42 @@ from src.ingestion.service import get_active_tickers, force_ingest_single_ticker
 from boto3.dynamodb.conditions import Key
 import structlog
 from src.limiter import limiter
+import httpx
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
 
 class TickerRequest(BaseModel):
     ticker: str
+
+@router.get("/search")
+@limiter.limit("60/minute")
+async def search_tickers(request: Request, q: str = ""):
+    """Query Yahoo Finance search API for ticker suggestions."""
+    if not q or len(q) < 1:
+        return []
+    
+    url = f"https://query2.finance.yahoo.com/v1/finance/search?q={q}&quotesCount=5&newsCount=0"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+            quotes = data.get("quotes", [])
+            results = []
+            for quote in quotes:
+                results.append({
+                    "symbol": quote.get("symbol"),
+                    "name": quote.get("shortname") or quote.get("longname") or "",
+                    "exchange": quote.get("exchDisp") or quote.get("exchange") or ""
+                })
+            return results
+    except Exception as e:
+        logger.error("Search failed", error=str(e))
+        return []
 
 @router.get("/tickers")
 @limiter.limit("60/minute")

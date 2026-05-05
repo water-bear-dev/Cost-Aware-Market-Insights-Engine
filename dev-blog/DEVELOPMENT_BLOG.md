@@ -394,5 +394,24 @@ To build trust in the "Cost-Aware" claim, we added a "How it Works" tab. This is
 
 This iteration completes the cycle from *raw data* to *structured analysis* and finally to *accessible insight*.
 
+### Entry 23: Ticker Autocomplete and the "Clean Exit" Strategy
+*Date: 2026-05-04*
+
+As the engine reached a stable production state, we identified two final friction points: the manual entry of stock tickers and the complexity of stopping an AWS deployment once it's no longer needed.
+
+**1. Smart Ticker Autocomplete:**
+Previously, users had to know the exact ticker symbol to track an asset. We integrated a new `/api/v1/search` endpoint that acts as a proxy to the Yahoo Finance search API. This allowed us to build a **real-time, debounced autocomplete dropdown** in the UI. 
+- **The UX Twist:** The user requested that we prepend the trading platform (e.g., `NASDAQ: AAPL`). While this is excellent for user context, `yfinance` only accepts the raw symbol. 
+- **The Solution:** We implemented a "Selection Stripper" in `app.js`. The UI displays the full exchange prefix to the user, but upon clicking "Track Ticker," the frontend silently parses the string and only sends the final ticker symbol to the backend. This preserves both the premium UI context and backend data integrity.
+
+**2. The "Clean Exit" Automation:**
+Deploying to AWS is powerful, but tearing it down manually through the console is tedious and error-prone (leaving orphaned ECR images or Load Balancers can lead to surprise bills).
+- **The Solution:** We engineered `scripts/teardown.sh`. This script handles the destructive logic of forcing an ECR repository deletion (including all image tags) and triggering a CloudFormation stack deletion. This gives users a "one-click" exit strategy to return to a local-only environment without any cloud-residue.
+
+**3. Cache Busting for UX Integrity:**
+With major JS and CSS changes, we encountered the classic "stale browser cache" issue where the new autocomplete dropdown wouldn't appear for existing users. We implemented a manual versioning system (`?v=6`) in `index.html` for all primary static assets, ensuring that as soon as the container is updated, the user's browser is forced to fetch the latest logic.
+
+This phase moves the engine from a "power-user tool" to a polished consumer-grade experience, balancing high-end features with administrative simplicity.
+
 ---
 *Project Managed by Antigravity*

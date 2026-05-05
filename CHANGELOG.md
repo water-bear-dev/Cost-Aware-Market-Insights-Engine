@@ -1,6 +1,16 @@
 # Changelog: Cost-Aware Market Insights Engine
 
 All notable changes to this project will be documented in this file.
+    
+## [2.7.0] - 2026-05-04
+### Added
+- **Ticker Autocomplete** — Implemented a real-time, debounced search mechanism for the "Track Ticker" input. The UI now queries Yahoo Finance to suggest symbols and their corresponding trading platforms (e.g., `NASDAQ: AAPL`).
+- **Exchange Prefix Stripping** — Engineered a smart submission handler that allows users to select tickers with exchange prefixes (e.g., `NASDAQ: AAPL`) while automatically stripping the prefix before sending to the backend, ensuring seamless `yfinance` compatibility.
+- **AWS Teardown Automation** — Introduced `scripts/teardown.sh`, a dedicated utility script to safely purge CloudFormation stacks and ECR repositories. This allows users to exit AWS deployments and return to a local-only environment without leaving orphaned, billable cloud resources.
+- **Premium Autocomplete UX** — Designed a new glassmorphic dropdown list for search results, featuring specific badges for exchange platforms and company names for a professional, "terminal" feel.
+
+### Changed
+- **Cache Invalidation** — Bumped static asset versioning to `v=6` in `index.html` to force immediate browser updates for the new autocomplete logic and styling assets.
 
 ## [2.6.0] - 2026-04-26
 ### Added

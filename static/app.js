@@ -170,12 +170,78 @@ function setupTickerForm() {
     const btn = document.getElementById('add-ticker-btn');
     const input = document.getElementById('new-ticker-input');
     const status = document.getElementById('ticker-status');
+    const resultsList = document.getElementById('autocomplete-results');
 
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+    let debounceTimer;
+
+    const handleSearch = async (query) => {
+        if (!query || query.length < 1) {
+            resultsList.classList.remove('active');
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/v1/search?q=${encodeURIComponent(query)}`);
+            if (res.ok) {
+                const results = await res.json();
+                if (results.length > 0) {
+                    resultsList.innerHTML = results.map(r => `
+                        <li class="autocomplete-item" data-symbol="${r.symbol}" data-exchange="${r.exchange}">
+                            <div class="autocomplete-exchange">${r.exchange}</div>
+                            <div class="autocomplete-symbol">${r.symbol}</div>
+                            <div class="autocomplete-name">${r.name}</div>
+                        </li>
+                    `).join('');
+                    resultsList.classList.add('active');
+                } else {
+                    resultsList.classList.remove('active');
+                }
+            }
+        } catch (e) {
+            console.error("Autocomplete search failed", e);
+        }
+    };
+
+    input.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => handleSearch(e.target.value.trim()), 300);
+    });
+
+    resultsList.addEventListener('click', (e) => {
+        const item = e.target.closest('.autocomplete-item');
+        if (item) {
+            const symbol = item.dataset.symbol;
+            const exchange = item.dataset.exchange;
+            // The user requested prefix: NASDAQ: AAPL
+            input.value = exchange ? `${exchange}: ${symbol}` : symbol;
+            resultsList.classList.remove('active');
+            input.focus();
+        }
+    });
+
+    // Close autocomplete when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !resultsList.contains(e.target)) {
+            resultsList.classList.remove('active');
+        }
+    });
+
+    input.addEventListener('keydown', e => { 
+        if (e.key === 'Enter') {
+            btn.click();
+            resultsList.classList.remove('active');
+        }
+    });
 
     btn.addEventListener('click', async () => {
-        const val = input.value.trim().toUpperCase();
+        let val = input.value.trim().toUpperCase();
         if (!val) return;
+
+        // Strip exchange prefix if present (e.g. "NASDAQ: AAPL" -> "AAPL")
+        if (val.includes(':')) {
+            const parts = val.split(':');
+            val = parts[parts.length - 1].trim();
+        }
 
         btn.disabled = true;
         btn.textContent = "Tracking...";
@@ -192,6 +258,7 @@ function setupTickerForm() {
                 status.textContent = `✓ Added ${val}`;
                 status.style.color = "var(--positive)";
                 input.value = "";
+                resultsList.classList.remove('active');
                 await fetchMarketAndInsights();
             } else {
                 status.textContent = data.detail || "Failed to add ticker";

@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=5">
+    <link rel="stylesheet" href="/static/style.css?v=6">
 </head>
 <body>
 
@@ -42,7 +42,10 @@
                     <div>
                         <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
                         <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
-                            <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" />
+                            <div style="position: relative;">
+                                <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" autocomplete="off" />
+                                <ul id="autocomplete-results" class="autocomplete-dropdown glass"></ul>
+                            </div>
                             <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
                             <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
                             
@@ -322,6 +325,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=5"></script>
+    <script src="/static/app.js?v=6"></script>
 </body>
 </html>
