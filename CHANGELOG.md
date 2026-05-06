@@ -1,6 +1,13 @@
 # Changelog: Cost-Aware Market Insights Engine
 
 All notable changes to this project will be documented in this file.
+
+## [2.8.0-alpha] - 2026-05-06
+### Added
+- **LangGraph Alpha-DAG Orchestration** — Transitioned from a monolithic APScheduler background job to a Directed Acyclic Graph (DAG) state machine using LangGraph. This orchestrates all AI synthesis tasks and safely manages conversational state memory.
+- **Model Context Protocol (MCP) Sandboxes** — Decoupled execution environments to adhere to strict security constraints. Created `Market Data MCP` (yfinance proxy) and a dockerized, network-restricted `Quant Compute MCP` for isolated Pandas/Math execution.
+- **FinOps Interceptor Node** — Integrated a pre-flight LangGraph node that estimates generation costs and physical halts the DAG if the DynamoDB-backed `$5.00` daily budget is breached.
+- **V2 Shadow Deployment Endpoint** — Exposed `POST /api/v2/tickers/{ticker}/synthesize` allowing the new distributed architecture to be tested in parallel without disrupting the `v1` dashboard.
     
 ## [2.7.0] - 2026-05-04
 ### Added

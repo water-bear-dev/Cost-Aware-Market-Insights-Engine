@@ -413,5 +413,24 @@ With major JS and CSS changes, we encountered the classic "stale browser cache" 
 
 This phase moves the engine from a "power-user tool" to a polished consumer-grade experience, balancing high-end features with administrative simplicity.
 
+### Entry 24: Distributed Evolution - The Alpha-DAG and MCP
+*Date: 2026-05-06*
+
+We hit a massive architectural milestone today. Our "Phase 1: Local MVP" monolithic architecture served us well for proving the FinOps concepts, but scaling AI requires isolation and robust state management. Today, we executed **Phase 2: Alpha-DAG**.
+
+**1. Deconstructing the Monolith with LangGraph:**
+We replaced our rigid `APScheduler` loops with a **LangGraph Directed Acyclic Graph (DAG)** (`src/dag/graph.py`). This allows us to orchestrate a true multi-agent workflow where state (`AlphaDagState`) is passed safely between nodes. 
+- *The FinOps Pre-Flight Gate*: The absolute most critical feature. We wired our existing DynamoDB budget checker as the *entry point node* of the graph. If it projects a budget breach, the `finops_router` conditionally branches execution away from AWS Bedrock, ensuring we never spend a rogue cent.
+
+**2. Absolute Isolation via the Model Context Protocol (MCP):**
+Security and execution safety are non-negotiable. To prevent the LLM from ever executing arbitrary Python code in an environment holding our AWS credentials, we adopted the open-source **MCP** standard:
+- We extracted our `yfinance` logic into a `Market Data MCP Server`.
+- More importantly, we built an isolated `Quant Compute MCP Server`. This runs inside a deeply restricted Docker container with no network egress, solely responsible for executing deterministic Pandas and Numpy calculations passed to it by the orchestrator.
+
+**3. The Shadow Deployment Strategy:**
+To test this safely without breaking our active dashboard, we exposed the graph via a new endpoint: `POST /api/v2/tickers/{ticker}/synthesize`. This allows the V1 monolith to remain completely active while we stress-test the new V2 Alpha-DAG in the background.
+
+The engine is no longer just a script; it is a distributed, agentic ecosystem.
+
 ---
 *Project Managed by Antigravity*

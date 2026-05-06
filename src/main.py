@@ -5,13 +5,14 @@ import structlog
 import os
 import threading
 import time
+import pytz
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from src.clients.dynamo import init_tables
-from src.routes import health, insights, costs, tickers, market
+from src.routes import health, insights, costs, tickers, market, v2_dag
 from src.ingestion.service import ingest_market_data
 from src.synthesis.service import synthesize_insights
 from slowapi.errors import RateLimitExceeded
@@ -22,13 +23,15 @@ logger = structlog.get_logger(__name__)
 
 scheduler = BackgroundScheduler()
 
-def scheduled_job():
-    logger.info("Running scheduled ingestion and synthesis Job")
+def run_daily_discovery():
+    logger.info("Triggering Daily Discovery Agent (8 AM AEST)")
     try:
-        if ingest_market_data() > 0:
-            synthesize_insights()
+        from src.dag.discovery_graph import discovery_dag
+        # Run it asynchronously or synchronously (we'll just use a thread/loop if needed)
+        # But APScheduler runs in its own thread, so we can run synchronous invoke here
+        discovery_dag.invoke({"universe": [], "messages": []})
     except Exception as e:
-        logger.error("Job failed", error=str(e))
+        logger.error("Daily Discovery Failed", error=str(e), exc_info=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,19 +40,37 @@ async def lifespan(app: FastAPI):
     # Initialize DynamoDB tables safely
     init_tables()
 
-    # Run startup ingestion in background so the app becomes healthy immediately.
-    # A 10-second delay lets the container settle and avoids hitting yfinance
-    # from a cold AWS IP before all network routes are established.
-    def _delayed_startup():
-        time.sleep(10)
-        logger.info("Running delayed startup ingestion")
-        scheduled_job()
-
-    threading.Thread(target=_delayed_startup, daemon=True).start()
-
-    # Schedule to run every 5 minutes
-    scheduler.add_job(scheduled_job, 'interval', minutes=5)
+    # Schedule the discovery agent for 8:00 AM AEST
+    aest_tz = pytz.timezone('Australia/Sydney')
+    scheduler.add_job(
+        run_daily_discovery, 
+        'cron', 
+        hour=8, 
+        minute=0, 
+        timezone=aest_tz
+    )
     scheduler.start()
+
+    # Startup: trigger it once on startup to ensure it populates immediately for the user
+    def _ensure_daily_picks():
+        from src.clients.dynamo import get_table
+        from boto3.dynamodb.conditions import Key
+        time.sleep(5) # Let uvicorn settle
+        try:
+            table = get_table('Insights')
+            resp = table.query(
+                KeyConditionExpression=Key('ticker').eq('_DAILY_SP500_'),
+                Limit=1
+            )
+            if not resp.get('Items'):
+                logger.info("No daily picks found. Running initial Discovery Agent cycle...")
+                run_daily_discovery()
+            else:
+                logger.info("Daily picks already present in ledger.")
+        except Exception as e:
+            logger.error("Startup Discovery check failed", error=str(e))
+        
+    threading.Thread(target=_ensure_daily_picks, daemon=True).start()
 
     yield
     # Shutdown
@@ -79,6 +100,7 @@ app.include_router(insights.router, prefix="/api/v1")
 app.include_router(costs.router, prefix="/api/v1")
 app.include_router(tickers.router, prefix="/api/v1")
 app.include_router(market.router, prefix="/api/v1")
+app.include_router(v2_dag.router, prefix="/api/v2/tickers")
 
 if __name__ == "__main__":
     import uvicorn

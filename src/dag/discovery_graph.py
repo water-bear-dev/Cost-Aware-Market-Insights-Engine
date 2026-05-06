@@ -1,0 +1,174 @@
+from langgraph.graph import StateGraph, END
+from typing import TypedDict, List, Dict
+import structlog
+import yfinance as yf
+from src.cost_tracking.service import check_budget, log_cost
+import boto3
+import json
+from src.config import settings
+from datetime import datetime
+from src.clients.dynamo import get_table
+
+logger = structlog.get_logger(__name__)
+
+class DiscoveryState(TypedDict):
+    sp500_universe: List[str]
+    hidden_gems_universe: List[str]
+    metrics: Dict[str, dict]
+    estimated_cost: float
+    budget_cleared: bool
+    recommendations: List[dict]
+
+def fetch_universe_node(state: DiscoveryState) -> dict:
+    logger.info("Fetching universe")
+    # Top 10 S&P 500
+    sp500 = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "BRK-B", "LLY", "AVGO"]
+    
+    # 10 Volatile/Mid-cap hidden gems
+    hidden_gems = ["PLTR", "SOFI", "RIVN", "UPST", "AFRM", "HOOD", "COIN", "DKNG", "ROKU", "PINS"]
+    
+    return {"sp500_universe": sp500, "hidden_gems_universe": hidden_gems}
+
+def quant_metrics_node(state: DiscoveryState) -> dict:
+    logger.info("Calculating quant metrics")
+    all_tickers = state.get("sp500_universe", []) + state.get("hidden_gems_universe", [])
+    metrics = {}
+    
+    try:
+        # Bulk download 1mo history
+        data = yf.download(all_tickers, period="1mo", group_by="ticker", progress=False)
+        for t in all_tickers:
+            try:
+                hist = data[t] if len(all_tickers) > 1 else data
+                if hist.empty: continue
+                
+                closes = hist['Close'].dropna()
+                if len(closes) < 2: continue
+                
+                momentum = float((closes.iloc[-1] / closes.iloc[0]) - 1)
+                volatility = float(closes.pct_change().std() * (252 ** 0.5))
+                
+                metrics[t] = {
+                    "momentum_1mo": momentum,
+                    "volatility_ann": volatility,
+                    "last_price": float(closes.iloc[-1])
+                }
+            except Exception:
+                continue
+    except Exception as e:
+        logger.error("Failed fetching quant metrics", error=str(e))
+        
+    return {"metrics": metrics}
+
+def finops_gate_node(state: DiscoveryState) -> dict:
+    # Estimate cost for passing ~20 tickers to Claude
+    estimated_cost = 0.0005 
+    is_approved = check_budget(estimated_cost)
+    return {"estimated_cost": estimated_cost, "budget_cleared": is_approved}
+
+def bedrock_recommend_node(state: DiscoveryState) -> dict:
+    if not state.get("budget_cleared", False):
+        return {"recommendations": []}
+        
+    logger.info("Asking Bedrock for recommendations")
+    metrics_str = json.dumps(state.get("metrics", {}), indent=2)
+    
+    prompt = (
+        f"You are a master portfolio manager. Review these quantitative metrics for 20 tickers:\n"
+        f"{metrics_str}\n\n"
+        f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
+        f"based on a mix of momentum and volatility.\n"
+        f"Output MUST be pure JSON matching this schema:\n"
+        f"[\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}}\n"
+        f"]"
+    )
+    
+    try:
+        if getattr(settings, 'use_mock_ai', True):
+            recs = [
+                {"ticker": "NVDA", "category": "S&P 500", "rationale": "Strong momentum flag despite high market cap."},
+                {"ticker": "PLTR", "category": "Hidden Gem", "rationale": "High volatility creates actionable trading bounds."}
+            ]
+        else:
+            bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
+            body = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 500,
+                "temperature": 0.4,
+                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+            }
+            response = bedrock.invoke_model(
+                modelId="anthropic.claude-3-haiku-20240307-v1:0",
+                contentType="application/json",
+                accept="application/json",
+                body=json.dumps(body)
+            )
+            response_body = json.loads(response.get('body').read())
+            text = response_body.get('content')[0].get('text', '')
+            
+            # Find JSON block
+            start = text.find('[')
+            end = text.rfind(']') + 1
+            if start != -1 and end != 0:
+                recs = json.loads(text[start:end])
+            else:
+                recs = []
+                
+        # Log cost
+        log_cost("DISCOVERY", 500, 200)
+        
+        return {"recommendations": recs}
+        
+    except Exception as e:
+        logger.error("Bedrock recommendation failed", error=str(e))
+        return {"recommendations": []}
+
+def save_recommendations_node(state: DiscoveryState) -> dict:
+    recs = state.get("recommendations", [])
+    if not recs: return {}
+    
+    insights_table = get_table('Insights')
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    
+    try:
+        for rec in recs:
+            # We use a special ticker ID for easy fetching
+            ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
+            item = {
+                'ticker': ticker_id,
+                'timestamp': timestamp,
+                'generated_at': timestamp,
+                'insight_text': rec['rationale'],
+                'signal': 'WATCH',
+                'model_used': 'discovery-agent',
+                'cost_usd': 0,
+                'actual_ticker': rec['ticker']
+            }
+            insights_table.put_item(Item=item)
+            logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])
+    except Exception as e:
+        logger.error("Failed saving daily recommendation", error=str(e))
+        
+    return {}
+
+def build_discovery_graph():
+    workflow = StateGraph(DiscoveryState)
+    
+    workflow.add_node("universe", fetch_universe_node)
+    workflow.add_node("quant", quant_metrics_node)
+    workflow.add_node("finops", finops_gate_node)
+    workflow.add_node("bedrock", bedrock_recommend_node)
+    workflow.add_node("save", save_recommendations_node)
+    
+    workflow.set_entry_point("universe")
+    workflow.add_edge("universe", "quant")
+    workflow.add_edge("quant", "finops")
+    workflow.add_edge("finops", "bedrock")
+    workflow.add_edge("bedrock", "save")
+    workflow.add_edge("save", END)
+    
+    return workflow.compile()
+
+discovery_dag = build_discovery_graph()

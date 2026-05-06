@@ -283,6 +283,7 @@ async function initDashboard() {
     fetchCosts();
     fetchDashboardCosts();
     await fetchMarketAndInsights();
+    await fetchDailyPicks();
 
     // Background batch: ensure all tickers have synthesis
     triggerBatchSynthesis();
@@ -292,8 +293,79 @@ async function initDashboard() {
         fetchCosts();
         fetchDashboardCosts();
         fetchMarketAndInsights();
+        fetchDailyPicks();
     }, 15000);
 }
+
+async function fetchDailyPicks() {
+    const grid = document.getElementById('daily-picks-grid');
+    const container = document.getElementById('daily-picks-container');
+
+    try {
+        const res = await fetch('/api/v1/daily_picks');
+        if (res.ok) {
+            const data = await res.json();
+            
+            if (!data || data.length === 0) {
+                // If we're on first load and no data, show a subtle finding state if the container isn't hidden yet
+                if (grid.children.length === 0) {
+                    grid.innerHTML = `
+                        <div class="metric-card glass" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; padding: 2rem;">
+                            <div class="node-pulse" style="position:relative; width:20px; height:20px; border-radius:50%; border:2px solid var(--accent); animation:nodePulse 2s infinite;"></div>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">The Daily Discovery Agent is currently hunting for hidden gems... check back in 30s.</span>
+                        </div>
+                    `;
+                    container.style.display = 'block';
+                }
+                return;
+            }
+            
+            container.style.display = 'block';
+            grid.innerHTML = data.map(pick => `
+                <div class="metric-card glass glow-hover discovery-pick-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing: 0.05em; color: var(--accent);">${pick.category}</span>
+                        <span class="signal-pill watch" style="background: rgba(139, 92, 246, 0.1); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700;">DAILY PICK</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+                        <h3 class="metric-value text-gradient-purple" style="font-size: 1.8rem; letter-spacing: -0.5px;">${pick.actual_ticker}</h3>
+                        <button class="glass-btn primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 6px;" 
+                                onclick="handleAddFeatured('${pick.actual_ticker}', this)">
+                            Track
+                        </button>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">${pick.rationale}</p>
+                </div>
+            `).join('');
+        }
+    } catch (e) {}
+}
+
+window.handleAddFeatured = async (ticker, btn) => {
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Adding...";
+    
+    try {
+        const res = await fetch('/api/v1/tickers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticker: ticker })
+        });
+        if (res.ok) {
+            btn.textContent = "✓ Tracked";
+            btn.style.borderColor = "var(--positive)";
+            btn.style.color = "var(--positive)";
+            await fetchMarketAndInsights();
+        } else {
+            btn.textContent = "Error";
+            setTimeout(() => { btn.disabled = false; btn.textContent = originalText; }, 2000);
+        }
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+};
 
 async function triggerBatchSynthesis() {
     try {
@@ -325,7 +397,7 @@ async function triggerBatchSynthesis() {
                 // Small staggered delay to avoid hammering Bedrock in parallel
                 const delay = marketData.indexOf(mkt) * 800;
                 setTimeout(() => {
-                    fetch(`/api/v1/tickers/${mkt.ticker}/synthesize`, { method: 'POST' })
+                    fetch(`/api/v2/tickers/${mkt.ticker}/synthesize`, { method: 'POST' })
                         .catch(() => {});
                 }, delay);
             }

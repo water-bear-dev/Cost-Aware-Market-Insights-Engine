@@ -65,11 +65,11 @@ The application is fully isolated in a **Private Subnet**.
 
 ---
 
-### 5. Phase 2: Alpha-DAG Architecture (Current Evolution)
-As of **May 2026**, the system is undergoing an architectural upgrade to a distributed, multi-agent model utilizing **LangGraph** and the **Model Context Protocol (MCP)**.
+### 5. Phase 2: Alpha-DAG Architecture
+As of **May 2026**, the system was upgraded to a distributed, multi-agent model utilizing **LangGraph** and the **Model Context Protocol (MCP)**.
 
 #### Distributed Orchestration
-The monolithic `APScheduler` is being replaced by a LangGraph Directed Acyclic Graph (DAG). The FastAPI server now acts as a client to the LangGraph Orchestrator (The Host). 
+The monolithic `APScheduler` was replaced by a LangGraph Directed Acyclic Graph (DAG). The FastAPI server now acts as a client to the LangGraph Orchestrator (The Host). 
 
 #### MCP Isolation Strategy
 To maintain strict security and execution isolation (Non-Negotiable Constraints), external capabilities are decoupled into independent MCP servers:
@@ -78,6 +78,14 @@ To maintain strict security and execution isolation (Non-Negotiable Constraints)
 
 #### FinOps Interceptor Node
 The DAG executes a **FinOps Pre-Flight Gate** as its first node. Before any Bedrock calls are made, this node estimates token costs, reads the `CostTracking` DynamoDB ledger, and physically halts the graph execution if the `$5.00` daily budget is breached, guaranteeing zero unexpected spend.
+
+---
+
+### 6. Phase 3: Daily Discovery Agent
+As part of the shift to autonomous workflows, the platform now runs a **Daily Discovery Agent** at 8:00 AM AEST.
+- **Universe Scan**: Evaluates 20 distinct assets (S&P 500 stalwarts vs volatile Hidden Gems).
+- **Quant Calculation**: Downloads bulk historical data to calculate annualized volatility and momentum.
+- **AI Selection**: Prompts Bedrock to determine the optimal "Ticker to Watch" for both categories and persists them to the dashboard's new dynamic banner.
 
 ---
 *Managed by Antigravity*
