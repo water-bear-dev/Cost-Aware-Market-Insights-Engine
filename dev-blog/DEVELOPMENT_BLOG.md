@@ -432,5 +432,54 @@ To test this safely without breaking our active dashboard, we exposed the graph 
 
 The engine is no longer just a script; it is a distributed, agentic ecosystem.
 
+
+### Entry 25: Fine-Tuning the Discovery Agent — Filtering and FinOps
+*Date: 2026-05-06*
+
+With the Alpha-DAG architecture in place, we turned our focus to the "Daily Discovery Agent." While the agent was successfully picking stocks at 8:00 AM, it was occasionally recommending tickers the user was already tracking.
+
+**1. Watchlist-Aware Discovery:**
+We updated the `fetch_universe_node` to perform a pre-flight check against the active `Tickers` DynamoDB table. The agent now explicitly filters out any tickers currently in the user's watchlist, ensuring that every "Hidden Gem" is a genuine discovery.
+
+**2. Discovery Enrichment & Price Metrics:**
+To make the discovery picks actionable immediately, we upgraded the `quant_metrics_node` to compute the **Last Price** and **5-Day % Change**. These metrics are now persisted in the `Insights` table alongside the AI rationale. The UI was updated to render these cards as fully interactive elements—clicking a "Discovery Card" now fetches history on-demand and opens a TradingView-style detail modal, providing deep-dive capabilities for untracked assets.
+
+**3. Infrastructure-Aware FinOps:**
+Our budget gate was originally focused on LLM token costs. However, in a production AWS environment, the fixed infrastructure costs (ALB + Fargate uptime) represent a significant portion of the burn rate. We updated the `cost_tracking` service to calculate a dynamic `infrastructure_spend_usd` based on a fixed rate of **$0.035/hour** since midnight UTC. The FinOps dashboard now breaks down daily spend into **AI** vs **Uptime**, providing a more realistic view of the project's financial health.
+
+### Entry 26: The Colima Networking Incident
+*Date: 2026-05-06*
+
+**Problem:** After a clean `docker-compose up -d --build`, the local dashboard was completely unreachable. `curl` returned `Connection refused` for `localhost:8000`, despite the container health check passing and `docker ps` showing the service as healthy.
+
+**Root Cause (The Docker Context Trap):**
+The developer environment was running Docker via **Colima** (a lightweight macOS alternative to Docker Desktop). Unlike Docker Desktop, which automatically handles port forwarding from the macOS host to the internal Linux VM, Colima's default mode runs an isolated VM with no host-accessible bridge interface. Port 8000 was bound inside the VM, but `localhost` on macOS was trying to find a process on the host itself.
+
+**The Fix:** 
+Restarted Colima with the `--network-address` flag:
+```bash
+colima stop
+colima start --network-address
+```
+This forces Colima to provision a bridged network interface and assigns the VM a stable LAN IP (e.g., `192.168.64.2`). The dashboard became instantly accessible at `http://192.168.64.2:8000`.
+
+**Lesson:** In cross-platform development, "Localhost" is an abstraction. When debugging connectivity in containerized apps on macOS, the first check should always be the Docker runtime context (`docker context ls`). If it points to a Colima socket, networking behavior must be verified at the VM level.
+
+### Entry 27: Breaking the AWS Tether — Local AI via Ollama
+*Date: 2026-05-06*
+
+While AWS Bedrock is our production target, local development with real AI has always been a "Mock vs. Cost" trade-off. Today, we broke that tether by integrating **Ollama** directly into the engine's synthesis layer.
+
+**1. Multi-Provider Synthesis Architecture:**
+We refactored `src/synthesis/service.py` into a provider-agnostic bridge. The system now supports a `LLM_PROVIDER` environment variable that can switch between `mock`, `bedrock`, and `ollama` on the fly. This allows developers to work with high-fidelity insights without burning their AWS budget.
+
+**2. Gemma 4 & Apple Silicon Optimization:**
+The user opted for Google's **Gemma 4** model. By configuring Docker with `extra_hosts: ["host.docker.internal:host-gateway"]`, we allowed the containerized app to communicate with the Ollama server running natively on the macOS host. This leverages the Mac's Neural Engine and GPU for lightning-fast inference while keeping the application code portable.
+
+**3. Parsing and Signal Parity:**
+We implemented custom parsing logic for Ollama's `/api/generate` endpoint to maintain parity with our structured Claude outputs. The engine still expects the `SIGNAL: BUY/HOLD/SELL` suffix and correctly maps it to our DynamoDB schema, ensuring the dashboard UI remains consistent regardless of the underlying brain.
+
+The project is now "Local-First, Cloud-Ready."
+
 ---
 *Project Managed by Antigravity*

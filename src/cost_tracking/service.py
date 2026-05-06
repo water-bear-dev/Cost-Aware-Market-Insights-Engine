@@ -14,6 +14,13 @@ MOCK_OUTPUT_RATE = Decimal('0.00125') # per 1k tokens
 def get_today() -> str:
     return datetime.utcnow().strftime('%Y-%m-%d')
 
+def get_uptime_cost() -> Decimal:
+    """Calculate $0.035/hr based on hours since midnight UTC."""
+    now = datetime.utcnow()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    hours = (now - midnight).total_seconds() / 3600
+    return Decimal(str(hours * 0.035))
+
 def get_daily_spend() -> Decimal:
     """Calculates total spend for today from DynamoDB."""
     table = get_table('CostTracking')

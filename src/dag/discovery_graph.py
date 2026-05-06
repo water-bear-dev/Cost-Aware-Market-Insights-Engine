@@ -21,11 +21,19 @@ class DiscoveryState(TypedDict):
 
 def fetch_universe_node(state: DiscoveryState) -> dict:
     logger.info("Fetching universe")
+    from src.ingestion.service import get_active_tickers
+    
+    active = set(get_active_tickers())
+    
     # Top 10 S&P 500
-    sp500 = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "BRK-B", "LLY", "AVGO"]
+    sp500_base = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "BRK-B", "LLY", "AVGO"]
     
     # 10 Volatile/Mid-cap hidden gems
-    hidden_gems = ["PLTR", "SOFI", "RIVN", "UPST", "AFRM", "HOOD", "COIN", "DKNG", "ROKU", "PINS"]
+    hidden_gems_base = ["PLTR", "SOFI", "RIVN", "UPST", "AFRM", "HOOD", "COIN", "DKNG", "ROKU", "PINS"]
+    
+    # Filter out tickers already being tracked
+    sp500 = [t for t in sp500_base if t not in active]
+    hidden_gems = [t for t in hidden_gems_base if t not in active]
     
     return {"sp500_universe": sp500, "hidden_gems_universe": hidden_gems}
 
@@ -48,10 +56,13 @@ def quant_metrics_node(state: DiscoveryState) -> dict:
                 momentum = float((closes.iloc[-1] / closes.iloc[0]) - 1)
                 volatility = float(closes.pct_change().std() * (252 ** 0.5))
                 
+                change_5d = float((closes.iloc[-1] / closes.iloc[-5]) - 1) if len(closes) >= 5 else momentum
+                
                 metrics[t] = {
                     "momentum_1mo": momentum,
                     "volatility_ann": volatility,
-                    "last_price": float(closes.iloc[-1])
+                    "last_price": float(closes.iloc[-1]),
+                    "change_5d": change_5d
                 }
             except Exception:
                 continue
@@ -131,9 +142,12 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
     
     insights_table = get_table('Insights')
     timestamp = datetime.utcnow().isoformat() + "Z"
+    metrics = state.get("metrics", {})
     
     try:
         for rec in recs:
+            t = rec['ticker']
+            m = metrics.get(t, {})
             # We use a special ticker ID for easy fetching
             ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
             item = {
@@ -144,7 +158,9 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'signal': 'WATCH',
                 'model_used': 'discovery-agent',
                 'cost_usd': 0,
-                'actual_ticker': rec['ticker']
+                'actual_ticker': t,
+                'last_price': str(m.get('last_price', 0.0)),
+                'change_5d': str(m.get('change_5d', 0.0))
             }
             insights_table.put_item(Item=item)
             logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])

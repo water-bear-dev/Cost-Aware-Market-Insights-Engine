@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from src.clients.dynamo import get_table
-from src.cost_tracking.service import get_daily_spend, get_today
+from src.cost_tracking.service import get_daily_spend, get_today, get_uptime_cost
 from src.config import settings
 from datetime import datetime, timedelta
 from boto3.dynamodb.conditions import Key
@@ -12,15 +12,19 @@ router = APIRouter()
 @router.get("/costs")
 def get_costs():
     try:
-        spend = float(get_daily_spend())
+        llm_spend = float(get_daily_spend())
+        uptime_spend = float(get_uptime_cost())
+        total_spend = llm_spend + uptime_spend
         budget = settings.daily_budget_usd
         
         return {
             "date": get_today(),
             "daily_budget_usd": budget,
-            "current_spend_usd": spend,
-            "remaining_budget_usd": budget - spend,
-            "utilization_pct": (spend / budget) * 100 if budget else 0
+            "current_spend_usd": total_spend,
+            "llm_spend_usd": llm_spend,
+            "infrastructure_spend_usd": uptime_spend,
+            "remaining_budget_usd": budget - total_spend,
+            "utilization_pct": (total_spend / budget) * 100 if budget else 0
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

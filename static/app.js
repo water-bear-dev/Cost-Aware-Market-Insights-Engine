@@ -321,22 +321,36 @@ async function fetchDailyPicks() {
             }
             
             container.style.display = 'block';
-            grid.innerHTML = data.map(pick => `
-                <div class="metric-card glass glow-hover discovery-pick-card">
+            grid.innerHTML = data.map(pick => {
+                const price = parseFloat(pick.last_price || 0);
+                const change = parseFloat(pick.change_5d || 0) * 100;
+                const isPos = change >= 0;
+                const sign = isPos ? '+' : '';
+                const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
+                
+                return `
+                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
                         <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing: 0.05em; color: var(--accent);">${pick.category}</span>
                         <span class="signal-pill watch" style="background: rgba(139, 92, 246, 0.1); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700;">DAILY PICK</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                        <h3 class="metric-value text-gradient-purple" style="font-size: 1.8rem; letter-spacing: -0.5px;">${pick.actual_ticker}</h3>
+                        <div>
+                            <h3 class="metric-value text-gradient-purple" style="font-size: 1.8rem; letter-spacing: -0.5px;">${pick.actual_ticker}</h3>
+                            <div style="margin-top: 0.25rem;">
+                                <span style="font-weight:600; font-size:1.1rem;">${formatPrice(price)}</span>
+                                <span style="margin-left:0.5rem; font-size:0.85rem; font-weight:600; color:${changeColor};">${sign}${change.toFixed(2)}% (5d)</span>
+                            </div>
+                        </div>
                         <button class="glass-btn primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 6px;" 
-                                onclick="handleAddFeatured('${pick.actual_ticker}', this)">
+                                onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
                             Track
                         </button>
                     </div>
                     <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">${pick.rationale}</p>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
     } catch (e) {}
 }
@@ -462,6 +476,19 @@ async function fetchCosts() {
             document.getElementById('budget-total').textContent = formatPrice(data.daily_budget_usd);
             document.getElementById('budget-spend').textContent = formatPrice(data.current_spend_usd);
             document.getElementById('budget-remaining').textContent = formatPrice(data.remaining_budget_usd);
+            
+            let breakdownEl = document.getElementById('budget-breakdown');
+            if (!breakdownEl) {
+                const spendContainer = document.getElementById('budget-spend').parentElement;
+                breakdownEl = document.createElement('div');
+                breakdownEl.id = 'budget-breakdown';
+                breakdownEl.style.fontSize = '0.7rem';
+                breakdownEl.style.color = 'var(--text-secondary)';
+                breakdownEl.style.marginTop = '0.2rem';
+                spendContainer.appendChild(breakdownEl);
+            }
+            breakdownEl.innerHTML = `AI: ${formatPrice(data.llm_spend_usd)} | Uptime: ${formatPrice(data.infrastructure_spend_usd)}`;
+            
             const pBar = document.getElementById('budget-progress');
             pBar.style.width = `${Math.min(data.utilization_pct, 100)}%`;
             if (data.utilization_pct > 80) pBar.classList.add('danger');
@@ -834,6 +861,28 @@ function openModal(ticker) {
     // Load enriched chart + key stats + company info
     loadModalChart(ticker, '1mo');
 }
+
+async function openDailyPickModal(ticker) {
+    // If it's already in the watchlist, just use openModal normally
+    if (lastMarketData[ticker]) {
+        openModal(ticker);
+        return;
+    }
+    
+    // Otherwise, mock a skeleton and fetch history on-demand
+    currentModalTicker = ticker;
+    currentPeriod = '1mo';
+    document.querySelectorAll('.period-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.period === '1mo');
+    });
+    
+    currentModalMkt = { ticker: ticker, status: 'pending_data' };
+    currentModalInsight = { insight_text: 'Fetching full analysis...', model_used: 'loading', signal: 'WATCH' };
+    
+    renderModalContent(currentModalMkt, currentModalInsight);
+    await loadModalChart(ticker, '1mo');
+}
+window.openDailyPickModal = openDailyPickModal;
 
 function renderModalContent(mkt, insight) {
     const ticker = mkt.ticker || currentModalTicker;

@@ -3,6 +3,7 @@ import structlog
 from decimal import Decimal
 import json
 import boto3
+import httpx
 from boto3.dynamodb.conditions import Key
 from src.clients.dynamo import get_table
 from src.cost_tracking.service import check_budget, log_cost
@@ -66,16 +67,22 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         
         if insight_response.get('Items'):
             latest_insight = insight_response['Items'][0]
-            if latest_insight.get('data_hash') == latest_data.get('data_hash'):
-                logger.debug("Insight already exists for latest data", ticker=ticker)
+            current_model = f"ollama-{settings.ollama_model}" if settings.llm_provider == "ollama" else settings.llm_provider
+            
+            # Skip only if both data AND model are the same
+            if (latest_insight.get('data_hash') == latest_data.get('data_hash') and 
+                latest_insight.get('model_used') == current_model):
+                logger.debug("Insight already exists for latest data and model", ticker=ticker)
                 return False
     except Exception as e:
         logger.error("Failed check for existing insight", ticker=ticker, error=str(e))
 
-    estimated_cost = 0.0002  # Balanced Haiku estimation
-    if not check_budget(estimated_cost):
-        logger.warning("Skipping synthesis due to budget", ticker=ticker)
-        return False
+    # Only enforce budget for real paid cloud providers (Bedrock)
+    if settings.llm_provider == "bedrock":
+        estimated_cost = 0.0002  # Balanced Haiku estimation
+        if not check_budget(estimated_cost):
+            logger.warning("Skipping synthesis due to budget", ticker=ticker)
+            return False
         
     headlines = latest_data.get('headlines', [])
     headline_links = latest_data.get('headline_links', [])
@@ -93,7 +100,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         headline_text = 'No recent news available'
     change_pct = float(latest_data.get('change_pct', 0))
     
-    if getattr(settings, 'use_mock_ai', True):
+    if settings.llm_provider == "mock":
         input_tokens = 900
         output_tokens = 85
         signal = _derive_signal(change_pct)
@@ -103,7 +110,52 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             f"3. What to Watch: Keep an eye on how the market reacts to upcoming volume levels."
         )
         model_used = 'local-mock'
-    else:
+    elif settings.llm_provider == "ollama":
+        try:
+            prompt = (
+                f"You are a helpful investment assistant. "
+                f"Explain what's going on with {ticker} using the data and news provided.\n"
+                f"1. What's Happening: (context)\n"
+                f"2. Why it Matters: (outlook)\n"
+                f"3. What to Watch: (next steps)\n"
+                f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
+                f"Ticker: {ticker} | Close: ${float(latest_data.get('close_price', 0)):.2f} | Change: {change_pct:+.2f}%\n"
+                f"News: {headline_text}"
+            )
+            
+            resp = httpx.post(
+                f"{settings.ollama_url}/api/generate",
+                json={
+                    "model": settings.ollama_model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"temperature": 0.3}
+                },
+                timeout=30.0
+            )
+            resp.raise_for_status()
+            full_text = resp.json().get('response', '')
+            
+            # Simple parsing (Ollama doesn't give token counts easily in basic API)
+            input_tokens = len(prompt) // 4
+            output_tokens = len(full_text) // 4
+            model_used = f"ollama-{settings.ollama_model}"
+            
+            signal = "HOLD"
+            lines = full_text.strip().split('\n')
+            insight_lines = []
+            for line in lines:
+                if "SIGNAL:" in line.upper():
+                    for s in ["BUY", "SELL", "HOLD"]:
+                        if s in line.upper(): signal = s
+                else:
+                    insight_lines.append(line)
+            insight_text = '\n\n'.join(insight_lines).strip()
+            
+        except Exception as e:
+            logger.error("Ollama invocation failed", error=str(e))
+            return False
+    else: # bedrock
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (

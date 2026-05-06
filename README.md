@@ -34,15 +34,24 @@ To run the engine safely on your local machine (where AI synthesis will mock saf
    cd Cost-Aware-Market-Insights-Engine
    ```
 
-2. **Start the containers detached:**
+2. **Start Colima with a network address** *(if you use Colima instead of Docker Desktop)*:
+   ```bash
+   colima stop
+   colima start --network-address
+   ```
+   > **Why?** Colima's default VM mode doesn't publish a host-accessible network interface, so `localhost:8000` will refuse connections. The `--network-address` flag assigns the VM a stable LAN IP (typically `192.168.64.2`).
+
+3. **Start the containers:**
    ```bash
    docker-compose up -d --build
    ```
-   *This command spins up the backend Python container alongside an `amazon/dynamodb-local` container handling all local storage via standard AWS SDKs (boto3).*
+   *This spins up the FastAPI backend alongside an `amazon/dynamodb-local` container handling all local storage via boto3.*
 
-3. **Access the Dashboard:**
-   Open your browser to [http://localhost:8000](http://localhost:8000/)
-   The engine will automatically populate with real market data. Note the **Daily Discovery Picks** banner at the top, which updates every 24 hours.
+4. **Access the Dashboard:**
+   - **Docker Desktop users:** [http://localhost:8000](http://localhost:8000)
+   - **Colima users:** [http://192.168.64.2:8000](http://192.168.64.2:8000) *(check your IP with `colima list`)*
+
+   The engine will automatically populate with real market data. The **Daily Discovery Picks** banner fires on startup (and refreshes at 8:00 AM AEST daily).
 
 ## AWS Production Deployment
 
@@ -89,6 +98,22 @@ Deploying the full Alpha-DAG stack to AWS ECS Fargate is handled via automated s
 The transition from Phase 1 to Phase 3 represented a significant shift in how we handle financial intelligence. By moving to **LangGraph**, we replaced a brittle background loop with a stateful DAG that can handle complex multi-step reasoning.
 
 The **Daily Discovery Agent** was the crowning achievement of this pivot. Instead of waiting for a user to track a ticker, the system now autonomously "hunts" for value at 8:00 AM every morning. By isolating quantitative math into a restricted **Quant MCP**, we've ensured that our most complex logic runs in a secure sandbox, while Bedrock handles the high-level synthesis only when our **FinOps Gate** confirms we are under budget.
+
+### May 2026: The Colima Networking Incident
+**Problem:** After a successful `docker-compose up --build`, the dashboard was completely unreachable at `localhost:8000`. `curl` returned `Connection refused` even though `docker ps` showed the container as `healthy`. The `lsof -i :8000` command returned nothing — no process was listed as the owner of the port.
+
+**Root Cause:** The project runs Docker via **Colima** (a lightweight macOS Docker runtime alternative to Docker Desktop). In Colima's default mode, it runs a Linux VM using Apple's Virtualization Framework without assigning it a host-bridged network interface. Port bindings like `0.0.0.0:8000->8000/tcp` are forwarded *inside* the Colima VM, but are not exposed to the macOS host network. This is why `localhost` and `127.0.0.1` both silently refused connections.
+
+**Fix:** Restart Colima with the `--network-address` flag, which provisions a dedicated bridged network interface and assigns the VM a stable LAN IP:
+```bash
+colima stop
+colima start --network-address
+# Then check your IP:
+colima list  # Shows ADDRESS column, e.g. 192.168.64.2
+```
+The dashboard is then accessible at `http://192.168.64.2:8000` (use your specific Colima IP).
+
+**Lesson:** When debugging container connectivity issues on macOS, always check the Docker runtime first (`docker context ls`). If it points to a Colima socket, `localhost` port forwarding behaves differently than Docker Desktop.
 
 ---
 *Maintained by the Antigravity Team*

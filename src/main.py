@@ -49,6 +49,11 @@ async def lifespan(app: FastAPI):
         minute=0, 
         timezone=aest_tz
     )
+    
+    # Recurring Market Data Ingestion & Synthesis (every 5 mins)
+    scheduler.add_job(ingest_market_data, 'interval', minutes=5)
+    scheduler.add_job(synthesize_insights, 'interval', minutes=5, next_run_time=pytz.utc.localize(time.struct_time(time.gmtime(time.time() + 10))))
+    
     scheduler.start()
 
     # Startup: trigger it once on startup to ensure it populates immediately for the user

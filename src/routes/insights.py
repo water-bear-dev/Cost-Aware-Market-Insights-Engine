@@ -84,7 +84,9 @@ def get_daily_picks(request: Request):
                     "category": "S&P 500" if "SP500" in ticker_id else "Hidden Gem",
                     "actual_ticker": item.get("actual_ticker", "N/A"),
                     "rationale": item.get("insight_text", ""),
-                    "timestamp": item.get("timestamp")
+                    "timestamp": item.get("timestamp"),
+                    "last_price": item.get("last_price", "0"),
+                    "change_5d": item.get("change_5d", "0")
                 })
         return picks
     except Exception as e:

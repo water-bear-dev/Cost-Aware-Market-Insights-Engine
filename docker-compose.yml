@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   app:
@@ -15,8 +14,13 @@ services:
       - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8001
       - DAILY_BUDGET_USD=5.00
       - TICKERS=AAPL,MSFT,GOOGL,AMZN,META
+      - LLM_PROVIDER=ollama
+      - OLLAMA_MODEL=gemma4
+      - OLLAMA_URL=http://host.docker.internal:11434
     depends_on:
       - dynamodb-local
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   dynamodb-local:
     image: amazon/dynamodb-local:latest
