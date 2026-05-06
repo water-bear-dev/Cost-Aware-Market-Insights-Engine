@@ -64,4 +64,20 @@ The application is fully isolated in a **Private Subnet**.
 - **Internal**: DynamoDB traffic stays within the AWS backbone via **VPC Gateway Endpoints** (Cost $0.00).
 
 ---
-*End of Development - Managed by Antigravity*
+
+### 5. Phase 2: Alpha-DAG Architecture (Current Evolution)
+As of **May 2026**, the system is undergoing an architectural upgrade to a distributed, multi-agent model utilizing **LangGraph** and the **Model Context Protocol (MCP)**.
+
+#### Distributed Orchestration
+The monolithic `APScheduler` is being replaced by a LangGraph Directed Acyclic Graph (DAG). The FastAPI server now acts as a client to the LangGraph Orchestrator (The Host). 
+
+#### MCP Isolation Strategy
+To maintain strict security and execution isolation (Non-Negotiable Constraints), external capabilities are decoupled into independent MCP servers:
+1. **Market Data MCP Server**: Encapsulates `yfinance` logic and Google News RSS parsing.
+2. **Quant Compute MCP Server**: A heavily isolated, network-restricted Docker container running Pandas/Numpy to execute quantitative calculations. It is completely insulated from AWS credentials.
+
+#### FinOps Interceptor Node
+The DAG executes a **FinOps Pre-Flight Gate** as its first node. Before any Bedrock calls are made, this node estimates token costs, reads the `CostTracking` DynamoDB ledger, and physically halts the graph execution if the `$5.00` daily budget is breached, guaranteeing zero unexpected spend.
+
+---
+*Managed by Antigravity*

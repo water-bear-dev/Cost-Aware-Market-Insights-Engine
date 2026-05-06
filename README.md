@@ -6,12 +6,13 @@ A fully containerized Python (FastAPI) application designed to ingest stock mark
 
 ## Overview & Architecture Highlights
 
-This project is built around the fundamental philosophy that AI integration must be cost-aware from day one. It utilizes a **4-Phase Rollout Plan**, currently operating in **Phase 1: Fully Local MVP**.
+This project is built around the fundamental philosophy that AI integration must be cost-aware from day one. It is currently undergoing a major architectural upgrade from a monolithic service to a distributed **Alpha-DAG** system using LangGraph and the Model Context Protocol (MCP).
 
-1. **Data Ingestion (`yfinance`)**: An embedded APScheduler chron-job periodically fetches actual market ticks (open, high, low, close, volume) and top news headlines for a configured list of tickers (e.g., AAPL, MSFT, META).
-2. **FinOps Engine (DynamoDB)**: Before any AI synthesis occurs, the engine precisely estimates the token-cost, queries a local `CostTracking` DynamoDB ledger, and physically blocks generation if it would breach your predefined `DAILY_BUDGET_USD` limit.
-3. **Mock AI Synthesis**: In Phase 1, the AI generation is mocked to simulate cost impacts without actually reaching out to AWS Bedrock, allowing robust testing of the budget logic completely locally.
-4. **Premium Dashboard**: A beautifully designed, glassmorphic UI served by FastAPI, displaying live real-time metrics for both Insight generation and Financial operation health.
+1. **Data Ingestion via MCP**: `yfinance` logic and Google News RSS extraction are decoupled into a dedicated Market Data MCP server.
+2. **Quant Compute Sandbox**: Mathematical calculations (Pandas/Numpy) are executed in a strictly isolated, network-restricted MCP container with zero AWS credentials.
+3. **LangGraph Orchestrator**: Replaces the static APScheduler logic. A Directed Acyclic Graph (DAG) routes tasks, maintains state, and sequences API calls to **AWS Bedrock (Anthropic Claude 3 Haiku)**.
+4. **FinOps Engine (DynamoDB)**: An interceptor node in the LangGraph DAG estimates token costs, queries a local `CostTracking` ledger, and physically blocks execution if it would breach your `DAILY_BUDGET_USD` limit.
+5. **Premium Dashboard**: A beautifully designed, glassmorphic UI served by FastAPI, displaying live real-time metrics for both Insight generation and Financial operation health.
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
 
@@ -78,7 +79,5 @@ Once local testing is complete, deploying the full CloudFormation stack and ECS 
 ```
 
 ## Phased Rollout Roadmap
-- **[COMPLETE] Phase 1**: Fully Local MVP - Built the architecture entirely on local hardware implementing mock Bedrock requests and a local Dynamo store to validate the FinOps architecture without spending a dime in actual AWS fees. 
-- **[COMPLETE] Phase 2**: AWS Services Integration - Developed AWS CloudFormation templates to scaffold the VPC, ECR, and ECS Fargate cluster. Built Python logic utilizing `boto3` to hit Anthropics' Claude-3-Haiku. Run `./scripts/deploy.sh` to scaffold your AWS environment!
-- **[PENDING] Phase 3**: Cost Control Hardening - Advancing FinOps to use CloudWatch Custom metrics and AWS alarms.
-- **[PENDING] Phase 4**: Production Hardening - Locking down traffic using Private Subnets, NAT Gateways, ALBs, and robust VPC Endpoints.
+- **[COMPLETE] Phase 1: Monolithic System** - Built the foundational FastAPI backend, local DynamoDB ledger, FinOps constraints, AWS Bedrock integration, and a premium glassmorphic frontend UI.
+- **[IN PROGRESS] Phase 2: Alpha-DAG via MCP** - Deconstructing the monolith into a distributed system governed by a LangGraph orchestrator. External dependencies (`yfinance`) and math operations (Pandas) are moved to isolated Model Context Protocol (MCP) servers. The FinOps engine operates as a hard gate within the DAG.
