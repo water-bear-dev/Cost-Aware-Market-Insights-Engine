@@ -131,7 +131,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
                     "stream": False,
                     "options": {"temperature": 0.3}
                 },
-                timeout=30.0
+                timeout=90.0
             )
             resp.raise_for_status()
             full_text = resp.json().get('response', '')
