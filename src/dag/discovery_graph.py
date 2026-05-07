@@ -177,6 +177,17 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
         for rec in recs:
             t = rec['ticker']
             m = metrics.get(t, {})
+            
+            # Fetch extra metadata for UI
+            try:
+                t_obj = yf.Ticker(t)
+                info = t_obj.info
+                exchange = info.get('exchange', '')
+                company_name = info.get('longName') or info.get('shortName', '')
+            except Exception:
+                exchange = ''
+                company_name = ''
+
             # We use a special ticker ID for easy fetching
             ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
             item = {
@@ -189,7 +200,9 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'cost_usd': 0,
                 'actual_ticker': t,
                 'last_price': str(m.get('last_price', 0.0)),
-                'change_5d': str(m.get('change_5d', 0.0))
+                'change_5d': str(m.get('change_5d', 0.0)),
+                'exchange': exchange,
+                'company_name': company_name
             }
             insights_table.put_item(Item=item)
             logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])

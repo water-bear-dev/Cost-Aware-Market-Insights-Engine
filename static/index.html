@@ -86,9 +86,10 @@
                 <div class="controls-row">
                     <div class="density-controls">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-right:0.5rem">Grid Density</span>
-                        <button class="density-btn" data-density="compact">Compact</button>
+
                         <button class="density-btn active" data-density="standard">Standard</button>
                         <button class="density-btn" data-density="wide">Wide</button>
+                        <button class="density-btn" data-density="horizontal">Horizontal</button>
                     </div>
                     <div style="position:relative">
                         <button class="manage-watchlist-btn" id="manage-toggle-btn">
@@ -146,6 +147,35 @@
                         <p class="metric-label dim-label">Projected 30-Day Run Rate</p>
                         <h3 class="metric-value blur-reveal text-gradient-purple" style="font-size: 2.5rem;" id="dashboard-projected-30d">$0.00</h3>
                         <div class="sparkline-container" id="sparkline-30d"></div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Cost Breakdown -->
+                <h3 style="margin-top: 3rem; margin-bottom: 1.5rem; font-weight: 500; font-size: 1.2rem; color: var(--text-secondary); text-transform: uppercase;">AI Token Economics</h3>
+                <div class="glass" style="padding: 2rem;">
+                    <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                        The Market Insights Engine is built with a FinOps-first architecture, carefully balancing insight depth with API cost constraints. Token usage is rigorously tracked across the LangGraph orchestrator and AI models. 
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 12px;">
+                            <h4 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 0.5rem;">Data Ingestion</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem;">Free</p>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary);">yfinance & public APIs</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 12px;">
+                            <h4 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #a855f7; margin-bottom: 0.5rem;">Synthesis Tokens</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem;">~0.01¢</p>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary);">Per ticker analysis</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.5rem; border-radius: 12px;">
+                            <h4 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #f59e0b; margin-bottom: 0.5rem;">Discovery DAG</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.2rem;">~0.05¢</p>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary);">Per daily batch run</p>
+                        </div>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                        <strong>Hard Limits Active:</strong> AWS Bedrock invocation is automatically disabled if daily budget exceeds 100%. Fallbacks to cached data ensure uninterrupted service.
                     </div>
                 </div>
             </div>

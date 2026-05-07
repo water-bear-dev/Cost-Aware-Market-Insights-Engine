@@ -331,27 +331,33 @@ async function fetchDailyPicks() {
                 const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
                 
                 return `
-                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer;" onclick="openDailyPickModal('${pick.actual_ticker}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing: 0.05em; color: var(--accent);">${pick.category}</span>
-                        <span class="signal-pill watch" style="background: rgba(139, 92, 246, 0.1); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.65rem; font-weight: 700;">DAILY PICK</span>
+                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0.5rem; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600;">${pick.category}</span>
+                        <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 12px;">Daily Pick</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-                        <div>
-                            <h3 class="metric-value text-gradient-purple" style="font-size: 1.8rem; letter-spacing: -0.5px;">${pick.actual_ticker}</h3>
-                            <div style="margin-top: 0.25rem;">
-                                <span style="font-weight:600; font-size:1.1rem;">${formatPrice(price)}</span>
-                                <span style="margin-left:0.5rem; font-size:0.85rem; font-weight:600; color:${changeColor};">${sign}${change.toFixed(2)}% (5d)</span>
-                            </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 0.75rem; margin-bottom: 0.75rem;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                            ${pick.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${pick.exchange}</span>` : ''}
+                            <h3 class="metric-value text-gradient-purple" style="font-size: 2rem; line-height: 1.1; letter-spacing: -0.5px; margin: 0;">${pick.actual_ticker}</h3>
+                            ${pick.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${pick.company_name}</span>` : ''}
                         </div>
-                        <button class="glass-btn primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-radius: 6px;" 
-                                onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
-                            Track
-                        </button>
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                            <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${formatPrice(price)}</span>
+                            <span style="font-size: 0.85rem; font-weight: 600; color: ${changeColor}; background: rgba(255,255,255,0.03); padding: 0.1rem 0.4rem; border-radius: 4px; margin-top: 4px;">${sign}${change.toFixed(2)}% (5d)</span>
+                            <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;" 
+                                    onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
+                                + Track
+                            </button>
+                        </div>
                     </div>
-                    <div class="insight-text" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
+
+                    <div class="insight-text" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1rem; flex-grow: 1;">
                         ${formatInsight(pick.rationale, 2)}
-                        <div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>
+                    </div>
+                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 0.5rem; font-weight: 500;">
+                        Deep Dive &rarr;
                     </div>
                 </div>
             `;
@@ -614,11 +620,7 @@ function signalClass(signal) {
 }
 
 function statusChip(modelUsed) {
-    if (!modelUsed) return `<span class="status-chip pending">Pending</span>`;
-    if (modelUsed.includes('claude') || modelUsed.includes('haiku')) return `<span class="status-chip live-ai">🟢 Live AI</span>`;
-    if (modelUsed === 'data-fallback') return `<span class="status-chip data-insight">🟡 Data Insight</span>`;
-    if (modelUsed === 'local-mock') return `<span class="status-chip data-insight">🟡 Mock</span>`;
-    return `<span class="status-chip pending">⚪ Pending</span>`;
+    return '';
 }
 
 function buildNewsHtml(mkt) {
@@ -686,8 +688,11 @@ function cardInnerHtml(mkt, insight) {
     if (mkt.status === 'pending_data') {
         return `
             <div class="card-header">
-                <div class="card-header-left">
-                    <span class="ticker-symbol">${mkt.ticker}</span>
+                <div class="card-header-left" style="align-items: flex-start;">
+                    <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem;">
+                        ${mkt.exchange ? `<span style="font-size: 0.6rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${mkt.exchange}</span>` : ''}
+                        <span class="ticker-symbol">${mkt.ticker}</span>
+                    </div>
                 </div>
                 ${statusChip(null)}
             </div>
@@ -708,18 +713,21 @@ function cardInnerHtml(mkt, insight) {
     const sClass = signalClass(signal);
 
     return `
-        <div class="card-header">
-            <div class="card-header-left">
-                <span class="ticker-symbol">${mkt.ticker}</span>
-                ${signal ? `<span class="signal-pill ${sClass}">${signal}</span>` : ''}
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
+            <div class="card-header-left" style="display: flex; flex-direction: column; align-items: flex-start;">
+                ${mkt.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${mkt.exchange}</span>` : ''}
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="ticker-symbol" style="font-size: 1.8rem; line-height: 1.1;">${mkt.ticker}</span>
+                    ${signal ? `<span class="signal-pill ${sClass}" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 6px;">${signal}</span>` : ''}
+                </div>
+                ${mkt.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${mkt.company_name}</span>` : ''}
             </div>
-            ${statusChip(insight ? insight.model_used : null)}
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; min-height: 50px;">
+                <span style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary);">${formatPrice(mkt.close_price)}</span>
+                <span class="${changeClass}" style="font-size: 0.9rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 6px; margin-top: 4px;">${sign}${mkt.change_pct.toFixed(2)}%</span>
+            </div>
         </div>
-        <div class="price-row">
-            <span style="font-size:1.8rem; font-weight:700;">${formatPrice(mkt.close_price)}</span>
-            <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
-        </div>
-        <div class="insight-text">
+        <div class="insight-text" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
             ${insight ? formatInsight(insight.insight_text, 2) : 'Awaiting AI synthesis — click to view history.'}
             ${insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : ''}
         </div>

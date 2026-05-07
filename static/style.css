@@ -166,6 +166,31 @@ body {
     margin: 0 auto;
 }
 
+.insights-grid.density-horizontal {
+    grid-template-columns: 1fr;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.insights-grid.density-horizontal .glass {
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1.5rem;
+    height: auto !important;
+}
+
+.insights-grid.density-horizontal .card-header {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.insights-grid.density-horizontal .insight-text,
+.insights-grid.density-horizontal .news-list,
+.insights-grid.density-horizontal .status-chip {
+    display: none;
+}
+
 .insight-card {
     display: flex; flex-direction: column; gap: 0;
     cursor: pointer;

@@ -67,6 +67,14 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
         ticker = yf.Ticker(ticker_symbol)
         hist = ticker.history(period="5d")
         
+        try:
+            info = ticker.info
+            exchange = info.get('exchange', '')
+            company_name = info.get('longName') or info.get('shortName', '')
+        except Exception:
+            exchange = ''
+            company_name = ''
+            
         latest = None
         if not hist.empty:
             latest = hist.iloc[-1]
@@ -114,7 +122,9 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             'volume': volume,
             'change_pct': change_pct,
             'headlines': [h['title'] for h in headlines_data],
-            'headline_links': headlines_data
+            'headline_links': headlines_data,
+            'exchange': exchange,
+            'company_name': company_name
         }
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
@@ -172,6 +182,8 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         'change_pct': Decimal(str(data['change_pct'])),
         'headlines': data['headlines'],
         'headline_links': json.dumps(data.get('headline_links', [])),
+        'exchange': data.get('exchange', ''),
+        'company_name': data.get('company_name', ''),
         'data_hash': data_hash,
         'ttl': ttl
     }
@@ -217,6 +229,8 @@ def ingest_market_data():
             'change_pct': Decimal(str(data['change_pct'])),
             'headlines': data['headlines'],
             'headline_links': json.dumps(data.get('headline_links', [])),
+            'exchange': data.get('exchange', ''),
+            'company_name': data.get('company_name', ''),
             'data_hash': data_hash,
             'ttl': ttl
         }

@@ -59,6 +59,8 @@ def get_market_data(request: Request):
                     "change_pct": float(v["change_pct"]),
                     "headlines": v.get("headlines", []),
                     "headline_links": headline_links,
+                    "exchange": v.get("exchange", ""),
+                    "company_name": v.get("company_name", ""),
                     "status": "active"
                 })
             else:
