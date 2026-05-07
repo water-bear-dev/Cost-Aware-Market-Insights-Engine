@@ -596,7 +596,13 @@ function drawSparkline(elementId, dataset, color) {
                     tooltip: { enabled: false },
                     datalabels: { display: false } 
                 }, 
-                scales: { x: { display: false }, y: { display: false } }, 
+                scales: { 
+                    x: { display: false }, 
+                    y: { 
+                        display: false,
+                        beginAtZero: false
+                    } 
+                }, 
                 animation: false 
             }
         });
@@ -1256,10 +1262,14 @@ async function loadModalChart(ticker, period) {
                 },
                 scales: {
                     x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
-                    y: { ticks: { color: '#94a3b8', callback: v => {
-                        const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-                        return `${symbol}${(v * rate).toFixed(0)}`;
-                    } }, grid: { color: 'rgba(255,255,255,0.04)' } }
+                    y: { 
+                        beginAtZero: false,
+                        ticks: { color: '#94a3b8', callback: v => {
+                            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+                            return `${symbol}${(v * rate).toFixed(0)}`;
+                        } }, 
+                        grid: { color: 'rgba(255,255,255,0.04)' } 
+                    }
                 }
             }
         });
