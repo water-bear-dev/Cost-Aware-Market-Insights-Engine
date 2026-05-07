@@ -90,7 +90,8 @@ Deploying the full Alpha-DAG stack to AWS ECS Fargate is handled via automated s
 - **[COMPLETE] Phase 1: Monolithic System** - Built the foundational FastAPI backend, local DynamoDB ledger, FinOps constraints, and glassmorphic UI.
 - **[COMPLETE] Phase 2: Alpha-DAG via MCP** - Deconstructed the monolith into a distributed system governed by a LangGraph orchestrator.
 - **[COMPLETE] Phase 3: Daily Discovery Agent** - Integrated an autonomous agent that triggers at 8:00 AM AEST to select top daily picks.
-- **[PLANNED] Phase 4: Multi-Agent Collaborative Refinement** - Introducing a specialized "Sentiment Agent" node to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 4: UX Polish & Global Access** - Integrated multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations. Structured all AI insights into a 2-point "Investment Assistant" format.
+- **[PLANNED] Phase 5: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 ## Development Blog: The Alpha-DAG Pivot
 

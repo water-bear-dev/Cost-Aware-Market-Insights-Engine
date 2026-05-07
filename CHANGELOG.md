@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.8.2] - 2026-05-07
+### Added
+- **Discovery Hero Stats Hydration** — Fixed an issue where Discovery Picks modals would show empty/NaN stats. The engine now asynchronously fetches live quote data (Price, Change, Open, High, Low) directly from yfinance info when a discovery modal is opened.
+- **Discovery Rationale Stability** — Fixed a critical UI bug where the Daily Discovery section would disappear if the AI agent returned rationales as JSON arrays instead of strings. Added robust array-to-string transformation in the frontend.
+- **Improved Error Visibility** — Added console logging for failed discovery fetches to aid in future debugging of agent-led insights.
+
+### Changed
+- **Enriched Market API** — Expanded the `/api/v1/market/history/{ticker}` endpoint to include real-time `current_price`, `previous_close`, and day stats, ensuring discovery picks have the same data fidelity as watchlist items.
+- **Standardized Insight Density** — Discovery cards now consistently display exactly 2 summary points, matching the refined aesthetic of the main watchlist tickers.
+
+## [2.8.1] - 2026-05-07
+### Added
+- **Multi-Currency Support** — Integrated a real-time currency selector (USD, EUR, GBP, AUD, JPY) that instantly converts all prices, budget metrics, and chart axes across the entire dashboard.
+- **Interactive Portfolio Chart** — Tickers in the main portfolio graph are now clickable, allowing users to jump directly to a deep-dive modal from the visualization.
+- **Zero-Flicker Updates** — Disabled chart refresh animations for background data updates, ensuring a smoother, non-distracting user experience during market shifts.
+- **Interactive 'How it Works' Tab** — Added a dedicated education section outlining the engine's FinOps-first architecture with animated system infrastructure.
+- **Daily Discovery AI Polish** — Enhanced discovery picks to include formatted AI analysis and seamless modal expansion.
+
+### Changed
+- **UI Consolidation** — Renamed "FinOps Dashboard" to "Costs" for a cleaner, more focused interface.
+- **Progressive Insight Disclosure** — Re-enabled first-paragraph truncation on home cards to maintain high information density while providing "Click to expand" guidance.
+
 ## [2.8.0-alpha] - 2026-05-06
 ### Added
 - **LangGraph Alpha-DAG Orchestration** — Transitioned from a monolithic APScheduler background job to a Directed Acyclic Graph (DAG) state machine using LangGraph. This orchestrates all AI synthesis tasks and safely manages conversational state memory.

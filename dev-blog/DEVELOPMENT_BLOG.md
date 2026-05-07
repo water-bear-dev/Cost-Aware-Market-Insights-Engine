@@ -481,5 +481,45 @@ We implemented custom parsing logic for Ollama's `/api/generate` endpoint to mai
 
 The project is now "Local-First, Cloud-Ready."
 
+### Entry 28: Global Scale and Interactive Visuals
+*Date: 2026-05-07*
+
+As the engine's core orchestration stabilized under the Alpha-DAG, we shifted our focus to the "last mile" of user experience: global accessibility and interactive data storytelling.
+
+**1. Multi-Currency Infrastructure:**
+Trading is global, but our dashboard was anchored in USD. We implemented a real-time currency conversion layer that supports **USD, EUR, GBP, AUD, and JPY**. By integrating a centralized exchange rate provider into the frontend, we now dynamically recalculate every price point, budget metric, and chart axis on the fly. This ensures that a user in Sydney or London sees their market insights in the context of their own local liquidity.
+
+**2. Interactive Portfolio Storytelling:**
+Visualizations should be gateways, not just static images. We upgraded the Portfolio Summary chart to be fully interactive. Clicking on a specific bar or line in the chart now triggers a "Jump-to-Modal" action, instantly opening the deep-dive research modal for that specific ticker. This creates a seamless flow between high-level portfolio oversight and granular asset analysis.
+
+**3. The Zero-Flicker UX:**
+Market data is noisy. Previous iterations of the background refresh loop caused subtle chart "jitters" as animations reset every 15 seconds. We disabled the entry animations for periodic background updates, creating a "zero-flicker" environment where data flows in silently. The UI only pulses when a user manually interacts or when a significant state change occurs, maintaining the premium, terminal-like stability required for professional monitoring.
+
+**4. Educational Infrastructure:**
+To demystify the "Agentic" nature of the system, we expanded the **How it Works** section. We added a dedicated breakdown of the **Daily Discovery Agent's** mathematical algorithm (annualized volatility + momentum scoring). Combined with the animated infrastructure diagram, this bridges the gap between complex engineering and user trust, showing exactly how the engine autonomously hunts for value while staying within budget.
+
+**5. AI Formatting Polish:**
+Finally, we brought the "Investment Assistant" persona to the Discovery Picks. By applying our structured formatting logic to the discovery rationales and enabling full modal expansion for discovery picks, we've ensured that "Hidden Gems" receive the same level of analytical depth as the user's primary watchlist.
+
+
+### Entry 29: Closing the Discovery Gap - Structured Rationale and Live Hydration
+*Date: 2026-05-07*
+
+As we moved towards the conclusion of Phase 4, we identified a critical "UX gap" in how the **Daily Discovery Agent** presented its findings. While the main watchlist items felt premium and data-rich, the discovery picks suffered from two distinct issues: convoluted analysis and missing market data in the deep-dive modals.
+
+**1. The Structured Rationale Pivot:**
+The Discovery Agent previously emitted long, unstructured paragraphs. This clashed with our "Investment Assistant" persona. We refactored the prompt within the `discovery_graph.py` to enforce a strict **2-point structure**:
+- **What's Happening**: A high-level view of the current catalyst.
+- **Why Track**: A specific, actionable reason for the user to add this to their watchlist.
+
+*Stability Note*: During this pivot, we encountered an issue where some LLM providers (specifically when using local Ollama instances) would return these bullet points as a JSON array instead of a single string. This caused the frontend's string-manipulation logic to crash, resulting in the "disappearing" discovery section. We've since implemented a robust **array-to-string transformation** in `app.js` to ensure that regardless of the LLM's structural interpretation, the insights are rendered flawlessly.
+
+**2. Asynchronous Hero Stat Hydration:**
+Because discovery picks are untracked "Hidden Gems," their real-time pricing isn't stored in our local DynamoDB ledger. When a user clicked a discovery card, the modal would initially render `$NaN` for prices.
+- **The Fix**: We updated the `market.py` history endpoint to extract a "Live Quote" block directly from the `yfinance.info` object.
+- **The UX Finish**: We updated `app.js` to handle a `pending_data` state for these modals. The UI now renders clean dashes (`--`) instantly, while the background history request fetches the live quote and dynamically hydrates the header stats. 
+
+This final polish ensures that the discovery process feels as professional and data-backed as the core portfolio management experience. The engine is now fully optimized for both global monitoring and autonomous asset discovery.
+
 ---
 *Project Managed by Antigravity*

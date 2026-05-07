@@ -106,8 +106,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         signal = _derive_signal(change_pct)
         insight_text = (
             f"1. What's Happening: {ticker} moved {change_pct:.2f}% to end at ${float(latest_data.get('close_price', 0)):.2f}.\n"
-            f"2. Why it Matters: The latest news about '{headline_text[:50]}...' is driving investor sentiment.\n"
-            f"3. What to Watch: Keep an eye on how the market reacts to upcoming volume levels."
+            f"2. What to Watch: Keep an eye on how the market reacts to upcoming volume levels."
         )
         model_used = 'local-mock'
     elif settings.llm_provider == "ollama":
@@ -116,8 +115,7 @@ def synthesize_single_insight(latest_data: dict) -> bool:
                 f"You are a helpful investment assistant. "
                 f"Explain what's going on with {ticker} using the data and news provided.\n"
                 f"1. What's Happening: (context)\n"
-                f"2. Why it Matters: (outlook)\n"
-                f"3. What to Watch: (next steps)\n"
+                f"2. What to Watch: (next steps)\n"
                 f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker} | Close: ${float(latest_data.get('close_price', 0)):.2f} | Change: {change_pct:+.2f}%\n"
                 f"News: {headline_text}"
@@ -161,10 +159,9 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             prompt = (
                 f"You are a helpful investment assistant. "
                 f"Explain what's going on with {ticker} in simple, user-friendly terms using the data and news provided.\n\n"
-                f"Provide exactly 3 bullet points (no headers, no bold text):\n"
+                f"Provide exactly 2 bullet points (no headers, no bold text):\n"
                 f"1. What's Happening: Explain the latest price move or major news in simple terms.\n"
-                f"2. Why it Matters: Explain how this affects the stock's outlook in plain English.\n"
-                f"3. What to Watch: Identify one clear thing the user should keep an eye on next.\n\n"
+                f"2. What to Watch: Identify one clear thing the user should keep an eye on next.\n\n"
                 f"Be helpful, clear, and avoid jargon. Mention headlines naturally.\n"
                 f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker}\n"

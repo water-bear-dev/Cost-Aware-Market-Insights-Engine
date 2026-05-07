@@ -5,6 +5,7 @@ import yfinance as yf
 from src.cost_tracking.service import check_budget, log_cost
 import boto3
 import json
+import httpx
 from src.config import settings
 from datetime import datetime
 from src.clients.dynamo import get_table
@@ -89,6 +90,10 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"{metrics_str}\n\n"
         f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
         f"based on a mix of momentum and volatility.\n"
+        f"For the 'rationale', provide exactly 2 bullet points in simple, user-friendly terms:\n"
+        f"1. What's Happening: Explain the current price action or setup in simple terms.\n"
+        f"2. Why Track: Explain exactly why this is a strong candidate to add to a watchlist today.\n"
+        f"Avoid technical jargon. Keep it high-density but clear.\n"
         f"Output MUST be pure JSON matching this schema:\n"
         f"[\n"
         f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
@@ -97,12 +102,36 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     )
     
     try:
-        if getattr(settings, 'use_mock_ai', True):
+        if settings.llm_provider == 'mock':
             recs = [
                 {"ticker": "NVDA", "category": "S&P 500", "rationale": "Strong momentum flag despite high market cap."},
                 {"ticker": "PLTR", "category": "Hidden Gem", "rationale": "High volatility creates actionable trading bounds."}
             ]
+        elif settings.llm_provider == 'ollama':
+            logger.info("Asking Ollama for recommendations", model=settings.ollama_model)
+            with httpx.Client(timeout=120.0) as client:
+                response = client.post(
+                    f"{settings.ollama_url}/api/generate",
+                    json={
+                        "model": settings.ollama_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "format": "json"
+                    }
+                )
+                response.raise_for_status()
+                data = response.json()
+                text = data.get("response", "")
+                
+                # Find JSON block
+                start = text.find('[')
+                end = text.rfind(']') + 1
+                if start != -1 and end != 0:
+                    recs = json.loads(text[start:end])
+                else:
+                    recs = []
         else:
+            logger.info("Asking Bedrock for recommendations")
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             body = {
                 "anthropic_version": "bedrock-2023-05-31",

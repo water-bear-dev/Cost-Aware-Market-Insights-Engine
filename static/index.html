@@ -31,7 +31,7 @@
 
         <div class="tab-navigation">
             <button class="tab-btn active" data-tab="insights-view">AI Market Insights</button>
-            <button class="tab-btn" data-tab="finops-view">FinOps Dashboard</button>
+            <button class="tab-btn" data-tab="finops-view">Costs</button>
             <button class="tab-btn" data-tab="how-view">How it works</button>
         </div>
 
@@ -112,7 +112,7 @@
         <!-- FinOps Section -->
         <section id="finops-view" class="tab-content">
             <div class="finops-board">
-                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Financial Operations</h2>
+                <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1.5rem; text-transform: uppercase;">Costs</h2>
                 <div class="metrics-grid">
                     <div class="metric-card glass glow-hover">
                         <p class="metric-label dim-label">Daily Budget</p>
@@ -254,6 +254,52 @@
                         <div class="process-step">03</div>
                         <h3>Intelligent Synthesis</h3>
                         <p>Claude 3 Haiku analyzes the raw data to extract high-impact insights, identifying catalysts and trends in human-friendly terms.</p>
+                    </div>
+                    <div class="process-card glass" style="grid-column: 1 / -1;">
+                        <div class="process-step">04</div>
+                        <h3>Daily Discovery Agent</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
+                            <div>
+                                <p style="margin-bottom: 1.5rem;">The Discovery Agent is an autonomous "Hunter" node that triggers every morning at 8:00 AM. It scans the top 500 market cap leaders plus a high-volatility "Wildcard" bucket to surface assets you haven't tracked yet.</p>
+                                <div style="background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                                    <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 0.8rem; letter-spacing: 0.05em;">Quantitative Scoring</h4>
+                                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.8rem;">
+                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                                            <span style="color: #10b981;">●</span> 
+                                            <span>Universe Filtering: Excludes current watchlist to ensure fresh alpha.</span>
+                                        </li>
+                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                                            <span style="color: #38bdf8;">●</span> 
+                                            <span>Momentum Ranking: Sorts by 30-day relative price velocity.</span>
+                                        </li>
+                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                                            <span style="color: #818cf8;">●</span> 
+                                            <span>Risk Normalization: Uses standard deviation to filter out low-liquidity noise.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                                <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(15, 23, 42, 0.4);">
+                                    <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">The Mathematical Formula</h4>
+                                    <div style="margin-bottom: 1.5rem;">
+                                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">1-MONTH PRICE MOMENTUM</p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 8px; font-family: monospace; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.05);">
+                                            (Price<sub>Current</sub> / Price<sub>30 Days Ago</sub>) - 1
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ANNUALIZED VOLATILITY (σ)</p>
+                                        <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 8px; font-family: monospace; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.05);">
+                                            StdDev(Daily Returns) × √252
+                                        </div>
+                                    </div>
+                                </div>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; font-style: italic;">
+                                    "The agent selects the intersection of high momentum and controllable risk, providing a qualitative narrative after the quantitative pass."
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

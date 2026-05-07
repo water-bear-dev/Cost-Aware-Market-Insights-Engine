@@ -13,6 +13,7 @@ let currentModalInsight = null;
 // Snapshot of last known data for diff-and-patch
 let lastMarketData = {};
 let lastInsightsData = {};
+let dailyPicksData = {};
 
 let currentCurrency = 'USD';
 const EXCHANGE_RATES = {
@@ -321,6 +322,7 @@ async function fetchDailyPicks() {
             }
             
             container.style.display = 'block';
+            data.forEach(p => dailyPicksData[p.actual_ticker] = p);
             grid.innerHTML = data.map(pick => {
                 const price = parseFloat(pick.last_price || 0);
                 const change = parseFloat(pick.change_5d || 0) * 100;
@@ -347,12 +349,17 @@ async function fetchDailyPicks() {
                             Track
                         </button>
                     </div>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">${pick.rationale}</p>
+                    <div class="insight-text" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
+                        ${formatInsight(pick.rationale, 2)}
+                        <div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>
+                    </div>
                 </div>
             `;
             }).join('');
         }
-    } catch (e) {}
+    } catch (e) {
+        console.error("Daily picks fetch failed", e);
+    }
 }
 
 window.handleAddFeatured = async (ticker, btn) => {
@@ -713,7 +720,7 @@ function cardInnerHtml(mkt, insight) {
             <span class="${changeClass}" style="margin-left:0.5rem; font-size:1rem; font-weight:600;">${sign}${mkt.change_pct.toFixed(2)}%</span>
         </div>
         <div class="insight-text">
-            ${insight ? formatInsight(insight.insight_text, true) : 'Awaiting AI synthesis — click to view history.'}
+            ${insight ? formatInsight(insight.insight_text, 2) : 'Awaiting AI synthesis — click to view history.'}
             ${insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : ''}
         </div>
         ${buildNewsHtml(mkt)}
@@ -877,7 +884,13 @@ async function openDailyPickModal(ticker) {
     });
     
     currentModalMkt = { ticker: ticker, status: 'pending_data' };
-    currentModalInsight = { insight_text: 'Fetching full analysis...', model_used: 'loading', signal: 'WATCH' };
+    const pick = dailyPicksData[ticker];
+    currentModalInsight = { 
+        insight_text: pick ? pick.rationale : 'Fetching full analysis...', 
+        model_used: 'discovery-agent', 
+        signal: 'WATCH',
+        cost_usd: 0 
+    };
     
     renderModalContent(currentModalMkt, currentModalInsight);
     await loadModalChart(ticker, '1mo');
@@ -926,6 +939,17 @@ function renderModalContent(mkt, insight) {
 }
 
 function renderHeroStats(mkt) {
+    if (mkt.status === 'pending_data') {
+        document.getElementById('modal-hero-stats').innerHTML = `
+            <div class="hero-stat main"><div class="hero-stat-label">LAST PRICE</div><div class="hero-stat-value main">--</div></div>
+            <div class="hero-stat main"><div class="hero-stat-label">DAY CHANGE</div><div class="hero-stat-value main">--</div></div>
+            <div class="hero-stat"><div class="hero-stat-label">OPEN</div><div class="hero-stat-value">--</div></div>
+            <div class="hero-stat"><div class="hero-stat-label">HIGH</div><div class="hero-stat-value">--</div></div>
+            <div class="hero-stat"><div class="hero-stat-label">LOW</div><div class="hero-stat-value">--</div></div>
+        `;
+        return;
+    }
+
     const isPos = (mkt.change_pct || 0) >= 0;
     const sign  = isPos ? '+' : '';
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
@@ -1060,6 +1084,36 @@ async function loadModalChart(ticker, period) {
         // Color based on trend
         const trendColor = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
 
+        // Update hero stats if this is a pending discovery pick
+        if (currentModalMkt && currentModalMkt.status === 'pending_data') {
+            const today = data.ohlcv[data.ohlcv.length - 1];
+            let close = today.close;
+            let open = today.open;
+            let high = today.high;
+            let low = today.low;
+            let prevClose = data.ohlcv.length > 1 ? data.ohlcv[data.ohlcv.length - 2].close : today.close;
+            
+            if (data.info) {
+                if (data.info.current_price) close = data.info.current_price;
+                if (data.info.previous_close) prevClose = data.info.previous_close;
+                if (data.info.day_open) open = data.info.day_open;
+                if (data.info.day_high) high = data.info.day_high;
+                if (data.info.day_low) low = data.info.day_low;
+            }
+            
+            const change_pct = prevClose ? ((close - prevClose) / prevClose) * 100 : 0;
+            
+            currentModalMkt.close_price = close;
+            currentModalMkt.open_price = open;
+            currentModalMkt.high_price = high;
+            currentModalMkt.low_price = low;
+            currentModalMkt.change_pct = change_pct;
+            currentModalMkt.volume = today.volume;
+            currentModalMkt.status = 'loaded';
+            
+            renderHeroStats(currentModalMkt);
+        }
+
         if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
         const ctx = document.getElementById('modal-history-chart').getContext('2d');
         const gradient = ctx.createLinearGradient(0, 0, 0, 300);
@@ -1153,20 +1207,28 @@ function renderAnalystBar(summary) {
         </div>
     `).join('');
 }
-function formatInsight(text, onlyFirst = false) {
+function formatInsight(text, limit = null) {
     if (!text) return '';
     
-    // Simple mini-markdown for bullet points and bold
-    let formatted = text.trim();
+    // Handle array input (sometimes returned by discovery agent)
+    let rawText = Array.isArray(text) ? text.join('\n') : String(text);
+    let formatted = rawText.trim();
     
     // Handle numbered or dash bullets
     const lines = formatted.split('\n');
     let bullets = [];
+    let firstLine = '';
     
     for (const line of lines) {
         const trimmed = line.trim();
-        if (trimmed.match(/^(\d+\.|-|\*)\s/)) {
-            let content = trimmed.replace(/^(\d+\.|-|\*)\s/, '');
+        if (!trimmed) continue;
+        
+        if (!firstLine) firstLine = trimmed;
+
+        // Lenient bullet detection: Numbered (1. 2.), dash (-), or star (*)
+        // Changed regex to allow optional space after bullet
+        if (trimmed.match(/^(\d+\.|-|\*)\s?|^\u2022/)) {
+            let content = trimmed.replace(/^(\d+\.|-|\*)\s?|^\u2022/, '').trim();
             // Bold the "Category:" if present
             if (content.includes(':')) {
                 const parts = content.split(':');
@@ -1175,13 +1237,20 @@ function formatInsight(text, onlyFirst = false) {
                 content = `<strong>${category}:</strong>${rest}`;
             }
             bullets.push(`<div class="insight-bullet">${content}</div>`);
-            if (onlyFirst) break; // Stop after first bullet if requested
-        } else if (trimmed && !onlyFirst) {
+            if (limit && bullets.length >= limit) break; // Stop after limit reached
+        } else if (trimmed && (!limit || bullets.length < limit)) {
             bullets.push(`<div>${trimmed}</div>`);
         }
     }
 
-    formatted = bullets.join('');
+    // Fallback: If no bullets found and we only wanted one, show the first non-empty line
+    if (bullets.length === 0 && firstLine) {
+        let content = firstLine;
+        if (content.length > 120 && limit === 1) content = content.substring(0, 117) + '...';
+        formatted = `<div>${content}</div>`;
+    } else {
+        formatted = bullets.join('');
+    }
 
     // Handle any remaining bold (simple **bold**)
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
