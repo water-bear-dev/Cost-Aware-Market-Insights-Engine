@@ -94,18 +94,21 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     metrics_str = json.dumps(state.get("metrics", {}), indent=2)
     
     prompt = (
-        f"You are a master portfolio manager. Review these quantitative metrics for 20 tickers:\n"
+        f"You are a market analyst writing for everyday investors — not professionals. Review these quantitative metrics for 20 tickers:\n"
         f"{metrics_str}\n\n"
         f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
-        f"based on a mix of momentum and volatility.\n"
-        f"For the 'rationale', provide exactly 2 bullet points in simple, user-friendly terms:\n"
-        f"1. What's Happening: Explain the current price action or setup in simple terms.\n"
-        f"2. Why Track: Explain exactly why this is a strong candidate to add to a watchlist today.\n"
-        f"Avoid technical jargon. Keep it high-density but clear.\n"
-        f"Output MUST be pure JSON matching this schema:\n"
+        f"based on a mix of momentum and volatility.\n\n"
+        f"For the 'rationale', provide EXACTLY 3 bullet points using SIMPLE, PLAIN ENGLISH that any person could understand. "
+        f"Use the actual numbers from the metrics in each point. Do NOT use jargon like 'annualized volatility' or 'standard deviation'.\n"
+        f"Format: a bulleted list with each point on its own line starting with a dash (-)\n"
+        f"  - What's Happening Right Now: Describe the recent price movement in plain terms with the actual % numbers. E.g. 'The stock climbed +12.4% over the last month, outpacing most of the market.'\n"
+        f"  - Why It's Interesting: Explain in simple terms what makes this pick stand out based on the data. Be concrete and reference the numbers.\n"
+        f"  - What to Watch For: Give one actionable observation — what signal or event the investor should keep an eye on.\n\n"
+        f"Avoid technical jargon. Write like you're texting a smart friend. Keep each bullet to 1-2 sentences.\n"
+        f"Output MUST be pure JSON matching this schema — the rationale field must be a list of 3 strings (one per bullet, WITHOUT the leading dash):\n"
         f"[\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}}\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": [\"bullet1\", \"bullet2\", \"bullet3\"]}},\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": [\"bullet1\", \"bullet2\", \"bullet3\"]}}\n"
         f"]"
     )
     
@@ -213,7 +216,9 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'cost_usd': 0,
                 'actual_ticker': t,
                 'last_price': str(m.get('last_price', 0.0)),
-                'change_5d': str(m.get('change_5d', 0.0)),
+                'change_5d':  str(m.get('change_5d', 0.0)),
+                'momentum_1mo': str(round(m.get('momentum_1mo', 0.0) * 100, 2)),
+                'volatility_ann': str(round(m.get('volatility_ann', 0.0) * 100, 2)),
                 'exchange': exchange,
                 'company_name': company_name,
                 'currency': currency

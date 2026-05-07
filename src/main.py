@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from src.clients.dynamo import init_tables
-from src.routes import health, insights, costs, tickers, market, v2_dag, meta
+from src.routes import health, insights, costs, tickers, market, v2_dag, meta, discover
 from src.ingestion.service import ingest_market_data
 from src.synthesis.service import synthesize_insights
 from slowapi.errors import RateLimitExceeded
@@ -27,11 +27,31 @@ def run_daily_discovery():
     logger.info("Triggering Daily Discovery Agent (8 AM AEST)")
     try:
         from src.dag.discovery_graph import discovery_dag
-        # Run it asynchronously or synchronously (we'll just use a thread/loop if needed)
-        # But APScheduler runs in its own thread, so we can run synchronous invoke here
         discovery_dag.invoke({"universe": [], "messages": []})
     except Exception as e:
         logger.error("Daily Discovery Failed", error=str(e), exc_info=True)
+
+def refresh_discover_movers():
+    """Refresh the movers cache daily (piggybacked on 8 AM AEST job)."""
+    try:
+        from src.routes.discover import _fetch_movers, _movers_cache
+        import time
+        _movers_cache["data"] = _fetch_movers()
+        _movers_cache["last_fetch"] = time.time()
+        logger.info("Movers cache refreshed")
+    except Exception as e:
+        logger.error("Movers refresh failed", error=str(e))
+
+def refresh_discover_news():
+    """Refresh the news cache hourly."""
+    try:
+        from src.routes.discover import _fetch_news, _news_cache
+        import time
+        _news_cache["data"] = _fetch_news()
+        _news_cache["last_fetch"] = time.time()
+        logger.info("News cache refreshed")
+    except Exception as e:
+        logger.error("News refresh failed", error=str(e))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -49,6 +69,15 @@ async def lifespan(app: FastAPI):
         minute=0, 
         timezone=aest_tz
     )
+    scheduler.add_job(
+        refresh_discover_movers,
+        'cron',
+        hour=8,
+        minute=1,
+        timezone=aest_tz
+    )
+    # Hourly news refresh (at the top of every hour)
+    scheduler.add_job(refresh_discover_news, 'cron', minute=0)
     
     # Recurring Market Data Ingestion & Synthesis (every 5 mins)
     from datetime import datetime, timedelta
@@ -58,7 +87,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
 
     # Startup: trigger it once on startup to ensure it populates immediately for the user
-    def _ensure_daily_picks():
+    def _startup_tasks():
         from src.clients.dynamo import get_table
         from boto3.dynamodb.conditions import Key
         time.sleep(5) # Let uvicorn settle
@@ -75,8 +104,14 @@ async def lifespan(app: FastAPI):
                 logger.info("Daily picks already present in ledger.")
         except Exception as e:
             logger.error("Startup Discovery check failed", error=str(e))
+        # Pre-warm all Discover caches so the tab is populated on first load
+        try:
+            from src.routes.discover import refresh_discover_caches
+            refresh_discover_caches()
+        except Exception as e:
+            logger.error("Startup Discover pre-warm failed", error=str(e))
         
-    threading.Thread(target=_ensure_daily_picks, daemon=True).start()
+    threading.Thread(target=_startup_tasks, daemon=True).start()
 
     yield
     # Shutdown
@@ -108,6 +143,7 @@ app.include_router(tickers.router, prefix="/api/v1")
 app.include_router(market.router, prefix="/api/v1")
 app.include_router(v2_dag.router, prefix="/api/v2/tickers")
 app.include_router(meta.router, prefix="/api/v1")
+app.include_router(discover.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn

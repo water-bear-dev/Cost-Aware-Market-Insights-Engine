@@ -580,5 +580,79 @@ To properly support Australian (e.g., `NAB.AX`) and European markets, we moved b
 - **The "Blank Screen" Fix**: Resolved a fatal JavaScript `SyntaxError` (duplicate identifier) that was preventing the entire dashboard from initializing.
 - **Backend Hardening**: Updated the `/api/v1/market` and `/api/v1/insights` routes with safer `.get()` accessors. This ensures that even if a ticker has partial or legacy data in DynamoDB, the dashboard remains functional instead of returning a 500 error.
 
+
 The engine is now significantly more stable, accurate across international borders, and better prepared for the 30-ticker volume expansion.
 
+## Entry 34: Designing the "Discover" Experience — From Watchlist to Market Intelligence Hub
+
+**Date:** 2026-05-07
+**Milestone:** Phase 5 — Navigation Redesign & Global Market Intelligence
+
+With the core tracked-asset experience stable, we identified the next meaningful leap: context. Knowing that AAPL is up 1.2% is useful; knowing that the broader Nasdaq is up 0.8% on the same day makes it *meaningful*. This entry documents the design decisions behind the upcoming v2.9.0 dashboard restructure.
+
+**The Information Architecture Problem:**
+The original single-tab structure ("AI Market Insights") mixed two conceptually different jobs: *managing* what you're tracking, and *discovering* what's happening in the world. As the ticker limit grew to 30, this conflation became increasingly apparent. Users needed a clear separation between "my portfolio" and "the market."
+
+**The Navigation Redesign:**
+We restructured the navigation to reflect intent:
+- **Manage** — Replaces "AI Market Insights". A workspace for your tracked assets with search, filter (country/exchange), and sort controls. The portfolio chart is upgraded from a static bar chart to a 24-hour time-series area chart, giving a live pulse of your combined portfolio value.
+- **Discover** — A new real-time global market briefing room. At a glance: major regional indices (ASX 200, S&P 500, Nasdaq, Euro Stoxx 50, Nikkei, Hang Seng), commodity prices (Gold, Oil, Silver), the day's top 10 movers in both directions, and the 10 most recent market headlines.
+- **Costs / How it Works** — Moved to the far right of the navigation, reflecting their "reference" nature vs. the primary "action" tabs.
+
+**The "Empty Cache" Problem:**
+A key reliability design decision: all three new Discover endpoints (`/discover/indices`, `/discover/movers`, `/discover/news`) implement a "force-refresh on empty" pattern. If no cached data exists when a user first opens the tab, the endpoint performs a synchronous live fetch instead of returning an empty response. This is layered with a startup pre-warm in `main.py` that runs alongside the existing daily picks check, ensuring the Discover tab is populated from the very first page load without any scheduler dependency.
+
+**Status:**
+Implementation is complete. The backend routes in `src/routes/discover.py` are live, and the frontend has been fully restructured. The transition from a simple watchlist to a comprehensive market intelligence terminal is now the operational baseline for the engine.
+
+**What's Next:**
+With the information hub established, we turn our attention to Phase 6: Multi-Agent Collaborative Refinement. We'll be introducing specialized "Sentiment Agent" nodes to the Alpha-DAG to ingest alternative data (Reddit/X), providing a qualitative layer to the quantitative insights already provided by the Discovery Agent.
+
+
+### Entry 35: Stability, Redundancy, and the NaN Problem (Post-Redesign Debugging)
+**Date:** May 7, 2026
+**Version:** v2.9.1
+
+The deployment of the Phase 5 redesign (v2.9.0) was a major structural shift, but as is often the case with such updates, the first few minutes of live operation revealed a few critical integration gaps. This entry documents the rapid-response debugging that led to the v2.9.1 stability patch.
+
+**The Routing Blind Spot:**
+The most immediate issue was a series of 404 errors for the new Discover endpoints. Despite the code being volume-mounted in the Docker container, the lack of an `--reload` flag in the production-style `uvicorn` command meant the new routers were only registered on the host, not in the running process. A full container rebuild and restart resolved the connectivity issues, but it served as a reminder that architectural changes require process-level restarts even in "hot-reloadable" environments.
+
+**The "NaN" Serialization Trap:**
+As soon as the indices and movers endpoints went live, we encountered a classic financial data pitfall: `ValueError: Out of range float values are not JSON compliant: np.float64(nan)`. Market data APIs like `yfinance` occasionally return `NaN` (Not a Number) for assets that haven't traded yet or are undergoing maintenance. While Python handles these floats fine, the standard JSON encoder used by FastAPI/uvicorn rejects them.
+
+We resolved this by implementing a global `clean_float` utility across all market and discovery routes. This helper catches `NaN` and `Inf` values at the route level, defaulting them to `0.0` before serialization. This ensures the API is resilient to the "sloppiness" of live market data streams.
+
+**The Chart Restoration:**
+Finally, we fixed a field-naming mismatch in the new Portfolio Area Chart. The frontend was looking for a `sparkline_data` array, but the API response had normalized the field to simply `sparkline`. This small discrepancy prevented the combined portfolio total from rendering. With this fixed, the Manage tab now correctly visualizes the 24-hour pulse of the tracked assets.
+
+**Status:**
+V2.9.1 is now stable and fully operational. All Discover sections (Indices, Commodities, Movers, and News) are successfully hydrating, and the Portfolio Chart is correctly calculating and displaying combined asset values in real-time.
++
++
++### Entry 36: AI Transparency and the "Smart Narrative" Pivot
++**Date:** May 7, 2026
++**Version:** v2.9.2
++
++With the structural redesign of the Discover and Manage tabs complete, the final Polish phase for this milestone focused on a core tenet of user trust: **AI Transparency**.
++
++**The Problem of the "Black Box":**
+Initial feedback on the Discovery Agent's picks was that they felt like a "black box." The AI would recommend a ticker, but the justification was often a single block of text that lacked quantitative grounding. Users were asking, "Why *this* ticker, and why *now*?"
+
+**Solution: The 3-Bullet Smart Narrative**
+We overhauled the `discovery_graph.py` prompt to enforce a structured, 3-bullet rationale format for every recommendation. By shifting from a free-form string to an explicit JSON array of three specific points—**What's Happening**, **Why It's Interesting**, and **What to Watch**—we've created a consistent, scannable, and human-readable explanation.
+
+To ground these insights, we also expanded the `DiscoveryState` to capture and surface quantitative performance metrics (`momentum_1mo`, `volatility_ann`). These are now displayed directly on the discovery cards, providing a "data-first" validation that complements the AI's qualitative synthesis.
+
+**Polishing the Information Hub:**
+Finally, we closed the "granularity gap" in the Discover tab:
+- **Commodity Units:** No longer just a price; we now explicitly label units (e.g., `Gold (oz)`, `Crude Oil (bbl)`), making the data instantly interpretable to those outside of specialized trading circles.
+- **Company Identifiers:** Top Movers now include full company names alongside ticker symbols. This is a small but critical usability fix—most humans recognize "NVIDIA" faster than "NVDA".
+- **News Context:** News headlines in the Discover feed now feature short descriptions, allowing users to gauge the relevance of a story before clicking through.
+- **Vertical Regional Layout:** Reorganized Global Markets into distinct vertical columns (USA, Europe, Asia Pacific). This replaces the horizontal row-based flow with a clean, side-by-side "command center" view that simplifies regional comparison.
+
+**Status:**
+The Market Discovery Hub has transitioned from a data-visualization tool to a decision-support platform. AI recommendations are no longer just "takes"; they are transparent, data-backed narratives.
+
+**Next Steps:**
+With the UI and AI synthesis logic now fully refined, we are ready to scale the system's collaborative capabilities. Phase 6 will explore the integration of a **Sentiment Analysis Node** to the LangGraph DAG, allowing the engine to compare hard quantitative data against the "soft" signals of market sentiment from social platforms.

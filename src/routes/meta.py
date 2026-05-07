@@ -37,14 +37,17 @@ def get_exchange_rates(request: Request):
             # Fetch all in one go (more efficient)
             data = yf.download(list(pairs.values()), period="1d", interval="1m", progress=False)
             
-            for symbol, ticker in pairs.items():
-                if ticker in data['Close']:
-                    latest_price = data['Close'][ticker].iloc[-1]
-                    if not isinstance(latest_price, float) or latest_price <= 0:
-                        # Sometimes yfinance returns a Series or NaN
-                        latest_price = float(data['Close'][ticker].dropna().iloc[-1])
-                    
-                    cached_rates[symbol]['rate'] = round(latest_price, 4)
+            if not data.empty:
+                for symbol, ticker in pairs.items():
+                    try:
+                        # Handle potential multi-index or single index
+                        if ticker in data['Close'].columns if hasattr(data['Close'], 'columns') else [ticker]:
+                            col = data['Close'][ticker] if hasattr(data['Close'], 'columns') else data['Close']
+                            latest_price = col.dropna().iloc[-1]
+                            if latest_price > 0:
+                                cached_rates[symbol]['rate'] = round(float(latest_price), 4)
+                    except Exception as ex:
+                        logger.warning(f"Failed to parse rate for {symbol}", error=str(ex))
             
             last_fetch = time.time()
             logger.info("Exchange rates refreshed", rates=cached_rates)

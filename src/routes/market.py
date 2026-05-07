@@ -8,8 +8,20 @@ import json
 from src.limiter import limiter
 from src.ingestion.service import get_active_tickers
 
+import math
+
 router = APIRouter()
 logger = structlog.get_logger(__name__)
+
+def clean_float(val, default=0.0):
+    """Ensure value is a JSON-compliant float (no NaN/Inf)."""
+    try:
+        f = float(val)
+        if math.isnan(f) or math.isinf(f):
+            return default
+        return f
+    except (TypeError, ValueError):
+        return default
 
 PERIOD_MAP = {
     "1d":  "1d",
@@ -51,17 +63,17 @@ def get_market_data(request: Request):
                 results.append({
                     "ticker": v["ticker"],
                     "timestamp": v.get("timestamp", ""),
-                    "open_price": float(v.get("open_price", 0.0)),
-                    "high_price": float(v.get("high_price", 0.0)),
-                    "low_price": float(v.get("low_price", 0.0)),
-                    "close_price": float(v.get("close_price", 0.0)),
+                    "open_price": clean_float(v.get("open_price", 0.0)),
+                    "high_price": clean_float(v.get("high_price", 0.0)),
+                    "low_price": clean_float(v.get("low_price", 0.0)),
+                    "close_price": clean_float(v.get("close_price", 0.0)),
                     "volume": int(v.get("volume", 0)),
-                    "change_pct": float(v.get("change_pct", 0.0)),
+                    "change_pct": clean_float(v.get("change_pct", 0.0)),
                     "headlines": v.get("headlines", []),
                     "headline_links": headline_links,
                     "exchange": v.get("exchange", ""),
                     "company_name": v.get("company_name", ""),
-                    "sparkline": [float(p) for p in (v.get("sparkline") or [])],
+                    "sparkline": [clean_float(p) for p in (v.get("sparkline") or [])],
                     "currency": v.get("currency", "USD"),
                     "status": "active"
                 })

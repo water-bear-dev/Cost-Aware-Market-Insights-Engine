@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.2] - 2026-05-07
+
+### Added
+- **AI Transparency & Enriched Rationale** — Upgraded the Discovery Agent to provide more human-readable, metric-backed justifications for its daily picks. Recommendations now feature a 3-bullet "Smart Narrative" format:
+  - **What's Happening** (Context)
+  - **Why It's Interesting** (Potential)
+  - **What to Watch** (Risks/Catalysts)
+- **Granular Asset Metadata** — Surfaced quantitative performance metrics (`1-Month Momentum`, `5-Day Change`) directly on discovery pick cards for immediate data-driven validation.
+- **Enriched Discover Data** — 
+  - **Commodities** now display standard trading units (e.g., `oz`, `bbl`, `kg`).
+  - **Top Movers** now include the full company name alongside the ticker symbol for better readability.
+  - **Market News** now includes short descriptions and improved visual alignment.
+
+### Changed
+- **Enriched Prompt Engineering** — Refined the LangGraph `discovery_graph.py` prompt to explicitly request 3-bullet JSON rationale outputs with specific focus areas, ensuring consistent high-quality AI synthesis.
+
+## [2.9.1] - 2026-05-07
+
+### Fixed
+- **API Connectivity** — Resolved 404 errors for the new Discover endpoints by ensuring container restarts and proper router registration.
+- **Portfolio Chart Restoration** — Fixed a data field mismatch (`sparkline` vs `sparkline_data`) that prevented the combined total chart from rendering.
+- **Robust Data Handling** — Implemented a `clean_float` utility across all Market and Discover endpoints to prevent `NaN` values from causing JSON serialization failures (500 errors).
+- **Filtering Stability** — Ensured that live card updates in the Manage tab correctly sync their data attributes, keeping filters and sorts accurate without requiring a page refresh.
+
+## [2.9.0] - 2026-05-07
+
+### Added
+- **"Manage" Tab** — Renamed from "AI Market Insights". Now acts as the dedicated hub for managing your tracked assets.
+- **"Discover" Tab** — Brand new section inserted after Manage, serving as a real-time global market briefing room:
+  - **Regional Market Indices** — Live prices and % change for AU (ASX 200), US (S&P 500, Nasdaq), EU (Euro Stoxx 50), and Asia (Nikkei 225, Hang Seng).
+  - **Commodities** — Live Gold, WTI Oil, and Silver prices.
+  - **Top 10 Movers** — Side-by-side tables of the day's biggest gainers and losers, refreshed daily at 8:00 AM AEST.
+  - **Top News** — 10 most recent market headlines, refreshed every hour on the clock.
+  - **Daily Discovery Picks** — Moved here from the Manage tab.
+- **Portfolio Area Chart** — Replaced the static bar chart with a time-series area chart showing the combined total value of all tracked assets over the last 24 hours, updated whenever assets are added or removed.
+- **Asset Search, Filter & Sort** — New control row in the Manage tab:
+  - Full-text search filtering by ticker symbol or company name.
+  - Filter by country and exchange (ASX, Nasdaq, NYSE, etc.).
+  - Sort by name, price (ascending/descending), and % change (ascending/descending).
+- **Force Refresh on Empty Data** — All Discover endpoints and the startup sequence now detect empty caches and trigger an immediate live fetch before returning, ensuring data is always available from the very first page load.
+- **New Backend Endpoint** — `GET /api/v1/discover/indices`, `GET /api/v1/discover/movers`, `GET /api/v1/discover/news` via new `src/routes/discover.py`.
+
+### Changed
+- **Navigation Order** — Tabs reorganised to: `Manage | Discover | ··· | Costs | How it Works`. Costs and How it Works pushed to the far right.
+- **"Tracked Tickers"** renamed to **"Tracked Assets"** throughout the UI.
+- **Daily Discovery Picks** relocated from the Manage tab to the new Discover section.
+
 ## [2.8.3] - 2026-05-07
 ### Added
 - **24-Hour Value Timelines** — Integrated sparkline charts directly into ticker cards. These provide a rolling 24-hour visual history of price action at 15-minute intervals, providing immediate context on intraday momentum.

@@ -93,12 +93,13 @@ function formatLargePrice(value, tickerCurrency = 'USD') {
    ===================================================== */
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
-    initControls(); // Replacement for Zoom
+    initControls();
     initModal();
     initDashboard();
     setupTickerForm();
     initCurrency();
     refreshExchangeRates();
+    initManageFilters();
 });
 
 /* =====================================================
@@ -111,6 +112,7 @@ function initTabs() {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             document.getElementById(btn.dataset.tab).classList.add('active');
+            if (btn.dataset.tab === 'discover-view') fetchDiscoverData();
         });
     });
 }
@@ -368,21 +370,53 @@ async function fetchDailyPicks() {
             
             container.style.display = 'block';
             data.forEach(p => dailyPicksData[p.actual_ticker] = p);
+
+            // Labels for the 3 rationale bullets
+            const bulletLabels = ['📈 What\'s Happening', '💡 Why It\'s Interesting', '👀 What to Watch'];
+
             grid.innerHTML = data.map(pick => {
                 const price = parseFloat(pick.last_price || 0);
-                const change = parseFloat(pick.change_5d || 0) * 100;
-                const isPos = change >= 0;
+                const change5d = parseFloat(pick.change_5d || 0) * 100;
+                const momentum1mo = parseFloat(pick.momentum_1mo || 0); // already in %
+                const isPos = change5d >= 0;
                 const sign = isPos ? '+' : '';
                 const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
-                
+
+                // Build rationale bullets — supports both array (new) and string (legacy)
+                let rationaleItems = [];
+                if (Array.isArray(pick.rationale)) {
+                    rationaleItems = pick.rationale;
+                } else if (typeof pick.rationale === 'string') {
+                    rationaleItems = pick.rationale.split('\n').map(l => l.replace(/^[-*\d.]+\s*/, '').trim()).filter(Boolean);
+                }
+
+                const bulletsHtml = rationaleItems.length
+                    ? rationaleItems.slice(0, 3).map((text, i) => `
+                        <div style="display: flex; gap: 0.65rem; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px dashed rgba(255,255,255,0.07);">
+                            <div style="min-width: 140px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; padding-top: 2px;">${bulletLabels[i] || '●'}</div>
+                            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0;">${text}</p>
+                        </div>`).join('')
+                    : `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
+
+                const statsHtml = momentum1mo !== 0
+                    ? `<div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary);">
+                            1-Month: <strong style="color: ${momentum1mo >= 0 ? '#10b981' : '#f43f5e'}">${momentum1mo >= 0 ? '+' : ''}${momentum1mo.toFixed(1)}%</strong>
+                        </span>
+                        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary);">
+                            5-Day: <strong style="color: ${changeColor}">${sign}${change5d.toFixed(2)}%</strong>
+                        </span>
+                       </div>`
+                    : '';
+
                 return `
-                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0.5rem; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600;">${pick.category}</span>
                         <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 12px;">Daily Pick</span>
                     </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 0.75rem; margin-bottom: 0.75rem;">
+
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start;">
                             ${pick.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">${formatExchange(pick.exchange)}</span>` : ''}
                             <h3 class="metric-value text-gradient-purple" style="font-size: 2rem; line-height: 1.1; letter-spacing: -0.5px; margin: 0;">${pick.actual_ticker}</h3>
@@ -390,21 +424,23 @@ async function fetchDailyPicks() {
                         </div>
                         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
                             <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${formatPrice(price, pick.currency || 'USD')}</span>
-                            <span style="font-size: 0.85rem; font-weight: 600; color: ${changeColor}; background: rgba(255,255,255,0.03); padding: 0.1rem 0.4rem; border-radius: 4px; margin-top: 4px;">${sign}${change.toFixed(2)}% (5d)</span>
-                            <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;" 
+                            <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;"
                                     onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
                                 + Track
                             </button>
                         </div>
                     </div>
 
-                    <div class="insight-text" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 1rem; flex-grow: 1;">
-                        ${formatInsight(pick.rationale, 2)}
+                    ${statsHtml}
+
+                    <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.875rem; padding-top: 0.875rem;">
+                        ${bulletsHtml}
                     </div>
-                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 0.5rem; font-weight: 500;">
+
+                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 0.75rem; font-weight: 500;">
                         Deep Dive &rarr;
                     </div>
-                </div>
+            </div>
             `;
             }).join('');
         }
@@ -585,6 +621,13 @@ function drawSparkline(elementId, dataset, color) {
     if (!sparklineInstances[elementId]) {
         container.innerHTML = '<canvas></canvas>';
         const ctx = container.querySelector('canvas').getContext('2d');
+        
+        // Calculate min/max for zooming
+        const minVal = Math.min(...dataset);
+        const maxVal = Math.max(...dataset);
+        const range = maxVal - minVal;
+        const padding = range === 0 ? 1 : range * 0.1;
+
         sparklineInstances[elementId] = new Chart(ctx, {
             type: 'line',
             data: { labels: dataset.map((_,i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4 }] },
@@ -600,15 +643,25 @@ function drawSparkline(elementId, dataset, color) {
                     x: { display: false }, 
                     y: { 
                         display: false,
-                        beginAtZero: false
+                        beginAtZero: false,
+                        min: minVal - padding,
+                        max: maxVal + padding
                     } 
                 }, 
                 animation: false 
             }
         });
     } else {
+        // Update existing chart
+        const minVal = Math.min(...dataset);
+        const maxVal = Math.max(...dataset);
+        const range = maxVal - minVal;
+        const padding = range === 0 ? 1 : range * 0.1;
+        
         sparklineInstances[elementId].data.datasets[0].data = dataset;
         sparklineInstances[elementId].data.datasets[0].borderColor = color;
+        sparklineInstances[elementId].options.scales.y.min = minVal - padding;
+        sparklineInstances[elementId].options.scales.y.max = maxVal + padding;
         sparklineInstances[elementId].update('none');
     }
 }
@@ -731,7 +784,11 @@ function buildNewsHtml(mkt) {
 
 function buildCard(mkt, insight, index) {
     const wrapper = document.createElement('div');
-    wrapper.dataset.ticker = mkt.ticker;
+    wrapper.dataset.ticker   = mkt.ticker;
+    wrapper.dataset.company  = mkt.company_name || '';
+    wrapper.dataset.exchange = mkt.exchange || '';
+    wrapper.dataset.price    = mkt.close_price || 0;
+    wrapper.dataset.change   = mkt.change_pct  || 0;
     wrapper.className = 'insight-card';
     wrapper.style.animationDelay = `${index * 0.05}s`;
 
@@ -753,6 +810,12 @@ function updateCard(wrapper, mkt, insight) {
     const inner = wrapper.querySelector('.glass');
     if (!inner) return;
     inner.innerHTML = cardInnerHtml(mkt, insight);
+    
+    // Update data attributes for filtering/sorting
+    wrapper.dataset.price = mkt.close_price || 0;
+    wrapper.dataset.change = mkt.change_pct || 0;
+    wrapper.dataset.company = mkt.company_name || '';
+    wrapper.dataset.exchange = mkt.exchange || '';
 
     inner.onclick = () => {
         openModal(mkt.ticker);
@@ -844,87 +907,86 @@ async function deleteTickerLogic(ticker) {
    ===================================================== */
 function updatePortfolioChart(marketData) {
     if (!marketData || marketData.length === 0) return;
-    
-    // Sort by price for better bar visualization
-    const sorted = [...marketData].filter(m => m.status === 'active').sort((a,b) => b.close_price - a.close_price);
-    if (sorted.length === 0) return;
+    const active = [...marketData].filter(m => m.status === 'active');
+    if (active.length === 0) return;
 
-    const labels = sorted.map(d => d.ticker);
-    const data = sorted.map(d => {
-        const tickerRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
-        return d.close_price / tickerRate; // Normalize to USD for the chart baseline
+    // Build combined 24h area chart from sparkline data
+    // Each ticker's sparkline has N price points; sum them all up (converted to selected currency)
+    const sparklines = active.map(d => {
+        const pts = d.sparkline || [];
+        const { rate } = EXCHANGE_RATES[currentCurrency];
+        const tickerUsdRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
+        // sparkline values are in ticker's native currency → convert to USD → to display currency
+        return pts.map(v => (parseFloat(v) / tickerUsdRate) * rate);
+    }).filter(s => s.length > 0);
+
+    if (sparklines.length === 0) return;
+
+    const len = Math.max(...sparklines.map(s => s.length));
+    const combined = Array.from({ length: len }, (_, i) =>
+        sparklines.reduce((sum, s) => sum + (s[i] || s[s.length - 1] || 0), 0)
+    );
+
+    // X labels: approximate 15-min intervals going back from now
+    const nowMs = Date.now();
+    const labels = combined.map((_, i) => {
+        const msAgo = (len - 1 - i) * 15 * 60 * 1000;
+        return new Date(nowMs - msAgo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     });
-    const colors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(244,63,94,0.4)');
-    const borderColors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.9)' : 'rgba(244,63,94,0.9)');
 
+    const { symbol } = EXCHANGE_RATES[currentCurrency];
     const ctx = document.getElementById('portfolioChart').getContext('2d');
+    const isPos = combined[combined.length - 1] >= combined[0];
+    const lineColor = isPos ? 'rgba(16,185,129,1)' : 'rgba(244,63,94,1)';
+    const fillColor = isPos ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)';
 
     if (portfolioChartInstance) {
-        portfolioChartInstance.options.scales.y.ticks.callback = v => {
-            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-            return `${symbol}${(v * rate).toFixed(0)}`;
-        };
-        portfolioChartInstance.options.plugins.tooltip.callbacks.label = ctx => {
-            return ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}`;
-        };
+        portfolioChartInstance.data.labels = labels;
+        portfolioChartInstance.data.datasets[0].data = combined;
+        portfolioChartInstance.data.datasets[0].borderColor = lineColor;
+        portfolioChartInstance.data.datasets[0].backgroundColor = fillColor;
+        portfolioChartInstance.options.scales.y.ticks.callback = v => `${symbol}${v.toFixed(0)}`;
+        portfolioChartInstance.options.plugins.tooltip.callbacks.label = c => ` Combined: ${symbol}${c.parsed.y.toFixed(2)}`;
         portfolioChartInstance.update('none');
     } else {
         portfolioChartInstance = new Chart(ctx, {
-            type: 'bar',
+            type: 'line',
             data: {
                 labels,
-                datasets: [{ 
-                    label: 'Price (USD)', 
-                    data, 
-                    backgroundColor: colors, 
-                    borderColor: borderColors, 
-                    borderWidth: 1, 
-                    borderRadius: 6 
+                datasets: [{
+                    label: 'Portfolio Value',
+                    data: combined,
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.4,
+                    fill: true,
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                onClick: (e, elements) => {
-                    if (elements.length > 0) {
-                        const index = elements[0].index;
-                        const ticker = portfolioChartInstance.data.labels[index];
-                        openModal(ticker);
-                    }
-                },
-                plugins: { 
-                    legend: { labels: { color: '#f8fafc' } }, 
-                    tooltip: { 
-                        callbacks: { 
-                            label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}` 
-                        } 
-                    },
-                    zoom: {
-                        zoom: { enabled: false }
-                    },
-                    datalabels: {
-                        anchor: 'end',
-                        align: 'top',
-                        formatter: (v) => {
-                            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-                            return `${symbol}${(v * rate).toFixed(0)}`;
-                        },
-                        color: '#f8fafc',
-                        font: { weight: 'bold', size: 10 }
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: false },
+                    datalabels: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15,23,42,0.9)',
+                        titleColor: '#94a3b8',
+                        bodyColor: '#f8fafc',
+                        borderColor: 'rgba(255,255,255,0.1)',
+                        borderWidth: 1,
+                        callbacks: { label: c => ` Combined: ${symbol}${c.parsed.y.toFixed(2)}` }
                     }
                 },
                 scales: {
-                    y: { 
-                        beginAtZero: true, 
-                        ticks: { 
-                            color: '#94a3b8', 
-                            callback: v => {
-                                const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-                                return `${symbol}${(v * rate).toFixed(0)}`;
-                            }
-                        }, 
-                        grid: { color: 'rgba(255,255,255,0.05)' } 
-                    },
-                    x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+                    y: {
+                        beginAtZero: false,
+                        ticks: { color: '#94a3b8', callback: v => `${symbol}${v.toFixed(0)}` },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
+                    }
                 }
             },
             plugins: [ChartDataLabels]
@@ -1367,3 +1429,233 @@ function formatInsight(text, limit = null) {
     
     return formatted;
 }
+
+/* =====================================================
+   Discover Tab — fetch, render
+   ===================================================== */
+let _discoverRefreshTimer = null;
+let _discoverNewsTimer    = null;
+
+async function fetchDiscoverData() {
+    fetchDiscoverIndices();
+    fetchDiscoverMovers();
+    fetchDiscoverNews();
+    fetchDailyPicks();  // also refresh daily picks when switching to Discover
+
+    // Auto-refresh indices every 5 min, news every hour
+    clearInterval(_discoverRefreshTimer);
+    clearInterval(_discoverNewsTimer);
+    _discoverRefreshTimer = setInterval(fetchDiscoverIndices, 5 * 60 * 1000);
+    _discoverNewsTimer    = setInterval(fetchDiscoverNews,   60 * 60 * 1000);
+}
+
+async function fetchDiscoverIndices() {
+    try {
+        const res = await fetch('/api/v1/discover/indices');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderMarketIndices(data.regions || []);
+        renderCommodities(data.commodities || []);
+    } catch(e) { console.error('Discover indices failed', e); }
+}
+
+async function fetchDiscoverMovers() {
+    try {
+        const res = await fetch('/api/v1/discover/movers');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderMovers('gainers-table', data.gainers || [], true);
+        renderMovers('losers-table',  data.losers  || [], false);
+        if (data.as_of) {
+            const d = new Date(data.as_of);
+            document.getElementById('movers-as-of').textContent =
+                `· as of ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+        }
+    } catch(e) { console.error('Discover movers failed', e); }
+}
+
+async function fetchDiscoverNews() {
+    try {
+        const res = await fetch('/api/v1/discover/news');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderTopNews(data.articles || []);
+        if (data.as_of) {
+            const d = new Date(data.as_of);
+            document.getElementById('news-as-of').textContent =
+                `· updated ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+        }
+    } catch(e) { console.error('Discover news failed', e); }
+}
+
+function renderMarketIndices(regions) {
+    const el = document.getElementById('discover-indices');
+    if (!el) return;
+
+    el.innerHTML = regions.map(r => {
+        if (!r.indices || !r.indices.length) return '';
+        const cards = r.indices.map(idx => {
+            const isPos = idx.change_pct >= 0;
+            const sign  = isPos ? '+' : '';
+            // Format price with commas; don't prepend $ for non-USD
+            const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            const currencyLabel = idx.currency && idx.currency !== 'USD' ? idx.currency : '$';
+            return `<div class="discover-index-card">
+                <div class="discover-index-name">${idx.name}</div>
+                <div class="discover-index-price">${currencyLabel !== '$' ? '' : '$'}${priceStr} <span style="font-size:0.65rem;color:var(--text-secondary);">${currencyLabel !== '$' ? currencyLabel : ''}</span></div>
+                <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${idx.change_pct.toFixed(2)}%</span>
+            </div>`;
+        }).join('');
+
+        return `<div class="discover-region-group">
+            <div class="discover-region-label">${r.flag} ${r.region}</div>
+            <div class="discover-region-cards">${cards}</div>
+        </div>`;
+    }).join('');
+}
+
+function renderCommodities(commodities) {
+    const el = document.getElementById('discover-commodities');
+    if (!el) return;
+    el.innerHTML = commodities.map(c => {
+        const isPos = c.change_pct >= 0;
+        const sign  = isPos ? '+' : '';
+        return `<div class="discover-index-card">
+            <div class="discover-region-label">${c.icon} ${c.name}</div>
+            <div class="discover-index-name">per ${c.unit} · USD</div>
+            <div class="discover-index-price">$${c.price.toLocaleString()}</div>
+            <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
+        </div>`;
+    }).join('');
+}
+
+function renderMovers(tableId, movers, isGainer) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return;
+    if (!movers.length) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-secondary);text-align:center;padding:1rem;">No data yet</td></tr>';
+        return;
+    }
+    tbody.innerHTML = movers.map((m, i) => {
+        const sign  = m.change_pct >= 0 ? '+' : '';
+        const color = m.change_pct >= 0 ? '#10b981' : '#f43f5e';
+        // Truncate long company names
+        const name  = (m.company_name || m.ticker).length > 22
+            ? (m.company_name || m.ticker).substring(0, 20) + '…'
+            : (m.company_name || m.ticker);
+        return `<tr>
+            <td><strong>${m.ticker}</strong></td>
+            <td style="color:var(--text-secondary);font-size:0.8rem;">${name}</td>
+            <td style="text-align:right;">$${m.price.toLocaleString()}</td>
+            <td style="text-align:right;color:${color};font-weight:700;">${sign}${m.change_pct.toFixed(2)}%</td>
+        </tr>`;
+    }).join('');
+}
+
+function renderTopNews(articles) {
+    const el = document.getElementById('discover-news');
+    if (!el) return;
+    if (!articles.length) { el.innerHTML = '<p style="color:var(--text-secondary)">No news available yet.</p>'; return; }
+    el.innerHTML = articles.map(a => {
+        const d = a.published ? new Date(a.published) : null;
+        const time = d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+        const desc = a.description || '';
+        return `<div class="news-feed-item">
+            <div class="news-feed-meta">
+                <div class="news-feed-source">${a.source || 'News'}</div>
+                <div class="news-feed-time">${time}</div>
+            </div>
+            <div class="news-feed-content">
+                <a class="news-feed-title" href="${a.url}" target="_blank" rel="noopener noreferrer">${a.title}</a>
+                ${desc ? `<p class="news-feed-desc">${desc}</p>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* =====================================================
+   Manage Tab — Search / Filter / Sort
+   ===================================================== */
+// Exchange code → normalised exchange name
+const EXCHANGE_MAP = {
+    NMS: 'Nasdaq', NGS: 'Nasdaq', NNM: 'Nasdaq', NCM: 'Nasdaq',
+    NYQ: 'NYSE',   NYS: 'NYSE',
+    ASX: 'ASX',
+    LSE: 'LSE',    IOB: 'LSE',
+    TYO: 'TSE',    JPX: 'TSE',
+    HKG: 'HKEX',
+};
+// Exchange → country bucket
+const EXCHANGE_COUNTRY = {
+    Nasdaq: 'US', NYSE: 'US',
+    ASX:    'AU',
+    LSE:    'EU',
+    TSE:    'ASIA', HKEX: 'ASIA',
+};
+
+let _activeSortKey = 'name';
+
+function initManageFilters() {
+    const search   = document.getElementById('asset-search');
+    const country  = document.getElementById('filter-country');
+    const exchange = document.getElementById('filter-exchange');
+
+    if (!search) return;
+
+    search.addEventListener('input',   applyManageFilters);
+    country.addEventListener('change', applyManageFilters);
+    exchange.addEventListener('change', applyManageFilters);
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            _activeSortKey = btn.dataset.sort;
+            applyManageFilters();
+        });
+    });
+}
+
+function applyManageFilters() {
+    const query    = (document.getElementById('asset-search')?.value   || '').toLowerCase().trim();
+    const country  = (document.getElementById('filter-country')?.value  || '');
+    const exchange = (document.getElementById('filter-exchange')?.value  || '');
+
+    const cards = Array.from(document.querySelectorAll('#insights-container .insight-card, #insights-container [data-ticker]'));
+    if (!cards.length) return;
+
+    cards.forEach(card => {
+        const ticker  = (card.dataset.ticker  || '').toLowerCase();
+        const company = (card.dataset.company || '').toLowerCase();
+        const exc     = EXCHANGE_MAP[card.dataset.exchange] || card.dataset.exchange || '';
+        const cntry   = EXCHANGE_COUNTRY[exc] || '';
+
+        const matchQuery    = !query   || ticker.includes(query) || company.includes(query);
+        const matchCountry  = !country  || cntry === country;
+        const matchExchange = !exchange || exc === exchange;
+
+        card.style.display = (matchQuery && matchCountry && matchExchange) ? '' : 'none';
+    });
+
+    // Sort visible cards
+    const container = document.getElementById('insights-container');
+    if (!container) return;
+    const visible = cards.filter(c => c.style.display !== 'none');
+    visible.sort((a, b) => {
+        const aT = a.dataset.ticker || '';
+        const bT = b.dataset.ticker || '';
+        const aP = parseFloat(a.dataset.price || 0);
+        const bP = parseFloat(b.dataset.price || 0);
+        const aC = parseFloat(a.dataset.change || 0);
+        const bC = parseFloat(b.dataset.change || 0);
+        switch (_activeSortKey) {
+            case 'price-desc':  return bP - aP;
+            case 'price-asc':   return aP - bP;
+            case 'change-desc': return bC - aC;
+            case 'change-asc':  return aC - bC;
+            default:            return aT.localeCompare(bT);
+        }
+    });
+    visible.forEach(c => container.appendChild(c));
+}
+

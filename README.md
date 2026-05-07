@@ -2,6 +2,11 @@
 
 A fully containerized Python (FastAPI) application designed to ingest stock market data, synthesize it using AI, and surface those insights on a premium frontend dashboard—all while rigorously enforcing strict financial guardrails (FinOps) to guarantee AI generation costs never exceed a daily budget.
 
+The dashboard is structured around three core views:
+- **Manage** — Track up to 30 assets with live sparklines, AI synthesis signals, and flexible grid layouts. Search, filter by exchange or country, and sort by price or change.
+- **Discover** — A global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
+- **Costs / How it Works** — FinOps observability and architecture education.
+
 ![Dashboard Preview](./system-design/system_architecture.png)
 
 ## Overview & Architecture Highlights
@@ -12,7 +17,7 @@ This project is built around the fundamental philosophy that AI integration must
 2. **Quant Compute Sandbox**: Mathematical calculations (Pandas/Numpy) are executed in a strictly isolated, network-restricted MCP container with zero AWS credentials.
 3. **LangGraph Orchestrator**: A Directed Acyclic Graph (DAG) routes tasks, maintains state, and sequences API calls to **AWS Bedrock (Anthropic Claude 3 Haiku)**.
 4. **FinOps Engine (DynamoDB)**: An interceptor node in the LangGraph DAG estimates token costs, queries a local `CostTracking` ledger, and physically blocks execution if it would breach your `DAILY_BUDGET_USD` limit.
-5. **Daily Discovery Agent**: An autonomous agent that triggers at 8:00 AM AEST to perform mass market analysis and surface "Hidden Gems" on the dashboard.
+5. **Daily Discovery Agent**: An autonomous agent that triggers at 8:00 AM AEST to perform mass market analysis and surface "Hidden Gems" with **AI Smart Narratives** (3-bullet rationale with performance metrics).
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
 
@@ -104,6 +109,7 @@ The application behavior is controlled via environment variables (see `src/confi
 ├── Dockerfile               # Multi-stage production environment (ARM64)
 ├── requirements.txt         # App dependencies (FastAPI, LangGraph, MCP, pytz, etc.)
 ├── scripts/                 # DevOps automation for AWS Deploy/Teardown
+│   └── syntax_check.sh      # Python, JS, and Docker Compose syntax validator
 ├── static/                  # Glassmorphic frontend dashboard
 ├── src/                     # Core Alpha-DAG application logic
 │   ├── main.py              # Entrypoint & 8 AM AEST Scheduler
@@ -111,6 +117,8 @@ The application behavior is controlled via environment variables (see `src/confi
 │   ├── mcp/                 # Market Data and Quant Compute MCP servers
 │   ├── cost_tracking/       # FinOps logic and budget gates
 │   └── routes/              # Client-facing API v1/v2 endpoints
+│       ├── discover.py      # Market indices, movers & news endpoints
+│       └── meta.py          # Exchange rates endpoint
 └── system-design/           # Architecture diagrams and system overview
 ```
 
@@ -118,8 +126,9 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 1: Monolithic System** - Built the foundational FastAPI backend, local DynamoDB ledger, FinOps constraints, and glassmorphic UI.
 - **[COMPLETE] Phase 2: Alpha-DAG via MCP** - Deconstructed the monolith into a distributed system governed by a LangGraph orchestrator.
 - **[COMPLETE] Phase 3: Daily Discovery Agent** - Integrated an autonomous agent that triggers at 8:00 AM AEST to select top daily picks.
-- **[COMPLETE] Phase 4: UX Polish & Global Access** - Integrated multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations. Structured all AI insights into a 2-point "Investment Assistant" format.
-- **[PLANNED] Phase 5: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 4: UX Polish & Global Access** - Multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations.
+- **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
+- **[PLANNED] Phase 6: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 ## Development Blog: The Alpha-DAG Pivot
 
@@ -145,4 +154,3 @@ The dashboard is then accessible at `http://192.168.64.2:8000` (use your specifi
 **Lesson:** When debugging container connectivity issues on macOS, always check the Docker runtime first (`docker context ls`). If it points to a Colima socket, `localhost` port forwarding behaves differently than Docker Desktop.
 
 ---
-*Maintained by the Antigravity Team*

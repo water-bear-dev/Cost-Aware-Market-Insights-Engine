@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=6">
+    <link rel="stylesheet" href="/static/style.css?v=7">
 </head>
 <body>
 
@@ -31,29 +31,20 @@
         </header>
 
         <div class="tab-navigation">
-            <button class="tab-btn active" data-tab="insights-view">AI Market Insights</button>
+            <button class="tab-btn active" data-tab="manage-view">Manage</button>
+            <button class="tab-btn" data-tab="discover-view">Discover</button>
+            <span class="tab-nav-spacer"></span>
             <button class="tab-btn" data-tab="finops-view">Costs</button>
             <button class="tab-btn" data-tab="how-view">How it works</button>
         </div>
 
-        <!-- Insights Section -->
-        <section id="insights-view" class="tab-content active">
-            
-            <!-- Daily Picks Banner -->
-            <div id="daily-picks-container" style="display: none; margin-bottom: 2.5rem;">
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
-                    <span style="font-size: 1.2rem;">✨</span>
-                    <h2 style="font-size: 1.2rem; font-weight: 600; background: linear-gradient(90deg, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase;">Daily Discovery Picks</h2>
-                </div>
-                <div class="metrics-grid" id="daily-picks-grid">
-                    <!-- Dynamically loaded daily picks -->
-                </div>
-            </div>
+        <!-- Manage Section -->
+        <section id="manage-view" class="tab-content active">
 
             <div class="insights-controls glass" style="margin-bottom: 2.5rem; padding: 2rem;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
                     <div>
-                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Tickers</h2>
+                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Assets</h2>
                         <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
                             <div style="position: relative;">
                                 <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" autocomplete="off" />
@@ -73,13 +64,41 @@
                                         <option value="JPY">JPY (¥)</option>
                                     </select>
                                 </div>
-                                <span class="badge" id="ticker-count">0/10 Tracked</span>
+                                <span class="badge" id="ticker-count">0/30 Tracked</span>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="chart-container" style="position: relative; height: 280px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
                     <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Search / Filter / Sort row -->
+            <div class="manage-filter-row glass" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
+                <input type="text" id="asset-search" class="glass-input" placeholder="Search symbol or company..." style="flex: 1; min-width: 160px;" />
+                <select id="filter-country" class="glass-input" style="width: auto;">
+                    <option value="">All Countries</option>
+                    <option value="AU">🇦🇺 Australia</option>
+                    <option value="US">🇺🇸 United States</option>
+                    <option value="EU">🇪🇺 Europe</option>
+                    <option value="ASIA">🌏 Asia</option>
+                </select>
+                <select id="filter-exchange" class="glass-input" style="width: auto;">
+                    <option value="">All Exchanges</option>
+                    <option value="Nasdaq">Nasdaq</option>
+                    <option value="NYSE">NYSE</option>
+                    <option value="ASX">ASX</option>
+                    <option value="LSE">LSE</option>
+                    <option value="TSE">TSE</option>
+                </select>
+                <div class="sort-controls">
+                    <span class="dim-label" style="font-size:0.7rem;text-transform:uppercase;">Sort:</span>
+                    <button class="sort-btn active" data-sort="name">Name</button>
+                    <button class="sort-btn" data-sort="price-desc">Price ↓</button>
+                    <button class="sort-btn" data-sort="price-asc">Price ↑</button>
+                    <button class="sort-btn" data-sort="change-desc">Change ↓</button>
+                    <button class="sort-btn" data-sort="change-asc">Change ↑</button>
                 </div>
             </div>
 
@@ -109,6 +128,69 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Discover Section -->
+        <section id="discover-view" class="tab-content">
+
+            <!-- ✨ Daily Discovery Picks — TOP -->
+            <div id="daily-picks-container" style="display: none; margin-bottom: 2.5rem;">
+                <h2 class="discover-section-title">✨ Daily Discovery Picks</h2>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem; margin-top: -0.5rem;">
+                    Surfaced daily at 8 AM by the autonomous Discovery Agent. Ranked by momentum &amp; risk.
+                </p>
+                <div class="metrics-grid" id="daily-picks-grid"></div>
+            </div>
+
+            <!-- 🌍 Global Markets — grouped by region -->
+            <h2 class="discover-section-title">🌍 Global Markets</h2>
+            <div id="discover-indices" class="discover-indices-wrapper"></div>
+
+            <!-- ⚡ Commodities -->
+            <h2 class="discover-section-title" style="margin-top:2.5rem;">⚡ Commodities</h2>
+            <div id="discover-commodities" class="discover-commodity-grid"></div>
+
+            <!-- 🚀 Top Movers -->
+            <h2 class="discover-section-title" style="margin-top:2.5rem;">🚀 Top Movers <span id="movers-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
+            <div class="discover-movers-row">
+                <div class="discover-movers-panel glass">
+                    <h3 class="movers-panel-title gainers">▲ Top Gainers</h3>
+                    <table class="movers-table" id="gainers-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Ticker</th>
+                                <th style="text-align:left;">Company</th>
+                                <th style="text-align:right;">Price</th>
+                                <th style="text-align:right;">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading gainers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="discover-movers-panel glass">
+                    <h3 class="movers-panel-title losers">▼ Top Losers</h3>
+                    <table class="movers-table" id="losers-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left;">Ticker</th>
+                                <th style="text-align:left;">Company</th>
+                                <th style="text-align:right;">Price</th>
+                                <th style="text-align:right;">Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading losers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 📰 Market News -->
+            <h2 class="discover-section-title" style="margin-top:2.5rem;">📰 Market News <span id="news-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
+            <div id="discover-news" class="discover-news-feed"></div>
+
         </section>
 
         <!-- FinOps Section -->
@@ -414,6 +496,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=6"></script>
+    <script src="/static/app.js?v=7"></script>
 </body>
 </html>
