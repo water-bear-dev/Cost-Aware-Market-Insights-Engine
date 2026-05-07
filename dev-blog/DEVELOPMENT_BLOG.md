@@ -521,5 +521,22 @@ Because discovery picks are untracked "Hidden Gems," their real-time pricing isn
 
 This final polish ensures that the discovery process feels as professional and data-backed as the core portfolio management experience. The engine is now fully optimized for both global monitoring and autonomous asset discovery.
 
+### Entry 30: TradingView-Grade Scannability & Multi-LLM Clarity
+*Date: 2026-05-07*
+
+As we reached the final stages of UI polish, we prioritized "Scannability at Scale." A professional trader doesn't just look at symbols; they need to know the exchange and the full entity name without clicking through deep-dive modals.
+
+**1. Metadata Integration (Exchange & Entity):**
+We refactored the `MarketData` ingestion cycle to explicitly fetch and store the `exchange` and `longName` (Company Name) from Yahoo Finance. This data is now surfaced directly on the dashboard cards. The exchange is positioned at the very top in a high-contrast accent color, while the company name sits directly below the symbol, providing immediate institutional context.
+
+**2. Right-Aligned Pricing Alignment:**
+We shifted the pricing and percentage change blocks to the far right margin of the cards. By decoupling the symbol/name (left) from the price action (right), we've created a clean vertical corridor for the eyes to scan. This aligns with professional terminal standards like TradingView or Bloomberg, where the "what" and the "how much" are spatially separated for clarity.
+
+**3. Multi-LLM Documentation & Portability:**
+With the system now successfully toggling between **Ollama (Local)** and **Bedrock (Cloud)**, we updated the `README.md` to reflect this "Hybrid-AI" reality. We provided clear on-boarding paths for developers starting with zero budget using open-source models (Llama 3.2), while maintaining the seamless transition script to AWS ECS for production deployments.
+
+**4. The "Compact" Purge:**
+In our pursuit of a premium experience, we removed the "Compact" view option. While functional, it compromised the visual hierarchy of our new metadata-rich cards. We've standardized on **Horizontal** and **Wide** views, ensuring that the engine always presents a polished, data-dense interface without visual clutter.
+
 ---
 *Project Managed by Antigravity*

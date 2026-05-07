@@ -6,16 +6,11 @@ services:
     volumes:
       - ./src:/app/src
       - ./static:/app/static
+    env_file:
+      - .env
     environment:
-      - AWS_DEFAULT_REGION=us-east-1
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
-      - DYNAMODB_ENDPOINT_URL=http://dynamodb-local:8001
-      - DAILY_BUDGET_USD=5.00
-      - TICKERS=AAPL,MSFT,GOOGL,AMZN,META
-      - LLM_PROVIDER=ollama
-      - OLLAMA_MODEL=llama3.2
-      - OLLAMA_URL=http://host.docker.internal:11434
     depends_on:
       - dynamodb-local
     extra_hosts:

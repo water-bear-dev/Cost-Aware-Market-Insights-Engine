@@ -24,50 +24,78 @@ For a deep dive into the system network design and future Cloud integration plan
 - **Python 3.12+**: Required for `langgraph` and `mcp` compatibility.
 - **Model Subscriptions**: Ensure that you have requested access to `Anthropic Claude 3 Haiku` inside the AWS Bedrock console in your target region before going live.
 
-## Quick Start (Running Locally)
+## Environment & LLM Support
 
-To run the engine safely on your local machine (where AI synthesis will mock safely instead of hitting AWS):
+The engine is designed for **Multi-LLM portability**, allowing you to run powerful open-source models locally during development and scale to enterprise-grade models in the cloud.
 
-1. **Clone the repository:**
+| Environment | LLM Provider | Model | Cost | Setup Complexity |
+| :--- | :--- | :--- | :--- | :--- |
+| **Local** | `ollama` | Llama 3 / 3.2 | Free | Low |
+| **Cloud (AWS)** | `bedrock` | Claude 3 Haiku | Pay-as-you-go | Medium |
+| **Local (Quick)** | `mock` | Static Mock | Free | Zero |
+
+---
+
+## Quick Start (Running Locally with Ollama)
+
+To run the engine on your local machine using an open-source LLM:
+
+1. **Install Ollama**: Download from [ollama.com](https://ollama.com/) and run it.
+2. **Pull a model**:
+   ```bash
+   ollama pull llama3.2
+   ```
+3. **Clone the repository**:
    ```bash
    git clone https://github.com/Cost-Aware-Market-Insights-Engine.git
    cd Cost-Aware-Market-Insights-Engine
    ```
-
-2. **Start Colima with a network address** *(if you use Colima instead of Docker Desktop)*:
-   ```bash
-   colima stop
-   colima start --network-address
-   ```
-   > **Why?** Colima's default VM mode doesn't publish a host-accessible network interface, so `localhost:8000` will refuse connections. The `--network-address` flag assigns the VM a stable LAN IP (typically `192.168.64.2`).
-
-3. **Start the containers:**
+4. **Configure for Local Run**:
+   Edit `docker-compose.yml` and ensure `LLM_PROVIDER` is set to `ollama`.
+5. **Start the containers**:
    ```bash
    docker-compose up -d --build
    ```
-   *This spins up the FastAPI backend alongside an `amazon/dynamodb-local` container handling all local storage via boto3.*
+6. **Access the Dashboard**: [http://localhost:8000](http://localhost:8000)
 
-4. **Access the Dashboard:**
-   - **Docker Desktop users:** [http://localhost:8000](http://localhost:8000)
-   - **Colima users:** [http://192.168.64.2:8000](http://192.168.64.2:8000) *(check your IP with `colima list`)*
+---
 
-   The engine will automatically populate with real market data. The **Daily Discovery Picks** banner fires on startup (and refreshes at 8:00 AM AEST daily).
+## AWS Production Deployment (Cloud)
 
-## AWS Production Deployment
+To deploy to AWS using Amazon Bedrock and Claude 3 Haiku:
 
-Deploying the full Alpha-DAG stack to AWS ECS Fargate is handled via automated scripts:
-
-1. **Verify AWS CLI credentials** are loaded (`aws sts get-caller-identity`).
-2. **Deploy Infrastructure & Code**:
+1. **Prerequisites**:
+   - AWS Account with **Amazon Bedrock** access requested for `Claude 3 Haiku`.
+   - AWS CLI configured (`aws configure`).
+2. **Configure for Cloud**:
+   Set `LLM_PROVIDER=bedrock` in your production environment variables.
+3. **Deploy Infrastructure**:
    ```bash
    sh scripts/deploy.sh
    ```
-   *This builds an ARM64-optimized production image, pushes it to ECR, and updates the CloudFormation stack.*
-3. **Teardown (Optional)**:
-   To remove all AWS resources and return to a local-only setup:
+   *This builds an ARM64-optimized production image, pushes it to ECR, and updates the CloudFormation stack (Fargate + DynamoDB).*
+4. **Teardown**:
    ```bash
    sh scripts/teardown.sh
    ```
+
+---
+
+## Configuration Reference
+
+The application behavior is controlled via environment variables (see `src/config.py`):
+
+| Variable | Description | Default |
+| :--- | :--- | :--- |
+| `LLM_PROVIDER` | `mock`, `ollama`, or `bedrock` | Auto-detected |
+| `ENVIRONMENT`  | `local` or `production` | `local` |
+| `OLLAMA_URL` | Endpoint for Ollama API | `http://host.docker.internal:11434` |
+| `OLLAMA_MODEL` | Local model to invoke | `llama3.2` |
+| `DAILY_BUDGET_USD` | Hard cap on AI spend (FinOps) | `5.00` |
+| `TICKERS` | Comma-separated list of symbols | `AAPL,MSFT,GOOGL,AMZN,META` |
+| `DYNAMODB_ENDPOINT_URL`| Point to local DynamoDB (local only) | `None` |
+
+> **Note on Auto-Detection:** If `LLM_PROVIDER` is left blank, the engine will automatically switch to `bedrock` when running in AWS (detected via `AWS_EXECUTION_ENV`) or when `ENVIRONMENT=production`. Otherwise, it defaults to `ollama`.
 
 ## Project Structure
 
