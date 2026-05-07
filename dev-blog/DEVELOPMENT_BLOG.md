@@ -657,3 +657,29 @@ The Market Discovery Hub has transitioned from a data-visualization tool to a de
 
 **Next Steps:**
 With the UI and AI synthesis logic now fully refined, we are ready to scale the system's collaborative capabilities. Phase 6 will explore the integration of a **Sentiment Analysis Node** to the LangGraph DAG, allowing the engine to compare hard quantitative data against the "soft" signals of market sentiment from social platforms.
+
+---
+
+### May 7, 2026: Achieving 24-Hour Market Transparency
+
+The final pieces of the Market Discovery Hub have fallen into place, focusing on absolute data clarity and real-time relevance. 
+
+**The 24-Hour Price Stack:**
+The gap between the standard market close and the opening bell is where some of the most significant moves happen. To ensure our users are never caught off-guard, we've implemented an explicit "Price Stack" across the entire UI. Every ticker now displays:
+- **Explicit Close Price:** Clearly labeled as `CLOSE` to anchor the data.
+- **Pre & Post Market Context:** Labeled as `PRE` and `POST`, these indicators now include both the price *and* a momentum-aware change percentage. This allows users to immediately identify "gaps" in the price action before the main session begins.
+
+**Real-Time News Recency:**
+A market insights engine is only as good as its latest data. We discovered that the default RSS behavior often prioritized relevance over recency, which could bury breaking news. We've overhauled the news service to enforce a strict chronological sort across all feeds. Whether you're looking at the global headlines or a specific ticker's news, the absolute latest information is now guaranteed to be at the top.
+
+**Refining the Professional Aesthetic:**
+We've standardized the terminology across the platform—moving away from generic terms like "Last Price" to the more accurate "Close Price." This small semantic shift, combined with the new 4-column "command center" layout, solidifies the engine's position as a professional-grade tool for informed decision-making.
+
+**Status:**
+**FUNCTIONALLY COMPLETE.** The system now provides a transparent, 24-hour view of the global markets, grounded in both historical close data and live extended-hours activity.
+
+---
+
+### May 7, 2026: Multi-Timeframe Discovery
+
+We've bridged the gap between "at-a-glance" monitoring and deep historical analysis. By adding **interactive period selectors** to every tracked asset card, we've transformed the static sparklines into dynamic research tools. Users can now toggle between a 1-day view and a 1-year view without leaving the Manage tab, allowing for rapid-fire validation of long-term trends against short-term price action.

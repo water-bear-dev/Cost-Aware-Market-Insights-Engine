@@ -852,6 +852,52 @@ function updateCard(wrapper, mkt, insight) {
     };
 }
 
+let cardPeriods = {}; // Global state to track selected periods for each card
+
+function renderCardPeriodSelector(ticker) {
+    const current = cardPeriods[ticker] || '1d';
+    const periods = ['1d', '1w', '1mo', '3mo', '6mo', '1y'];
+    const labels = { '1d': '1D', '1w': '1W', '1mo': '1M', '3mo': '3M', '6mo': '6M', '1y': '1Y' };
+    
+    let html = '<div class="card-period-selector" onclick="event.stopPropagation()">';
+    periods.forEach(p => {
+        const active = p === current ? 'active' : '';
+        html += `<span class="card-period-btn ${active}" onclick="changeCardPeriod('${ticker}', '${p}')">${labels[p]}</span>`;
+    });
+    html += '</div>';
+    return html;
+}
+
+window.changeCardPeriod = async function(ticker, period) {
+    const container = document.getElementById(`sparkline-card-${ticker}`);
+    if (!container) return;
+    
+    cardPeriods[ticker] = period;
+    
+    // Highlight the button immediately
+    const card = container.closest('.insight-card');
+    if (card) {
+        const btns = card.querySelectorAll('.card-period-btn');
+        const labels = { '1d': '1D', '1w': '1W', '1mo': '1M', '3mo': '3M', '6mo': '6M', '1y': '1Y' };
+        btns.forEach(b => b.classList.toggle('active', b.innerText === labels[period]));
+    }
+
+    container.style.opacity = '0.4';
+    try {
+        const response = await fetch(`/api/market/history/${ticker}?period=${period}`);
+        const data = await response.json();
+        if (data.ohlcv && data.ohlcv.length > 0) {
+            const closes = data.ohlcv.map(d => d.close).filter(c => c > 0);
+            const color = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
+            drawSparkline(`sparkline-card-${ticker}`, closes, color);
+        }
+    } catch (e) {
+        console.error('Failed to update card sparkline', e);
+    } finally {
+        container.style.opacity = '1';
+    }
+};
+
 function cardInnerHtml(mkt, insight) {
     // Fix for pending cards with no real data yet
     if (mkt.status === 'pending_data') {
@@ -893,6 +939,7 @@ function cardInnerHtml(mkt, insight) {
             </div>
             
             <div class="card-sparkline-box">
+                ${renderCardPeriodSelector(mkt.ticker)}
                 <div id="sparkline-card-${mkt.ticker}" class="sparkline-inner"></div>
             </div>
 

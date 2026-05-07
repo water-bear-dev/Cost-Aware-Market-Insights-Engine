@@ -41,6 +41,17 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
                     'source': source,
                     'published': pubdate
                 })
+        # Explicitly sort by publication date (newest first)
+        from email.utils import parsedate_to_datetime
+        def parse_date(art):
+            try:
+                # Standard RSS date format
+                return parsedate_to_datetime(art["published"])
+            except:
+                return datetime.min
+        
+        results.sort(key=parse_date, reverse=True)
+
     except Exception as e:
         logger.error("Failed to fetch Google News RSS", ticker=ticker, error=str(e))
     
@@ -115,7 +126,7 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
         spark_hist = ticker.history(period="1d", interval="15m")
         sparkline = []
         if not spark_hist.empty:
-            sparkline = [round(float(c), 2) for c in spark_hist['Close'].tolist()]
+            sparkline = [round(float(c), 2) for c in spark_hist['Close'].tolist() if c > 0]
         elif not hist.empty:
             # Fallback to the 5d history if 1d 15m fails
             sparkline = [round(float(c), 2) for c in hist['Close'].tolist()]

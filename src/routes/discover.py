@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 from src.limiter import limiter
 
 import math
+from datetime import datetime
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
@@ -243,6 +244,17 @@ def _fetch_news() -> dict:
                 "published":   item.findtext("pubDate", ""),
                 "description": clean_desc,
             })
+        
+        # Explicitly sort by publication date (newest first)
+        from email.utils import parsedate_to_datetime
+        def parse_date(art):
+            try:
+                return parsedate_to_datetime(art["published"])
+            except:
+                return datetime.min
+        
+        articles.sort(key=parse_date, reverse=True)
+
     except Exception as e:
         logger.error("Failed to fetch news", error=str(e))
     return {"articles": articles, "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}

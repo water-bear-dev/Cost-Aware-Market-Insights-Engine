@@ -406,7 +406,54 @@ body {
     width: 100%;
     order: 3;
     height: 50px;
-    margin: 1rem 0;
+    margin: 1.5rem 0 0.5rem 0;
+    position: relative;
+}
+
+.card-period-selector {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    top: -22px;
+    right: 0;
+    z-index: 10;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.insight-card:hover .card-period-selector {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.card-period-btn {
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+.card-period-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.card-period-btn.active {
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.15);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.1);
 }
 
 /* Horizontal Mode Layout */
