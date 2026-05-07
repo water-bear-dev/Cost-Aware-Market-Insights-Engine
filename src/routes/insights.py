@@ -88,7 +88,8 @@ def get_daily_picks(request: Request):
                     "last_price": item.get("last_price", "0"),
                     "change_5d": item.get("change_5d", "0"),
                     "exchange": item.get("exchange", ""),
-                    "company_name": item.get("company_name", "")
+                    "company_name": item.get("company_name", ""),
+                    "currency": item.get("currency", "USD")
                 })
         return picks
     except Exception as e:

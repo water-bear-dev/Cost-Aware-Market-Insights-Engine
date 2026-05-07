@@ -541,5 +541,44 @@ With the system now successfully toggling between **Ollama (Local)** and **Bedro
 **4. The "Compact" Purge:**
 In our pursuit of a premium experience, we removed the "Compact" view option. While functional, it compromised the visual hierarchy of our new metadata-rich cards. We've standardized on **Horizontal** and **Wide** views, ensuring that the engine always presents a polished, data-dense interface without visual clutter.
 
+### Entry 32: The "Intraday Momentum" Upgrade
+
+**Date:** 2026-05-07
+**Milestone:** Visual Fidelity & Scalability
+
+Today we pushed the Market Insights Engine into "Pro Terminal" territory by solving the missing context of intraday price action and significantly expanding the engine's tracking capacity.
+
+**1. The 24-Hour Pulse:**
+While the dashboard provided excellent daily summaries, it lacked a visual "pulse" of how a stock moved *during* the day. We implemented **24-hour sparklines** into every ticker card. These aren't just decorative; they ingest 15-minute interval data directly from our market service, providing immediate visual feedback on whether a stock is trending up or down since the last session.
+
+**2. Breaking the 10-Ticker Ceiling:**
+User feedback indicated that the 10-ticker limit was too restrictive for serious monitoring. We refactored our ingestion and rendering logic to support **30 tracked tickers** simultaneously. To maintain performance, we optimized the "Async Diff-Patch" loop to handle the increased data volume without UI lag.
+
+**3. Visualization Polish:**
+The main portfolio bar chart received a significant "FinOps" refinement. We removed interactive zooming—which often led to accidental layout shifts—and replaced it with static **data labels** pinned above each bar. This allows for instant, cross-portfolio price comparison at a single glance, without requiring hover or click interactions.
+
 ---
-*Project Managed by Antigravity*
+
+
+
+## Entry 33: Deep System Stabilization and Global Market Parity
+
+**Date:** 2026-05-07
+**Milestone:** Resilience & Internationalization
+
+Following the UI expansions in Entry 32, we encountered several critical backend and logic hurdles that threatened system uptime. This entry details the "under-the-hood" work required to stabilize the engine for a global audience.
+
+**1. The `yfinance` Multi-Index Patch:**
+A silent breaking change in the `yfinance` library caused our Discovery Agent to fail data retrieval. When performing bulk downloads, the library now defaults to a MultiIndex DataFrame structure. We refactored `src/dag/discovery_graph.py` to explicitly handle multi-level column indexing, ensuring that our daily "S&P 500" and "Hidden Gem" analysis remains fully automated and resilient to library updates.
+
+**2. Dynamic Currency Normalization:**
+To properly support Australian (e.g., `NAB.AX`) and European markets, we moved beyond hardcoded USD logic. 
+- **Live Rates**: Implemented a real-time exchange rate service in `src/routes/meta.py` fetching pairs like `USDAUD=X` and `USDJPY=X`.
+- **Currency-Aware Rendering**: The dashboard now intelligently detects the ticker's native currency and normalizes it to the user's selected preference (USD, AUD, EUR, or JPY) using a two-way conversion pipeline.
+
+**3. Frontend Syntax Protection & Robustness:**
+- **The "Blank Screen" Fix**: Resolved a fatal JavaScript `SyntaxError` (duplicate identifier) that was preventing the entire dashboard from initializing.
+- **Backend Hardening**: Updated the `/api/v1/market` and `/api/v1/insights` routes with safer `.get()` accessors. This ensures that even if a ticker has partial or legacy data in DynamoDB, the dashboard remains functional instead of returning a 500 error.
+
+The engine is now significantly more stable, accurate across international borders, and better prepared for the 30-ticker volume expansion.
+

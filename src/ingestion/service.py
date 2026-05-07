@@ -111,6 +111,25 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
                 logger.error("Info fallback failed", ticker=ticker_symbol, error=str(e))
                 return None
             
+        # Sparkline data (last 1 day, 15m intervals)
+        spark_hist = ticker.history(period="1d", interval="15m")
+        sparkline = []
+        if not spark_hist.empty:
+            sparkline = [round(float(c), 2) for c in spark_hist['Close'].tolist()]
+        elif not hist.empty:
+            # Fallback to the 5d history if 1d 15m fails
+            sparkline = [round(float(c), 2) for c in hist['Close'].tolist()]
+            
+        # Capture currency
+        currency = "USD"
+        try:
+            currency = ticker.fast_info.get('currency', 'USD')
+        except:
+            try:
+                currency = ticker.info.get('currency', 'USD')
+            except:
+                pass
+
         headlines_data = fetch_headlines(ticker_symbol, max_count=5)
         
         return {
@@ -124,7 +143,9 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             'headlines': [h['title'] for h in headlines_data],
             'headline_links': headlines_data,
             'exchange': exchange,
-            'company_name': company_name
+            'company_name': company_name,
+            'sparkline': sparkline,
+            'currency': currency
         }
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
@@ -184,6 +205,8 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         'headline_links': json.dumps(data.get('headline_links', [])),
         'exchange': data.get('exchange', ''),
         'company_name': data.get('company_name', ''),
+        'sparkline': [Decimal(str(p)) for p in data.get('sparkline', [])],
+        'currency': data.get('currency', 'USD'),
         'data_hash': data_hash,
         'ttl': ttl
     }
@@ -231,6 +254,8 @@ def ingest_market_data():
             'headline_links': json.dumps(data.get('headline_links', [])),
             'exchange': data.get('exchange', ''),
             'company_name': data.get('company_name', ''),
+            'sparkline': [Decimal(str(p)) for p in data.get('sparkline', [])],
+            'currency': data.get('currency', 'USD'),
             'data_hash': data_hash,
             'ttl': ttl
         }

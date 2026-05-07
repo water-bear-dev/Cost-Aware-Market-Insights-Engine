@@ -55,24 +55,37 @@ function formatExchange(code) {
     return map[upper] || upper;
 }
 
-function formatPrice(value) {
+function formatPrice(value, tickerCurrency = 'USD') {
     if (value === null || value === undefined) return 'N/A';
+    
+    // 1. Convert Ticker Price -> USD
+    const tickerRate = EXCHANGE_RATES[tickerCurrency] ? EXCHANGE_RATES[tickerCurrency].rate : 1.0;
+    const usdValue = value / tickerRate;
+    
+    // 2. Convert USD -> Selected Currency
     const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
-    const converted = value * rate;
-    // Special case for JPY which usually doesn't have decimals for small amounts, but let's keep 2 for consistency or 0 for JPY
+    const converted = usdValue * rate;
+    
     const decimals = currentCurrency === 'JPY' ? 0 : 2;
     return `${symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
 }
 
-function formatLargePrice(value) {
+function formatLargePrice(value, tickerCurrency = 'USD') {
     if (value === null || value === undefined || value === 0) return '—';
+    
+    // 1. Convert Ticker Price -> USD
+    const tickerRate = EXCHANGE_RATES[tickerCurrency] ? EXCHANGE_RATES[tickerCurrency].rate : 1.0;
+    const usdValue = value / tickerRate;
+    
+    // 2. Convert USD -> Selected Currency
     const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
-    const v = value * rate;
+    const v = usdValue * rate;
+
     if (v >= 1e12) return `${symbol}${(v / 1e12).toFixed(2)}T`;
     if (v >= 1e9)  return `${symbol}${(v / 1e9).toFixed(2)}B`;
     if (v >= 1e6)  return `${symbol}${(v / 1e6).toFixed(2)}M`;
     if (v >= 1e3)  return `${symbol}${(v / 1e3).toFixed(1)}K`;
-    return formatPrice(value);
+    return formatPrice(value, tickerCurrency);
 }
 
 /* =====================================================
@@ -376,7 +389,7 @@ async function fetchDailyPicks() {
                             ${pick.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${pick.company_name}</span>` : ''}
                         </div>
                         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                            <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${formatPrice(price)}</span>
+                            <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${formatPrice(price, pick.currency || 'USD')}</span>
                             <span style="font-size: 0.85rem; font-weight: 600; color: ${changeColor}; background: rgba(255,255,255,0.03); padding: 0.1rem 0.4rem; border-radius: 4px; margin-top: 4px;">${sign}${change.toFixed(2)}% (5d)</span>
                             <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;" 
                                     onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
@@ -560,16 +573,36 @@ async function fetchDashboardCosts() {
 function drawSparkline(elementId, dataset, color) {
     const container = document.getElementById(elementId);
     if (!container) return;
+    if (sparklineInstances[elementId]) {
+        // Check if the canvas is still in the DOM
+        const existingCanvas = sparklineInstances[elementId].canvas;
+        if (!document.body.contains(existingCanvas)) {
+            sparklineInstances[elementId].destroy();
+            delete sparklineInstances[elementId];
+        }
+    }
+
     if (!sparklineInstances[elementId]) {
         container.innerHTML = '<canvas></canvas>';
         const ctx = container.querySelector('canvas').getContext('2d');
         sparklineInstances[elementId] = new Chart(ctx, {
             type: 'line',
             data: { labels: dataset.map((_,i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } }, animation: false }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { display: false }, 
+                    tooltip: { enabled: false },
+                    datalabels: { display: false } 
+                }, 
+                scales: { x: { display: false }, y: { display: false } }, 
+                animation: false 
+            }
         });
     } else {
         sparklineInstances[elementId].data.datasets[0].data = dataset;
+        sparklineInstances[elementId].data.datasets[0].borderColor = color;
         sparklineInstances[elementId].update('none');
     }
 }
@@ -588,7 +621,7 @@ async function fetchMarketAndInsights() {
         const marketArr = await marketRes.json();
         const insightsArr = await insightsRes.json();
 
-        document.getElementById('ticker-count').textContent = `${marketArr.length}/10 Tracked`;
+        document.getElementById('ticker-count').textContent = `${marketArr.length}/30 Tracked`;
 
         // Build maps
         const newMarket = {};
@@ -642,6 +675,11 @@ function patchInsightsGrid(newMarket, newInsights) {
         } else {
             const card = buildCard(mkt, insight, index);
             container.appendChild(card);
+        }
+
+        if (mkt.sparkline && mkt.sparkline.length > 0) {
+            const color = mkt.change_pct >= 0 ? '#10b981' : '#f43f5e';
+            drawSparkline(`sparkline-card-${mkt.ticker}`, mkt.sparkline, color);
         }
     });
 }
@@ -745,18 +783,23 @@ function cardInnerHtml(mkt, insight) {
     const sClass = signalClass(signal);
 
     return `
-        <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-            <div class="card-header-left" style="display: flex; flex-direction: column; align-items: flex-start;">
-                ${mkt.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${formatExchange(mkt.exchange)}</span>` : ''}
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span class="ticker-symbol" style="font-size: 1.8rem; line-height: 1.1;">${mkt.ticker}</span>
-                    ${signal ? `<span class="signal-pill ${sClass}" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 6px;">${signal}</span>` : ''}
+        <div class="card-header">
+            <div class="card-header-left">
+                ${mkt.exchange ? `<span class="card-exchange">${formatExchange(mkt.exchange)}</span>` : ''}
+                <div class="card-ticker-row">
+                    <span class="ticker-symbol">${mkt.ticker}</span>
+                    ${signal ? `<span class="signal-pill ${sClass}">${signal}</span>` : ''}
                 </div>
-                ${mkt.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${mkt.company_name}</span>` : ''}
+                ${mkt.company_name ? `<span class="card-company-name">${mkt.company_name}</span>` : ''}
             </div>
-            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; min-height: 50px;">
-                <span style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary);">${formatPrice(mkt.close_price)}</span>
-                <span class="${changeClass}" style="font-size: 0.9rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 6px; margin-top: 4px;">${sign}${mkt.change_pct.toFixed(2)}%</span>
+            
+            <div class="card-sparkline-box">
+                <div id="sparkline-card-${mkt.ticker}" class="sparkline-inner"></div>
+            </div>
+
+            <div class="card-price-box">
+                <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
+                <span class="${changeClass} card-change">${sign}${mkt.change_pct.toFixed(2)}%</span>
             </div>
         </div>
         <div class="insight-text" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
@@ -781,7 +824,7 @@ async function deleteTickerLogic(ticker) {
             delete lastInsightsData[ticker];
             updatePortfolioChart(Object.values(lastMarketData));
             const total = Object.keys(lastMarketData).length;
-            document.getElementById('ticker-count').textContent = `${total}/10 Tracked`;
+            document.getElementById('ticker-count').textContent = `${total}/30 Tracked`;
             return true;
         }
     } catch (e) {
@@ -801,7 +844,10 @@ function updatePortfolioChart(marketData) {
     if (sorted.length === 0) return;
 
     const labels = sorted.map(d => d.ticker);
-    const data = sorted.map(d => d.close_price);
+    const data = sorted.map(d => {
+        const tickerRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
+        return d.close_price / tickerRate; // Normalize to USD for the chart baseline
+    });
     const colors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(244,63,94,0.4)');
     const borderColors = sorted.map(d => d.change_pct >= 0 ? 'rgba(16,185,129,0.9)' : 'rgba(244,63,94,0.9)');
 
@@ -847,8 +893,17 @@ function updatePortfolioChart(marketData) {
                         } 
                     },
                     zoom: {
-                        pan: { enabled: true, mode: 'x' },
-                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
+                        zoom: { enabled: false }
+                    },
+                    datalabels: {
+                        anchor: 'end',
+                        align: 'top',
+                        formatter: (v) => {
+                            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+                            return `${symbol}${(v * rate).toFixed(0)}`;
+                        },
+                        color: '#f8fafc',
+                        font: { weight: 'bold', size: 10 }
                     }
                 },
                 scales: {
@@ -865,7 +920,8 @@ function updatePortfolioChart(marketData) {
                     },
                     x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
                 }
-            }
+            },
+            plugins: [ChartDataLabels]
         });
     }
 }
@@ -999,7 +1055,7 @@ function renderHeroStats(mkt) {
     document.getElementById('modal-hero-stats').innerHTML = `
         <div class="hero-stat main">
             <div class="hero-stat-label">LAST PRICE</div>
-            <div class="hero-stat-value main">${formatPrice(mkt.close_price)}</div>
+            <div class="hero-stat-value main">${formatPrice(mkt.close_price, mkt.currency)}</div>
         </div>
         <div class="hero-stat main">
             <div class="hero-stat-label">DAY CHANGE</div>
@@ -1007,29 +1063,29 @@ function renderHeroStats(mkt) {
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
-            <div class="hero-stat-value">${formatPrice(mkt.open_price)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.open_price, mkt.currency)}</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">HIGH</div>
-            <div class="hero-stat-value">${formatPrice(mkt.high_price)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.high_price, mkt.currency)}</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">LOW</div>
-            <div class="hero-stat-value">${formatPrice(mkt.low_price)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.low_price, mkt.currency)}</div>
         </div>
     `;
 }
 
 function renderKeyStats(info, mkt) {
-    const fmt = (v, isPrice=false, decimals=2) => {
+    const fmt = (v, isPrice, dec) => {
         if (v === null || v === undefined || v === '—') return '—';
-        if (isPrice) return formatPrice(parseFloat(v));
-        return parseFloat(v).toFixed(decimals);
+        if (isPrice) return formatPrice(parseFloat(v), mkt.currency);
+        return parseFloat(v).toFixed(dec || 2);
     };
     const fmtVol = v => v ? (v >= 1e9 ? `${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `${(v/1e6).toFixed(2)}M` : `${(v/1e3).toFixed(1)}K`) : '—';
-
+    
     const stats = [
-        { label: 'Market Cap',     value: formatLargePrice(info.market_cap) },
+        { label: 'Market Cap',     value: formatLargePrice(info.market_cap, mkt.currency) },
         { label: 'P/E Ratio',      value: fmt(info.pe_ratio, false, 1) },
         { label: 'Fwd P/E',        value: fmt(info.forward_pe, false, 1) },
         { label: 'EPS (TTM)',      value: fmt(info.eps, true) },
@@ -1152,6 +1208,7 @@ async function loadModalChart(ticker, period) {
             currentModalMkt.low_price = low;
             currentModalMkt.change_pct = change_pct;
             currentModalMkt.volume = today.volume;
+            currentModalMkt.currency = data.info ? data.info.currency : 'USD';
             currentModalMkt.status = 'loaded';
             
             renderHeroStats(currentModalMkt);

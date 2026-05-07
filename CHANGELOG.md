@@ -2,15 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.8.2] - 2026-05-07
+## [2.8.3] - 2026-05-07
 ### Added
-- **Discovery Hero Stats Hydration** — Fixed an issue where Discovery Picks modals would show empty/NaN stats. The engine now asynchronously fetches live quote data (Price, Change, Open, High, Low) directly from yfinance info when a discovery modal is opened.
-- **Discovery Rationale Stability** — Fixed a critical UI bug where the Daily Discovery section would disappear if the AI agent returned rationales as JSON arrays instead of strings. Added robust array-to-string transformation in the frontend.
-- **Improved Error Visibility** — Added console logging for failed discovery fetches to aid in future debugging of agent-led insights.
+- **24-Hour Value Timelines** — Integrated sparkline charts directly into ticker cards. These provide a rolling 24-hour visual history of price action at 15-minute intervals, providing immediate context on intraday momentum.
+- **Expanded Portfolio Capacity** — Increased the tracked ticker limit from 10 to 30, allowing for more comprehensive market monitoring without performance degradation.
+- **Enhanced Data Visualization** — Added static numeric labels above all bars in the portfolio summary chart for instant legibility. Disabled interactive zoom to prevent accidental layout shifts.
 
 ### Changed
-- **Enriched Market API** — Expanded the `/api/v1/market/history/{ticker}` endpoint to include real-time `current_price`, `previous_close`, and day stats, ensuring discovery picks have the same data fidelity as watchlist items.
-- **Standardized Insight Density** — Discovery cards now consistently display exactly 2 summary points, matching the refined aesthetic of the main watchlist tickers.
+- **Smart Sparkline Placement** — Dynamically repositioned the sparkline container based on view density: placed between ticker and price in "Horizontal" mode, and below the company name in "Wide/Standard" modes.
+- **Professional Metadata** — Ticker cards now feature high-contrast exchange labels (e.g., NASDAQ, NYSE) at the top of every card for enterprise-grade scannability.
 
 ## [2.8.1] - 2026-05-07
 ### Added

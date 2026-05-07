@@ -55,8 +55,8 @@ def add_ticker(request: Request, req: TickerRequest):
     if ticker in active:
         raise HTTPException(status_code=400, detail="Ticker already tracked")
     
-    if len(active) >= 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 tickers allowed")
+    if len(active) >= 30:
+        raise HTTPException(status_code=400, detail="Maximum 30 tickers allowed")
         
     table = get_table('Tickers')
     try:

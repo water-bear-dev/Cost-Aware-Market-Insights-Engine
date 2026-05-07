@@ -88,4 +88,4 @@ As part of the shift to autonomous workflows, the platform now runs a **Daily Di
 - **AI Selection**: Prompts Bedrock to determine the optimal "Ticker to Watch" for both categories and persists them to the dashboard's new dynamic banner.
 
 ---
-*Managed by Antigravity*
+

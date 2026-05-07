@@ -50,17 +50,19 @@ def get_market_data(request: Request):
 
                 results.append({
                     "ticker": v["ticker"],
-                    "timestamp": v["timestamp"],
-                    "open_price": float(v["open_price"]),
-                    "high_price": float(v["high_price"]),
-                    "low_price": float(v["low_price"]),
-                    "close_price": float(v["close_price"]),
-                    "volume": int(v["volume"]),
-                    "change_pct": float(v["change_pct"]),
+                    "timestamp": v.get("timestamp", ""),
+                    "open_price": float(v.get("open_price", 0.0)),
+                    "high_price": float(v.get("high_price", 0.0)),
+                    "low_price": float(v.get("low_price", 0.0)),
+                    "close_price": float(v.get("close_price", 0.0)),
+                    "volume": int(v.get("volume", 0)),
+                    "change_pct": float(v.get("change_pct", 0.0)),
                     "headlines": v.get("headlines", []),
                     "headline_links": headline_links,
                     "exchange": v.get("exchange", ""),
                     "company_name": v.get("company_name", ""),
+                    "sparkline": [float(p) for p in (v.get("sparkline") or [])],
+                    "currency": v.get("currency", "USD"),
                     "status": "active"
                 })
             else:
@@ -176,6 +178,7 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "beta":            raw_info.get("beta", None),
                 "52w_high":        raw_info.get("fiftyTwoWeekHigh", None),
                 "52w_low":         raw_info.get("fiftyTwoWeekLow", None),
+                "currency":        raw_info.get("currency", "USD"),
                 "avg_volume":      raw_info.get("averageVolume", None),
                 "target_price":    raw_info.get("targetMeanPrice", None),
                 "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:3000],

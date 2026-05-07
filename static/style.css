@@ -172,6 +172,112 @@ body {
     margin: 0 auto;
 }
 
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.card-header-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 140px;
+    flex: 1;
+}
+
+.card-exchange {
+    font-size: 0.65rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    margin-bottom: 2px;
+}
+
+.card-ticker-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.ticker-symbol {
+    font-size: 1.8rem;
+    line-height: 1.1;
+    font-weight: 800;
+}
+
+.card-company-name {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+}
+
+.card-sparkline-box {
+    width: 100%;
+    order: 3;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.75rem 0;
+}
+
+.sparkline-inner {
+    width: 100%;
+    height: 100%;
+}
+
+.card-price-box {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 100px;
+    order: 2;
+}
+
+.card-price {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.card-change {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    margin-top: 4px;
+}
+
+/* Wide Mode Layout */
+.insights-grid.density-wide .card-header {
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.insights-grid.density-wide .card-header-left {
+    flex: 1;
+}
+
+.insights-grid.density-wide .card-sparkline-box {
+    width: 100%;
+    order: 3;
+    height: 50px;
+    margin: 1rem 0;
+}
+
+/* Horizontal Mode Layout */
 .insights-grid.density-horizontal .glass {
     flex-direction: row !important;
     align-items: center;
@@ -183,6 +289,27 @@ body {
 .insights-grid.density-horizontal .card-header {
     margin-bottom: 0;
     width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 2rem;
+}
+
+.insights-grid.density-horizontal .card-header-left {
+    flex: 0 0 160px;
+    order: 1;
+}
+
+.insights-grid.density-horizontal .card-sparkline-box {
+    width: auto;
+    flex: 1;
+    order: 2;
+    margin: 0;
+    height: 35px;
+}
+
+.insights-grid.density-horizontal .card-price-box {
+    flex: 0 0 120px;
+    order: 3;
 }
 
 .insights-grid.density-horizontal .insight-text,
@@ -200,10 +327,6 @@ body {
 }
 .insight-card.fade-out { opacity: 0; transform: scale(0.95); }
 .insight-card .glass:hover { transform: translateY(-4px); }
-
-.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-.card-header-left { display: flex; align-items: center; gap: 0.75rem; }
-.ticker-symbol { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
 
 /* Signal badge on card */
 .signal-pill {

@@ -9,6 +9,7 @@ import httpx
 from src.config import settings
 from datetime import datetime
 from src.clients.dynamo import get_table
+import pandas as pd
 
 logger = structlog.get_logger(__name__)
 
@@ -48,7 +49,14 @@ def quant_metrics_node(state: DiscoveryState) -> dict:
         data = yf.download(all_tickers, period="1mo", group_by="ticker", progress=False)
         for t in all_tickers:
             try:
-                hist = data[t] if len(all_tickers) > 1 else data
+                # Handle yfinance multi-level columns (Ticker, Attribute)
+                if isinstance(data.columns, pd.MultiIndex):
+                    if t not in data.columns.levels[0]: continue
+                    hist = data[t]
+                else:
+                    # Single ticker, no MultiIndex (older yf or specific edge case)
+                    hist = data
+                
                 if hist.empty: continue
                 
                 closes = hist['Close'].dropna()
@@ -184,9 +192,14 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 info = t_obj.info
                 exchange = info.get('exchange', '')
                 company_name = info.get('longName') or info.get('shortName', '')
+                try:
+                    currency = t_obj.fast_info.get('currency', 'USD')
+                except:
+                    currency = info.get('currency', 'USD')
             except Exception:
                 exchange = ''
                 company_name = ''
+                currency = 'USD'
 
             # We use a special ticker ID for easy fetching
             ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
@@ -202,7 +215,8 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'last_price': str(m.get('last_price', 0.0)),
                 'change_5d': str(m.get('change_5d', 0.0)),
                 'exchange': exchange,
-                'company_name': company_name
+                'company_name': company_name,
+                'currency': currency
             }
             insights_table.put_item(Item=item)
             logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])
