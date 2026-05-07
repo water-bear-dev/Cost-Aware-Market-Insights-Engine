@@ -16,13 +16,27 @@ let lastInsightsData = {};
 let dailyPicksData = {};
 
 let currentCurrency = 'USD';
-const EXCHANGE_RATES = {
+let EXCHANGE_RATES = {
     'USD': { rate: 1.0, symbol: '$' },
     'EUR': { rate: 0.92, symbol: '€' },
     'GBP': { rate: 0.83, symbol: '£' },
     'AUD': { rate: 1.54, symbol: 'A$' },
     'JPY': { rate: 154.0, symbol: '¥' }
 };
+
+async function refreshExchangeRates() {
+    try {
+        const resp = await fetch('/api/v1/meta/rates');
+        if (resp.ok) {
+            const rates = await resp.json();
+            EXCHANGE_RATES = rates;
+            console.log('Exchange rates updated:', EXCHANGE_RATES);
+            // Re-render if necessary, but usually the first dashboard load happens after this or concurrently
+        }
+    } catch (e) {
+        console.error('Failed to fetch exchange rates, using defaults:', e);
+    }
+}
 
 function formatExchange(code) {
     if (!code) return '';
@@ -71,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboard();
     setupTickerForm();
     initCurrency();
+    refreshExchangeRates();
 });
 
 /* =====================================================

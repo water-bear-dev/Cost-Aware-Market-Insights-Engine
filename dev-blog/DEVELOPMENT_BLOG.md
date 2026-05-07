@@ -529,7 +529,10 @@ As we reached the final stages of UI polish, we prioritized "Scannability at Sca
 **1. Metadata Integration (Exchange & Entity):**
 We refactored the `MarketData` ingestion cycle to explicitly fetch and store the `exchange` and `longName` (Company Name) from Yahoo Finance. This data is now surfaced directly on the dashboard cards. To ensure user clarity, we implemented a `formatExchange` mapping that transforms cryptic identifiers like **NMS** and **NYQ** into easily recognizable names like **NASDAQ** and **NYSE**. The exchange is positioned at the very top in a high-contrast accent color, while the company name sits directly below the symbol, providing immediate institutional context.
 
-**2. Right-Aligned Pricing Alignment:**
+**2. Dynamic Currency Pricing:**
+We eliminated hardcoded exchange rates by implementing a backend `/meta/rates` service. This service leverages the **Yahoo Finance FX API** to fetch real-time conversion rates for EUR, GBP, AUD, and JPY relative to the USD. The rates are cached server-side for one hour to maintain performance while ensuring that global users see portfolio valuations that reflect current market reality.
+
+**3. Right-Aligned Pricing Alignment:**
 We shifted the pricing and percentage change blocks to the far right margin of the cards. By decoupling the symbol/name (left) from the price action (right), we've created a clean vertical corridor for the eyes to scan. This aligns with professional terminal standards like TradingView or Bloomberg, where the "what" and the "how much" are spatially separated for clarity.
 
 **3. Multi-LLM Documentation & Portability:**

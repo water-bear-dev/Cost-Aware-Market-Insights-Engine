@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from src.clients.dynamo import init_tables
-from src.routes import health, insights, costs, tickers, market, v2_dag
+from src.routes import health, insights, costs, tickers, market, v2_dag, meta
 from src.ingestion.service import ingest_market_data
 from src.synthesis.service import synthesize_insights
 from slowapi.errors import RateLimitExceeded
@@ -107,6 +107,7 @@ app.include_router(costs.router, prefix="/api/v1")
 app.include_router(tickers.router, prefix="/api/v1")
 app.include_router(market.router, prefix="/api/v1")
 app.include_router(v2_dag.router, prefix="/api/v2/tickers")
+app.include_router(meta.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
