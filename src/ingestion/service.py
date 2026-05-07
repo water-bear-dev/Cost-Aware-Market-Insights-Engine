@@ -120,13 +120,21 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             # Fallback to the 5d history if 1d 15m fails
             sparkline = [round(float(c), 2) for c in hist['Close'].tolist()]
             
-        # Capture currency
+        # Capture currency and extended hours data
         currency = "USD"
+        pre_market_price = None
+        post_market_price = None
+        
         try:
-            currency = ticker.fast_info.get('currency', 'USD')
+            raw_info = ticker.info
+            currency = raw_info.get('currency', 'USD')
+            pre_market_price = raw_info.get('preMarketPrice')
+            pre_market_change = raw_info.get('preMarketChangePercent')
+            post_market_price = raw_info.get('postMarketPrice')
+            post_market_change = raw_info.get('postMarketChangePercent')
         except:
             try:
-                currency = ticker.info.get('currency', 'USD')
+                currency = ticker.fast_info.get('currency', 'USD')
             except:
                 pass
 
@@ -145,7 +153,11 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             'exchange': exchange,
             'company_name': company_name,
             'sparkline': sparkline,
-            'currency': currency
+            'currency': currency,
+            'pre_market_price': pre_market_price,
+            'pre_market_change': pre_market_change,
+            'post_market_price': post_market_price,
+            'post_market_change': post_market_change
         }
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))

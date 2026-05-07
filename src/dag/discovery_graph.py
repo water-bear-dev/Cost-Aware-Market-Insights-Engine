@@ -195,6 +195,10 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 info = t_obj.info
                 exchange = info.get('exchange', '')
                 company_name = info.get('longName') or info.get('shortName', '')
+                pre_market_price = info.get('preMarketPrice')
+                pre_market_change = info.get('preMarketChangePercent')
+                post_market_price = info.get('postMarketPrice')
+                post_market_change = info.get('postMarketChangePercent')
                 try:
                     currency = t_obj.fast_info.get('currency', 'USD')
                 except:
@@ -203,6 +207,10 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 exchange = ''
                 company_name = ''
                 currency = 'USD'
+                pre_market_price = None
+                pre_market_change = None
+                post_market_price = None
+                post_market_change = None
 
             # We use a special ticker ID for easy fetching
             ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
@@ -221,7 +229,11 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'volatility_ann': str(round(m.get('volatility_ann', 0.0) * 100, 2)),
                 'exchange': exchange,
                 'company_name': company_name,
-                'currency': currency
+                'currency': currency,
+                'pre_market_price': str(pre_market_price) if pre_market_price else None,
+                'pre_market_change': str(pre_market_change) if pre_market_change else None,
+                'post_market_price': str(post_market_price) if post_market_price else None,
+                'post_market_change': str(post_market_change) if post_market_change else None
             }
             insights_table.put_item(Item=item)
             logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])

@@ -178,25 +178,29 @@ def _fetch_movers() -> dict:
         top_gainers = movers[:10]
         top_losers  = list(reversed(movers[-10:]))
 
-        # Enrich with company names (batch to avoid too many requests)
-        symbols_needed = [m["ticker"] for m in top_gainers + top_losers
-                          if m["ticker"] not in _ticker_name_cache]
-        if symbols_needed:
-            try:
-                tickers_obj = yf.Tickers(" ".join(symbols_needed))
-                for sym in symbols_needed:
-                    t = tickers_obj.tickers.get(sym)
-                    if t:
-                        info = t.info
-                        _ticker_name_cache[sym] = info.get("shortName") or info.get("longName", sym)
-                    else:
-                        _ticker_name_cache[sym] = sym
-            except Exception:
-                for sym in symbols_needed:
-                    _ticker_name_cache[sym] = sym
-
-        for m in top_gainers + top_losers:
-            m["company_name"] = _ticker_name_cache.get(m["ticker"], m["ticker"])
+        # Enrich with company names and extended hours data
+        all_movers = top_gainers + top_losers
+        try:
+            for m in all_movers:
+                sym = m["ticker"]
+                # Use cache for company name if possible, but still fetch info for live pre/post data
+                if sym in _ticker_name_cache:
+                    m["company_name"] = _ticker_name_cache[sym]
+                
+                try:
+                    t = yf.Ticker(sym)
+                    info = t.info
+                    m["company_name"] = info.get("shortName") or info.get("longName") or sym
+                    m["pre_market_price"] = info.get("preMarketPrice")
+                    m["pre_market_change"] = info.get("preMarketChangePercent")
+                    m["post_market_price"] = info.get("postMarketPrice")
+                    m["post_market_change"] = info.get("postMarketChangePercent")
+                    m["currency"] = info.get("currency", "USD")
+                    _ticker_name_cache[sym] = m["company_name"]
+                except:
+                    m["company_name"] = _ticker_name_cache.get(sym, sym)
+        except Exception as e:
+            logger.warning("Movers enrichment failed", error=str(e))
 
         return {
             "gainers": top_gainers,

@@ -650,6 +650,7 @@ Finally, we closed the "granularity gap" in the Discover tab:
 - **Company Identifiers:** Top Movers now include full company names alongside ticker symbols. This is a small but critical usability fix—most humans recognize "NVIDIA" faster than "NVDA".
 - **News Context:** News headlines in the Discover feed now feature short descriptions, allowing users to gauge the relevance of a story before clicking through.
 - **Vertical Regional Layout:** Reorganized Global Markets into distinct vertical columns (USA, Europe, Asia Pacific). This replaces the horizontal row-based flow with a clean, side-by-side "command center" view that simplifies regional comparison.
+- **Extended Hours Context:** Integrated real-time `preMarketPrice` and `postMarketPrice` data across every ticker UI. Whether it's a tracked asset in the Manage tab, a Daily Pick, or a Top Mover, users now have instant visibility into price action outside of standard exchange hours—a critical feature for identifying gaps and momentum before the opening bell.
 
 **Status:**
 The Market Discovery Hub has transitioned from a data-visualization tool to a decision-support platform. AI recommendations are no longer just "takes"; they are transparent, data-backed narratives.

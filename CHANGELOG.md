@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
   - **Why It's Interesting** (Potential)
   - **What to Watch** (Risks/Catalysts)
 - **Granular Asset Metadata** — Surfaced quantitative performance metrics (`1-Month Momentum`, `5-Day Change`) directly on discovery pick cards for immediate data-driven validation.
+- **Extended Hours Trading Data** — Integrated real-time Pre-Market and Post-Market price information (including % changes) across all ticker displays (Watchlist, Daily Picks, Top Movers, and Modal details).
+- **Strict 4-Column Regional Layout** — Finalized the Global Markets section with a unified, 4-column single-row grid for AU, US, EU, and Asian indices.
 - **Enriched Discover Data** — 
   - **Commodities** now display standard trading units (e.g., `oz`, `bbl`, `kg`).
   - **Top Movers** now include the full company name alongside the ticker symbol for better readability.

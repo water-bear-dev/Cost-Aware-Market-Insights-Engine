@@ -88,6 +88,32 @@ function formatLargePrice(value, tickerCurrency = 'USD') {
     return formatPrice(value, tickerCurrency);
 }
 
+function renderExtendedHours(mkt) {
+    // Standardize field names across different API objects
+    const pre = mkt.pre_market_price || mkt.preMarketPrice;
+    const preChg = mkt.pre_market_change || mkt.preMarketChangePercent;
+    const post = mkt.post_market_price || mkt.postMarketPrice;
+    const postChg = mkt.post_market_change || mkt.postMarketChangePercent;
+    
+    if (!pre && !post) return '';
+    
+    let html = '<div style="font-size: 0.65rem; font-weight: 500; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; opacity: 0.9;">';
+    
+    if (pre && pre !== 'None') {
+        const chg = parseFloat(preChg || 0);
+        const color = chg >= 0 ? '#10b981' : '#f43f5e';
+        html += `<span><span style="color:var(--accent); font-weight: 700; font-size: 0.6rem;">PRE</span> ${formatPrice(parseFloat(pre), mkt.currency || 'USD')} <span style="color:${color}; font-size: 0.6rem;">(${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%)</span></span>`;
+    }
+    if (post && post !== 'None') {
+        const chg = parseFloat(postChg || 0);
+        const color = chg >= 0 ? '#10b981' : '#f43f5e';
+        html += `<span><span style="color:var(--accent); font-weight: 700; font-size: 0.6rem;">POST</span> ${formatPrice(parseFloat(post), mkt.currency || 'USD')} <span style="color:${color}; font-size: 0.6rem;">(${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%)</span></span>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
 /* =====================================================
    Bootstrap
    ===================================================== */
@@ -423,7 +449,11 @@ async function fetchDailyPicks() {
                             ${pick.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${pick.company_name}</span>` : ''}
                         </div>
                         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                            <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary);">${formatPrice(price, pick.currency || 'USD')}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 4px;">
+                                <span style="font-size: 0.6rem; color: var(--accent); font-weight: 700; opacity: 0.8; letter-spacing: 0.05em;">CLOSE</span>
+                                <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); line-height: 1;">${formatPrice(price, pick.currency || 'USD')}</span>
+                            </div>
+                            ${renderExtendedHours(pick)}
                             <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;"
                                     onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
                                 + Track
@@ -867,7 +897,11 @@ function cardInnerHtml(mkt, insight) {
             </div>
 
             <div class="card-price-box">
-                <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
+                    <span style="font-size: 0.55rem; color: var(--accent); font-weight: 700; opacity: 0.7; letter-spacing: 0.05em;">CLOSE</span>
+                    <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
+                </div>
+                ${renderExtendedHours(mkt)}
                 <span class="${changeClass} card-change">${sign}${mkt.change_pct.toFixed(2)}%</span>
             </div>
         </div>
@@ -1122,8 +1156,9 @@ function renderHeroStats(mkt) {
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
     document.getElementById('modal-hero-stats').innerHTML = `
         <div class="hero-stat main">
-            <div class="hero-stat-label">LAST PRICE</div>
+            <div class="hero-stat-label">CLOSE PRICE</div>
             <div class="hero-stat-value main">${formatPrice(mkt.close_price, mkt.currency)}</div>
+            ${renderExtendedHours(mkt)}
         </div>
         <div class="hero-stat main">
             <div class="hero-stat-label">DAY CHANGE</div>
@@ -1502,7 +1537,13 @@ function renderMarketIndices(regions) {
             const currencyLabel = idx.currency && idx.currency !== 'USD' ? idx.currency : '$';
             return `<div class="discover-index-card">
                 <div class="discover-index-name">${idx.name}</div>
-                <div class="discover-index-price">${currencyLabel !== '$' ? '' : '$'}${priceStr} <span style="font-size:0.65rem;color:var(--text-secondary);">${currencyLabel !== '$' ? currencyLabel : ''}</span></div>
+                <div class="discover-index-price">
+                    <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
+                        <span style="font-size: 0.5rem; color: var(--accent); font-weight: 700; opacity: 0.7;">CLOSE</span>
+                        <div>${currencyLabel !== '$' ? '' : '$'}${priceStr} <span style="font-size:0.65rem;color:var(--text-secondary);">${currencyLabel !== '$' ? currencyLabel : ''}</span></div>
+                    </div>
+                    ${renderExtendedHours(idx)}
+                </div>
                 <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${idx.change_pct.toFixed(2)}%</span>
             </div>`;
         }).join('');
@@ -1523,7 +1564,13 @@ function renderCommodities(commodities) {
         return `<div class="discover-index-card">
             <div class="discover-region-label">${c.icon} ${c.name}</div>
             <div class="discover-index-name">per ${c.unit} · USD</div>
-            <div class="discover-index-price">$${c.price.toLocaleString()}</div>
+            <div class="discover-index-price">
+                <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
+                    <span style="font-size: 0.5rem; color: var(--accent); font-weight: 700; opacity: 0.7;">CLOSE</span>
+                    <div>$${c.price.toLocaleString()}</div>
+                </div>
+                ${renderExtendedHours(c)}
+            </div>
             <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
         </div>`;
     }).join('');
@@ -1546,7 +1593,10 @@ function renderMovers(tableId, movers, isGainer) {
         return `<tr>
             <td><strong>${m.ticker}</strong></td>
             <td style="color:var(--text-secondary);font-size:0.8rem;">${name}</td>
-            <td style="text-align:right;">$${m.price.toLocaleString()}</td>
+            <td style="text-align:right;">
+                <div>${formatPrice(m.price, m.currency || 'USD')}</div>
+                ${renderExtendedHours(m)}
+            </td>
             <td style="text-align:right;color:${color};font-weight:700;">${sign}${m.change_pct.toFixed(2)}%</td>
         </tr>`;
     }).join('');
