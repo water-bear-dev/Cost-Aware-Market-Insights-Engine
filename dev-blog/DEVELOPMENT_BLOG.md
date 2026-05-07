@@ -527,7 +527,7 @@ This final polish ensures that the discovery process feels as professional and d
 As we reached the final stages of UI polish, we prioritized "Scannability at Scale." A professional trader doesn't just look at symbols; they need to know the exchange and the full entity name without clicking through deep-dive modals.
 
 **1. Metadata Integration (Exchange & Entity):**
-We refactored the `MarketData` ingestion cycle to explicitly fetch and store the `exchange` and `longName` (Company Name) from Yahoo Finance. This data is now surfaced directly on the dashboard cards. The exchange is positioned at the very top in a high-contrast accent color, while the company name sits directly below the symbol, providing immediate institutional context.
+We refactored the `MarketData` ingestion cycle to explicitly fetch and store the `exchange` and `longName` (Company Name) from Yahoo Finance. This data is now surfaced directly on the dashboard cards. To ensure user clarity, we implemented a `formatExchange` mapping that transforms cryptic identifiers like **NMS** and **NYQ** into easily recognizable names like **NASDAQ** and **NYSE**. The exchange is positioned at the very top in a high-contrast accent color, while the company name sits directly below the symbol, providing immediate institutional context.
 
 **2. Right-Aligned Pricing Alignment:**
 We shifted the pricing and percentage change blocks to the far right margin of the cards. By decoupling the symbol/name (left) from the price action (right), we've created a clean vertical corridor for the eyes to scan. This aligns with professional terminal standards like TradingView or Bloomberg, where the "what" and the "how much" are spatially separated for clarity.

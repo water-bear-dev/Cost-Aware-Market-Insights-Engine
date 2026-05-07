@@ -24,6 +24,23 @@ const EXCHANGE_RATES = {
     'JPY': { rate: 154.0, symbol: '¥' }
 };
 
+function formatExchange(code) {
+    if (!code) return '';
+    const upper = code.toUpperCase();
+    const map = {
+        'NMS': 'NASDAQ',
+        'NGM': 'NASDAQ',
+        'NCM': 'NASDAQ',
+        'NYQ': 'NYSE',
+        'ASE': 'AMEX',
+        'PNK': 'OTC',
+        'BTS': 'BATS',
+        'ASX': 'ASX',
+        'LSE': 'LSE'
+    };
+    return map[upper] || upper;
+}
+
 function formatPrice(value) {
     if (value === null || value === undefined) return 'N/A';
     const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
@@ -339,7 +356,7 @@ async function fetchDailyPicks() {
                     
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 0.75rem; margin-bottom: 0.75rem;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                            ${pick.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${pick.exchange}</span>` : ''}
+                            ${pick.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">${formatExchange(pick.exchange)}</span>` : ''}
                             <h3 class="metric-value text-gradient-purple" style="font-size: 2rem; line-height: 1.1; letter-spacing: -0.5px; margin: 0;">${pick.actual_ticker}</h3>
                             ${pick.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${pick.company_name}</span>` : ''}
                         </div>
@@ -715,7 +732,7 @@ function cardInnerHtml(mkt, insight) {
     return `
         <div class="card-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
             <div class="card-header-left" style="display: flex; flex-direction: column; align-items: flex-start;">
-                ${mkt.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${mkt.exchange}</span>` : ''}
+                ${mkt.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 2px;">${formatExchange(mkt.exchange)}</span>` : ''}
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                     <span class="ticker-symbol" style="font-size: 1.8rem; line-height: 1.1;">${mkt.ticker}</span>
                     ${signal ? `<span class="signal-pill ${sClass}" style="font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 6px;">${signal}</span>` : ''}
@@ -909,7 +926,10 @@ function renderModalContent(mkt, insight) {
     const ticker = mkt.ticker || currentModalTicker;
 
     // Header
-    document.getElementById('modal-ticker-title').textContent = ticker;
+    document.getElementById('modal-ticker-title').innerHTML = `
+        ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
+        ${ticker}
+    `;
     if (!mkt.name) document.getElementById('modal-ticker-name').textContent  = 'Loading company info...';
 
     // Signal badge
