@@ -428,7 +428,7 @@ async function fetchDailyPicks() {
             container.style.display = 'block';
             data.forEach(p => dailyPicksData[p.actual_ticker] = p);
 
-            // Labels for the 3 rationale bullets
+            // Labels for the 3 rationale bullets (legacy support)
             const bulletLabels = ['📈 What\'s Happening', '💡 Why It\'s Interesting', '👀 What to Watch'];
 
             grid.innerHTML = data.map(pick => {
@@ -439,21 +439,19 @@ async function fetchDailyPicks() {
                 const sign = isPos ? '+' : '';
                 const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
 
-                // Build rationale bullets — supports both array (new) and string (legacy)
-                let rationaleItems = [];
+                // Build rationale display — handles both legacy array and new human-readable string
+                let rationaleHtml = '';
                 if (Array.isArray(pick.rationale)) {
-                    rationaleItems = pick.rationale;
-                } else if (typeof pick.rationale === 'string') {
-                    rationaleItems = pick.rationale.split('\n').map(l => l.replace(/^[-*\d.]+\s*/, '').trim()).filter(Boolean);
-                }
-
-                const bulletsHtml = rationaleItems.length
-                    ? rationaleItems.slice(0, 3).map((text, i) => `
+                    rationaleHtml = pick.rationale.slice(0, 3).map((text, i) => `
                         <div style="display: flex; gap: 0.65rem; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px dashed rgba(255,255,255,0.07);">
                             <div style="min-width: 140px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; padding-top: 2px;">${bulletLabels[i] || '●'}</div>
                             <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0;">${text}</p>
-                        </div>`).join('')
-                    : `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
+                        </div>`).join('');
+                } else if (typeof pick.rationale === 'string' && pick.rationale.length > 0) {
+                    rationaleHtml = `<p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin: 0.5rem 0;">${pick.rationale}</p>`;
+                } else {
+                    rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
+                }
 
                 const statsHtml = momentum1mo !== 0
                     ? `<div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
@@ -495,7 +493,7 @@ async function fetchDailyPicks() {
                     ${statsHtml}
 
                     <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.875rem; padding-top: 0.875rem;">
-                        ${bulletsHtml}
+                        ${rationaleHtml}
                     </div>
 
                     <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 0.75rem; font-weight: 500;">

@@ -36,8 +36,11 @@ def fetch_universe_node(state: DiscoveryState) -> dict:
     hidden_gems_base = ["PLTR", "SOFI", "RIVN", "UPST", "AFRM", "HOOD", "COIN", "DKNG", "ROKU", "PINS"]
     
     # Filter out tickers already being tracked
-    sp500 = [t for t in sp500_base if t not in active]
-    hidden_gems = [t for t in hidden_gems_base if t not in active]
+    active = {t.upper() for t in active}
+    sp500 = [t for t in sp500_base if t.upper() not in active]
+    hidden_gems = [t for t in hidden_gems_base if t.upper() not in active]
+    
+    logger.info("Filtered universe", active_count=len(active), sp500_remain=len(sp500), gems_remain=len(hidden_gems))
     
     return {"sp500_universe": sp500, "hidden_gems_universe": hidden_gems}
 
@@ -97,22 +100,18 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     metrics_str = json.dumps(state.get("metrics", {}), indent=2)
     
     prompt = (
-        f"You are a market analyst writing for everyday investors — not professionals. Review these quantitative metrics for 20 tickers:\n"
+        f"You are a professional market analyst writing for everyday investors. Review these quantitative metrics for 20 tickers:\n"
         f"{metrics_str}\n\n"
         f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
         f"based on a mix of momentum and volatility.\n\n"
-        f"For the 'rationale', provide EXACTLY 3 bullet points using SIMPLE, PLAIN ENGLISH that any person could understand. "
-        f"Use the actual numbers from the metrics in each point. Do NOT use jargon like 'annualized volatility' or 'standard deviation'.\n"
-        f"Format: a bulleted list with each point on its own line starting with a dash (-)\n"
-        f"  - What's Happening Right Now: Describe the recent price movement in plain terms with the actual % numbers. E.g. 'The stock climbed +12.4% over the last month, outpacing most of the market.'\n"
-        f"  - Why It's Interesting: Explain in simple terms what makes this pick stand out based on the data. Be concrete and reference the numbers.\n"
-        f"  - What to Watch For: Give one actionable observation — what signal or event the investor should keep an eye on.\n\n"
-        f"Avoid technical jargon. Write like you're texting a smart friend. Keep each bullet to 1-2 sentences.\n"
-        f"Output MUST be pure JSON matching this schema — the rationale field must be a list of 3 strings (one per bullet, WITHOUT the leading dash):\n"
+        f"For the 'rationale', write 2-3 human-understandable sentences in plain English. "
+        f"Explain what is happening with the price right now and why it stands out. Avoid jargon like 'standard deviation' or 'annualized volatility'. "
+        f"Do NOT use bullet points. Write it as a single cohesive paragraph that sounds like a smart summary.\n\n"
+        f"Output MUST be pure JSON matching this schema:\n"
         f"[\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": [\"bullet1\", \"bullet2\", \"bullet3\"]}},\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": [\"bullet1\", \"bullet2\", \"bullet3\"]}}\n"
-        f"]"
+        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"A 2-3 sentence narrative summary...\"}},\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"A 2-3 sentence narrative summary...\"}}\n"
+        ]"
     )
     
     try:
@@ -127,10 +126,11 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             ollama_prompt = (
                 f"Review these stock metrics:\n{metrics_str}\n\n"
                 "Pick 1 'S&P 500' stock and 1 'Hidden Gem'. "
+                "For 'rationale', write a 2-3 sentence paragraph explaining why you picked it. Use plain English. No bullets."
                 "Output exactly this JSON format:\n"
                 "[\n"
-                "  {\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": [\"point1\", \"point2\", \"point3\"]},\n"
-                "  {\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": [\"point1\", \"point2\", \"point3\"]}\n"
+                "  {\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"},\n"
+                "  {\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}\n"
                 "]"
             )
             with httpx.Client(timeout=120.0) as client:
@@ -249,6 +249,14 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 info = t_obj.info
                 exchange = info.get('exchange', '')
                 company_name = info.get('longName') or info.get('shortName', '')
+                
+                # Robust price retrieval
+                current_price = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose')
+                if not current_price and not m.get('last_price'):
+                    # Last ditch effort from fast_info
+                    try: current_price = t_obj.fast_info.get('lastPrice')
+                    except: pass
+                
                 pre_market_price = info.get('preMarketPrice')
                 pre_market_change = info.get('preMarketChangePercent')
                 post_market_price = info.get('postMarketPrice')
@@ -261,6 +269,7 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 exchange = ''
                 company_name = ''
                 currency = 'USD'
+                current_price = None
                 pre_market_price = None
                 pre_market_change = None
                 post_market_price = None
@@ -269,16 +278,19 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
             # We use a special ticker ID for easy fetching
             category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
             ticker_id = f"_DAILY_{category_clean}_"
+            # Final price selection
+            final_price = current_price or m.get('last_price', 0.0)
+
             item = {
                 'ticker': ticker_id,
                 'timestamp': timestamp,
                 'generated_at': timestamp,
-                'insight_text': rec.get('rationale', []),
+                'insight_text': rec.get('rationale', ''),
                 'signal': 'WATCH',
                 'model_used': 'discovery-agent',
                 'cost_usd': 0,
                 'actual_ticker': t,
-                'last_price': str(m.get('last_price', 0.0)),
+                'last_price': str(final_price),
                 'change_5d':  str(m.get('change_5d', 0.0)),
                 'momentum_1mo': str(round(m.get('momentum_1mo', 0.0) * 100, 2)),
                 'volatility_ann': str(round(m.get('volatility_ann', 0.0) * 100, 2)),
