@@ -21,7 +21,11 @@ let EXCHANGE_RATES = {
     'EUR': { rate: 0.92, symbol: '€' },
     'GBP': { rate: 0.83, symbol: '£' },
     'AUD': { rate: 1.54, symbol: 'A$' },
-    'JPY': { rate: 154.0, symbol: '¥' }
+    'JPY': { rate: 154.0, symbol: '¥' },
+    'HKD': { rate: 7.82, symbol: 'HK$' },
+    'CAD': { rate: 1.37, symbol: 'C$' },
+    'SGD': { rate: 1.35, symbol: 'S$' },
+    'NZD': { rate: 1.67, symbol: 'NZ$' }
 };
 
 async function refreshExchangeRates() {
@@ -55,30 +59,57 @@ function formatExchange(code) {
     return map[upper] || upper;
 }
 
-function formatPrice(value, tickerCurrency = 'USD') {
+function formatPrice(value, tickerCurrency = 'USD', forceLocal = false) {
     if (value === null || value === undefined) return 'N/A';
     
-    // 1. Convert Ticker Price -> USD
-    const tickerRate = EXCHANGE_RATES[tickerCurrency] ? EXCHANGE_RATES[tickerCurrency].rate : 1.0;
-    const usdValue = value / tickerRate;
+    // Normalize ticker currency
+    let tc = tickerCurrency;
+    if (tc === 'GBp') tc = 'GBP'; // Convert British Pence to Pounds for rate lookup
+    if (!EXCHANGE_RATES[tc]) tc = 'USD';
+
+    // If we're in the default USD view, we prefer to see the LOCAL price
+    // for international stocks to avoid misleading symbols (e.g. $6424 for a JPY stock)
+    const isDefaultView = currentCurrency === 'USD';
+    const useLocal = forceLocal || (isDefaultView && tc !== 'USD');
+
+    const targetCurrency = useLocal ? tc : currentCurrency;
     
-    // 2. Convert USD -> Selected Currency
-    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
+    // 1. Convert Ticker Price -> USD
+    let valInTickerBase = value;
+    if (tickerCurrency === 'GBp') valInTickerBase = value / 100;
+
+    const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
+    const usdValue = valInTickerBase / tickerRate;
+    
+    // 2. Convert USD -> Target Currency
+    const { rate, symbol } = EXCHANGE_RATES[targetCurrency] || EXCHANGE_RATES['USD'];
     const converted = usdValue * rate;
     
-    const decimals = currentCurrency === 'JPY' ? 0 : 2;
-    return `${symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+    const decimals = (targetCurrency === 'JPY') ? 0 : 2;
+    return `${symbol}${converted.toLocaleString(undefined, { 
+        minimumFractionDigits: decimals, 
+        maximumFractionDigits: decimals 
+    })}`;
 }
 
 function formatLargePrice(value, tickerCurrency = 'USD') {
     if (value === null || value === undefined || value === 0) return '—';
     
-    // 1. Convert Ticker Price -> USD
-    const tickerRate = EXCHANGE_RATES[tickerCurrency] ? EXCHANGE_RATES[tickerCurrency].rate : 1.0;
-    const usdValue = value / tickerRate;
+    // Normalize ticker currency for symbol lookup
+    let tc = tickerCurrency === 'GBp' ? 'GBP' : tickerCurrency;
+    if (!EXCHANGE_RATES[tc]) tc = 'USD';
+
+    const isDefaultView = currentCurrency === 'USD';
+    const targetCurrency = (isDefaultView && tc !== 'USD') ? tc : currentCurrency;
     
-    // 2. Convert USD -> Selected Currency
-    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
+    // 1. Convert Ticker Price -> USD
+    let valInTickerBase = value;
+    if (tickerCurrency === 'GBp') valInTickerBase = value / 100;
+    const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
+    const usdValue = valInTickerBase / tickerRate;
+    
+    // 2. Convert USD -> Target Currency
+    const { rate, symbol } = EXCHANGE_RATES[targetCurrency] || EXCHANGE_RATES['USD'];
     const v = usdValue * rate;
 
     if (v >= 1e12) return `${symbol}${(v / 1e12).toFixed(2)}T`;
@@ -519,12 +550,12 @@ async function triggerBatchSynthesis() {
         insightsData.forEach(i => { insightMap[i.ticker] = i; });
 
         const now = Date.now();
-        const TEN_MINUTES_MS = 10 * 60 * 1000;
+        const ONE_HOUR_MS = 60 * 60 * 1000;
 
         for (const mkt of marketData) {
             const insight = insightMap[mkt.ticker];
             const hasNoInsight = !insight;
-            const isStale = insight && (now - new Date(insight.timestamp).getTime()) > TEN_MINUTES_MS;
+            const isStale = insight && (now - new Date(insight.timestamp).getTime()) > ONE_HOUR_MS;
             // Also re-synthesize tickers that only have fallback/mock analysis (not real Claude)
             const needsRealAI = insight && (
                 insight.model_used === 'data-fallback' ||
@@ -1480,9 +1511,14 @@ function formatInsight(text, limit = null) {
         if (!firstLine) firstLine = trimmed;
 
         // Lenient bullet detection: Numbered (1. 2.), dash (-), or star (*)
-        // Changed regex to allow optional space after bullet
         if (trimmed.match(/^(\d+\.|-|\*)\s?|^\u2022/)) {
             let content = trimmed.replace(/^(\d+\.|-|\*)\s?|^\u2022/, '').trim();
+            
+            // User requested: Remove "What to watch" from the overview (limit mode)
+            if (limit && (content.toLowerCase().includes('what to watch') || content.toLowerCase().includes('what\'s next'))) {
+                continue;
+            }
+
             // Bold the "Category:" if present
             if (content.includes(':')) {
                 const parts = content.split(':');

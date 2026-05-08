@@ -112,13 +112,15 @@ def synthesize_single_insight(latest_data: dict) -> bool:
     elif settings.llm_provider == "ollama":
         try:
             prompt = (
-                f"You are a helpful investment assistant. "
-                f"Explain what's going on with {ticker} using the data and news provided.\n"
-                f"1. What's Happening: (context)\n"
-                f"2. What to Watch: (next steps)\n"
+                f"You are an expert financial analyst. Analyze {ticker} based on recent news and price action.\n\n"
+                f"Structure your response exactly as follows:\n"
+                f"1. What's Happening: A clear summary of the latest price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) and context from the latest news headlines.\n"
+                f"2. What to Watch: One specific upcoming event, technical level, or risk factor to monitor.\n\n"
                 f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
-                f"Ticker: {ticker} | Close: ${float(latest_data.get('close_price', 0)):.2f} | Change: {change_pct:+.2f}%\n"
-                f"News: {headline_text}"
+                f"Ticker Data:\n"
+                f"- Price: ${float(latest_data.get('close_price', 0)):.2f}\n"
+                f"- Change: {change_pct:+.2f}%\n"
+                f"- News Headlines:\n{headline_text}"
             )
             
             resp = httpx.post(
@@ -157,16 +159,15 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"You are a helpful investment assistant. "
-                f"Explain what's going on with {ticker} in simple, user-friendly terms using the data and news provided.\n\n"
-                f"Provide exactly 2 bullet points (no headers, no bold text):\n"
-                f"1. What's Happening: Explain the latest price move or major news in simple terms.\n"
-                f"2. What to Watch: Identify one clear thing the user should keep an eye on next.\n\n"
-                f"Be helpful, clear, and avoid jargon. Mention headlines naturally.\n"
+                f"You are an expert financial analyst. Analyze {ticker} in simple, professional terms using the provided data and news.\n\n"
+                f"Provide exactly 2 sections (no bold text in the summary itself):\n"
+                f"1. What's Happening: Summarize the latest market move and synthesize information from the recent headlines below. Explain the 'why' behind the action.\n"
+                f"2. What to Watch: Identify one clear catalyst, risk, or technical signal the user should monitor next.\n\n"
+                f"Be helpful, clear, and prioritize accuracy. Mention news sources if relevant.\n"
                 f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
                 f"Ticker: {ticker}\n"
-                f"Close: ${float(latest_data.get('close_price', 0)):.2f} | Change: {change_pct:+.2f}%\n"
-                f"Recent News Headlines:\n{headline_text}"
+                f"Market Action: Close at ${float(latest_data.get('close_price', 0)):.2f} ({change_pct:+.2f}%)\n"
+                f"Recent News Context:\n{headline_text}"
             )
 
             body = {

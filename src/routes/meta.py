@@ -12,7 +12,11 @@ cached_rates = {
     'EUR': {'rate': 0.93,  'symbol': '€'},
     'GBP': {'rate': 0.79,  'symbol': '£'},
     'AUD': {'rate': 1.52,  'symbol': 'A$'},
-    'JPY': {'rate': 154.0, 'symbol': '¥'}
+    'JPY': {'rate': 154.0, 'symbol': '¥'},
+    'HKD': {'rate': 7.8,   'symbol': 'HK$'},
+    'CAD': {'rate': 1.36,  'symbol': 'C$'},
+    'SGD': {'rate': 1.35,  'symbol': 'S$'},
+    'NZD': {'rate': 1.66,  'symbol': 'NZ$'},
 }
 last_fetch = 0
 
@@ -31,7 +35,11 @@ def get_exchange_rates(request: Request):
                 'EUR': 'USDEUR=X',
                 'GBP': 'USDGBP=X',
                 'AUD': 'USDAUD=X',
-                'JPY': 'USDJPY=X'
+                'JPY': 'USDJPY=X',
+                'HKD': 'USDHKD=X',
+                'CAD': 'USDCAD=X',
+                'SGD': 'USDSGD=X',
+                'NZD': 'USDNZD=X'
             }
             
             # Fetch all in one go (more efficient)
