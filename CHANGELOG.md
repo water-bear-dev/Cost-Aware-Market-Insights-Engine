@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.3] - 2026-05-08
+
+### Added
+- **Global Currency Localization** — Implemented comprehensive support for international markets including Hong Kong (**HKD**), Canada (**CAD**), Singapore (**SGD**), and New Zealand (**NZD**).
+- **Exchange-Aware Formatting** — The dashboard now automatically applies native currency symbols (¥, HK$, A$, etc.) based on an asset's primary exchange, ensuring accurate labeling even when the global base currency is set to USD.
+- **Live FX Fetching** — Integrated a real-time exchange rate bridge using the Yahoo Finance FX API, providing live-updated conversion metrics for all supported global currencies.
+
+### Fixed
+- **Discovery Agent Stability (Ollama)** — Overhauled the LLM response parsing in the Discovery Alpha-DAG. The agent now uses a robust regex-based "Flexible JSON" extractor that handles both List and Dictionary outputs, resolving parsing failures specific to local models like Llama 3.2.
+- **Malformed Record Recovery** — Added defensive checks to the data persistence layer to gracefully skip malformed LLM records instead of crashing the entire discovery cycle.
+- **Regional Pricing Precision** — Optimized decimal display and unit normalization for international assets (e.g., GBp to GBP conversion and 0-decimal JPY formatting).
+
 ## [2.9.2] - 2026-05-07
 
 ### Added

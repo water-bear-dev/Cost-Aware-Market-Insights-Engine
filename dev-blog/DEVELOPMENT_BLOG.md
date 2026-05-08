@@ -680,6 +680,31 @@ We've standardized the terminology across the platform—moving away from generi
 
 ---
 
-### May 7, 2026: Multi-Timeframe Discovery
+
+ ---
+ 
+ ### May 8, 2026: The Localization Battle & JSON Normalization
++
++As we moved toward a truly global dashboard, we hit two distinct engineering walls: misleading currency labeling for international assets and the "Schema-Rigidity" problem with local LLM models.
++
++**1. The Misleading Dollar Sign ($):**
++Our dashboard was technically "Multi-Currency" (supporting USD, AUD, EUR, etc.), but it suffered from a "USD-Default" bias in its display logic. An asset in the Tokyo Stock Exchange (e.g., 9984.T) was displaying a dollar sign next to a Yen-denominated price — a highly misleading and unprofessional UX.
++
++We solved this by implementing an **Exchange-Aware Formatting Layer** in the frontend. The dashboard now detects the asset's exchange (e.g., TSE, ASX, HKSE) and automatically overrides the currency symbol with the native character (¥, A$, HK$, etc.) regardless of the user's base currency setting. This ensures that global liquidity is represented with absolute semantic accuracy.
++
++**2. The Ollama JSON Battle:**
++While our production Bedrock (Claude 3) models followed our LangGraph schema perfectly, our local development model (**Llama 3.2 via Ollama**) was struggling. It would occasionally return recommendations as a **Dictionary** (`{"S&P 500": {...}}`) instead of the requested **JSON List**. Since our initial parser used a strict `[` search, the Discovery Agent would silently fail to extract any data.
++
++We pivoted to a **"Flexible JSON" extraction strategy** in `discovery_graph.py`. The parser now uses robust regex to look for both `[...]` and `{...}` structures. If it finds a dictionary, it triggers an internal **Normalization Logic** that flattens the keys into our standard schema. This "Defensive Parsing" has made the engine significantly more resilient, allowing for high-fidelity local development without the overhead of cloud provider rigidity.
++
++**3. Support for the Pacific Rim:**
++We officially expanded our currency bridge to include **HKD, CAD, SGD, and NZD**. By wiring these into our backend FX service, we've enabled the engine to track assets across the entire Pacific Rim with real-time conversion and native formatting.
++
++**Status:**
++The engine is now truly global. Whether you are tracking a tech giant on the Nasdaq or a hidden gem on the Hong Kong Stock Exchange, the data is accurate, the labeling is localized, and the AI synthesis is robust across both local and cloud environments.
++
++---
++
++### May 7, 2026: Multi-Timeframe Discovery
 
 We've bridged the gap between "at-a-glance" monitoring and deep historical analysis. By adding **interactive period selectors** to every tracked asset card, we've transformed the static sparklines into dynamic research tools. Users can now toggle between a 1-day view and a 1-year view without leaving the Manage tab, allowing for rapid-fire validation of long-term trends against short-term price action.

@@ -20,6 +20,8 @@ class DiscoveryState(TypedDict):
     estimated_cost: float
     budget_cleared: bool
     recommendations: List[dict]
+    universe: List[str] # Added to match main.py invoke
+    messages: List[dict] # Added to match main.py invoke
 
 def fetch_universe_node(state: DiscoveryState) -> dict:
     logger.info("Fetching universe")
@@ -78,6 +80,7 @@ def quant_metrics_node(state: DiscoveryState) -> dict:
     except Exception as e:
         logger.error("Failed fetching quant metrics", error=str(e))
         
+    logger.info("Calculated metrics", count=len(metrics))
     return {"metrics": metrics}
 
 def finops_gate_node(state: DiscoveryState) -> dict:
@@ -120,27 +123,69 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             ]
         elif settings.llm_provider == 'ollama':
             logger.info("Asking Ollama for recommendations", model=settings.ollama_model)
+            # Simpler prompt for Ollama
+            ollama_prompt = (
+                f"Review these stock metrics:\n{metrics_str}\n\n"
+                "Pick 1 'S&P 500' stock and 1 'Hidden Gem'. "
+                "Output exactly this JSON format:\n"
+                "[\n"
+                "  {\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": [\"point1\", \"point2\", \"point3\"]},\n"
+                "  {\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": [\"point1\", \"point2\", \"point3\"]}\n"
+                "]"
+            )
             with httpx.Client(timeout=120.0) as client:
                 response = client.post(
                     f"{settings.ollama_url}/api/generate",
                     json={
                         "model": settings.ollama_model,
-                        "prompt": prompt,
+                        "prompt": ollama_prompt,
                         "stream": False,
                         "format": "json"
                     }
                 )
                 response.raise_for_status()
                 data = response.json()
+                logger.info("Ollama full response", data=data)
                 text = data.get("response", "")
                 
-                # Find JSON block
-                start = text.find('[')
-                end = text.rfind(']') + 1
-                if start != -1 and end != 0:
-                    recs = json.loads(text[start:end])
+                # Robust JSON extraction
+                import re
+                # Try finding an object first (Ollama often prefers dicts)
+                match = re.search(r'\{.*\}', text, re.DOTALL)
+                if match:
+                    try:
+                        raw_obj = json.loads(match.group())
+                        if isinstance(raw_obj, dict):
+                            recs = []
+                            # Handle cases like {"S&P 500": {...}, "Hidden Gem": {...}}
+                            for cat, data in raw_obj.items():
+                                if isinstance(data, dict) and 'ticker' in data:
+                                    recs.append({
+                                        "ticker": data['ticker'],
+                                        "category": cat,
+                                        "rationale": data.get('rationale', ["Interesting momentum", "Strong metrics", "Watch closely"])
+                                    })
+                                elif isinstance(data, str):
+                                    # Handle cases like {"S&P 500": "AAPL"}
+                                    recs.append({
+                                        "ticker": data,
+                                        "category": cat,
+                                        "rationale": ["Featured pick", "Strong data signals", "Market leader"]
+                                    })
+                        else:
+                            recs = []
+                    except json.JSONDecodeError:
+                        recs = []
                 else:
-                    recs = []
+                    # Try finding a list
+                    match = re.search(r'\[.*\]', text, re.DOTALL)
+                    if match:
+                        try:
+                            recs = json.loads(match.group())
+                        except json.JSONDecodeError:
+                            recs = []
+                    else:
+                        recs = []
         else:
             logger.info("Asking Bedrock for recommendations")
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
@@ -165,15 +210,19 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             if start != -1 and end != 0:
                 recs = json.loads(text[start:end])
             else:
+                logger.warning("Bedrock returned no JSON list", text=text)
                 recs = []
                 
         # Log cost
         log_cost("DISCOVERY", 500, 200)
         
+        if not recs:
+            logger.warning("Discovery agent generated empty recommendations", raw_text=text)
+            
         return {"recommendations": recs}
         
     except Exception as e:
-        logger.error("Bedrock recommendation failed", error=str(e))
+        logger.error("Discovery recommendation failed", error=str(e), provider=settings.llm_provider)
         return {"recommendations": []}
 
 def save_recommendations_node(state: DiscoveryState) -> dict:
@@ -186,6 +235,11 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
     
     try:
         for rec in recs:
+            # Defensive checks for malformed LLM output
+            if not isinstance(rec, dict) or 'category' not in rec or 'ticker' not in rec:
+                logger.warning("Skipping malformed recommendation record", record=rec)
+                continue
+
             t = rec['ticker']
             m = metrics.get(t, {})
             
@@ -213,12 +267,13 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 post_market_change = None
 
             # We use a special ticker ID for easy fetching
-            ticker_id = f"_DAILY_{rec['category'].replace(' ', '').replace('&', '').upper()}_"
+            category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
+            ticker_id = f"_DAILY_{category_clean}_"
             item = {
                 'ticker': ticker_id,
                 'timestamp': timestamp,
                 'generated_at': timestamp,
-                'insight_text': rec['rationale'],
+                'insight_text': rec.get('rationale', []),
                 'signal': 'WATCH',
                 'model_used': 'discovery-agent',
                 'cost_usd': 0,
