@@ -708,3 +708,58 @@ We've standardized the terminology across the platform—moving away from generi
 +### May 7, 2026: Multi-Timeframe Discovery
 
 We've bridged the gap between "at-a-glance" monitoring and deep historical analysis. By adding **interactive period selectors** to every tracked asset card, we've transformed the static sparklines into dynamic research tools. Users can now toggle between a 1-day view and a 1-year view without leaving the Manage tab, allowing for rapid-fire validation of long-term trends against short-term price action.
+
+## Entry 37: The Analytical Leap — Global QMJ Screener & Data Lakehouse
+
+*Date: 2026-05-11*
+
+While the Discovery Agent provided excellent momentum-based picks, the engine lacked a "Quality" dimension—the ability to filter for fundamentally strong businesses. Today, we executed **Phase 7: The Global QMJ Screener**.
+
+**1. Quantitative Rigor (Quality Minus Junk):**
+We implemented a scoring algorithm inspired by the QMJ factor. We focus on two primary pillars: **Profitability** (ROE, ROA, and Cash Flow Margins) and **Safety** (Leverage Ratios). The engine now automatically ranks every tracked asset relative to the wider universe, assigning a percentile-based `qmj_score` (0–100). This allows users to instantly identify which "Hidden Gems" are high-quality compounders and which are speculative "junk."
+
+**2. The Open Data Lakehouse (dbt + DuckDB):**
+Architecturally, this was our biggest shift since the Alpha-DAG. We moved away from performing calculations in raw Python and adopted the **dbt Core** standard. 
+- **Local Dev (DuckDB)**: We configured dbt to use DuckDB as its local engine. This gives us a lightning-fast, serverless analytical warehouse that lives right in the `scratch/` directory.
+- **Production (AWS Athena)**: By utilizing dbt's adapter pattern, the same models we test locally will run over **AWS Athena** in production, querying the S3 data lake without any code changes.
+
+**3. Frontend Screener Integration:**
+We introduced a dedicated **Screener** tab to the dashboard. Built with our signature glassmorphic aesthetic, the screener provides a sortable, high-density table view of the QMJ metrics. High-quality assets are highlighted with green accents, providing a professional terminal experience for fundamental analysis.
+
+**4. The .gitignore Hardening:**
+As we added analytical databases (`.duckdb`) and virtual environments (`.logvenv`), we updated our `.gitignore` to ensure the repository remains lean and production-ready, ignoring all local analytical artifacts and debug scripts.
+
+**Status:**
+The engine is now a dual-threat platform: **Momentum Discovery** via LangGraph and **Quality Screening** via dbt. We have transitioned from a data aggregator to a full-stack analytical engine.
+
+**What's Next?**
+Phase 8: Multi-Agent Collaborative Refinement. We will be wiring these QMJ scores back into the Discovery Agent's decision-making node, allowing the AI to "self-filter" its own recommendations based on fundamental quality before they ever reach the user.
+
+## Entry 38: The Alpha-DAG Pivot and Colima Networking
+
+*Date: May 2026*
+
+### From Monolith to Agentic Discovery
+
+The transition from Phase 1 to Phase 3 represented a significant shift in how we handle financial intelligence. By moving to **LangGraph**, we replaced a brittle background loop with a stateful DAG that can handle complex multi-step reasoning.
+
+The **Daily Discovery Agent** was the crowning achievement of this pivot. Instead of waiting for a user to track a ticker, the system now autonomously "hunts" for value at 8:00 AM every morning. By isolating quantitative math into a restricted **Quant MCP**, we've ensured that our most complex logic runs in a secure sandbox, while Bedrock handles the high-level synthesis only when our **FinOps Gate** confirms we are under budget.
+
+### The Colima Networking Incident
+
+**Problem:** After a successful `docker-compose up --build`, the dashboard was completely unreachable at `localhost:8000`. `curl` returned `Connection refused` even though `docker ps` showed the container as `healthy`. The `lsof -i :8000` command returned nothing — no process was listed as the owner of the port.
+
+**Root Cause:** The project runs Docker via **Colima** (a lightweight macOS Docker runtime alternative to Docker Desktop). In Colima's default mode, it runs a Linux VM using Apple's Virtualization Framework without assigning it a host-bridged network interface. Port bindings like `0.0.0.0:8000->8000/tcp` are forwarded *inside* the Colima VM, but are not exposed to the macOS host network. This is why `localhost` and `127.0.0.1` both silently refused connections.
+
+**Fix:** Restart Colima with the `--network-address` flag, which provisions a dedicated bridged network interface and assigns the VM a stable LAN IP:
+
+```bash
+colima stop
+colima start --network-address
+# Then check your IP:
+colima list  # Shows ADDRESS column, e.g. 192.168.64.2
+```
+
+The dashboard is then accessible at `http://192.168.64.2:8000` (use your specific Colima IP).
+
+**Lesson:** When debugging container connectivity issues on macOS, always check the Docker runtime first (`docker context ls`). If it points to a Colima socket, `localhost` port forwarding behaves differently than Docker Desktop.

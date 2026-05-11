@@ -6,6 +6,7 @@ services:
     volumes:
       - ./src:/app/src
       - ./static:/app/static
+      - ./scratch:/app/scratch
     env_file:
       - .env
     environment:
@@ -18,11 +19,11 @@ services:
 
   dynamodb-local:
     image: amazon/dynamodb-local:latest
-    command: "-jar DynamoDBLocal.jar -sharedDb -port 8001"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ."
     volumes:
-      - dynamodb-data:/home/dynamodblocal/data
+      - dynamodb-data:/home/dynamodblocal
     ports:
-      - "8001:8001"
+      - "8001:8000"
 
 volumes:
   dynamodb-data:

@@ -1,0 +1,23 @@
+name: 'qmj_screener'
+version: '1.0.0'
+config-version: 2
+
+profile: 'qmj_screener'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  qmj_screener:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

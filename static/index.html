@@ -33,6 +33,7 @@
         <div class="tab-navigation">
             <button class="tab-btn active" data-tab="manage-view">Manage</button>
             <button class="tab-btn" data-tab="discover-view">Discover</button>
+            <button class="tab-btn" data-tab="screener-view">Screener</button>
             <span class="tab-nav-spacer"></span>
             <button class="tab-btn" data-tab="finops-view">Costs</button>
             <button class="tab-btn" data-tab="how-view">How it works</button>
@@ -191,6 +192,43 @@
             <h2 class="discover-section-title" style="margin-top:2.5rem;">📰 Market News <span id="news-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
             <div id="discover-news" class="discover-news-feed"></div>
 
+        </section>
+        <!-- Screener Section -->
+        <section id="screener-view" class="tab-content">
+            <div class="manage-filter-row glass" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
+                <div style="display: flex; gap: 1rem; align-items: center; flex: 1;">
+                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase;">Period Filter:</span>
+                    <select id="qmj-filter-year" class="glass-input" style="width: auto;"></select>
+                    <select id="qmj-filter-quarter" class="glass-input" style="width: auto;">
+                        <option value="">All Quarters</option>
+                        <option value="1">Q1</option>
+                        <option value="2">Q2</option>
+                        <option value="3">Q3</option>
+                        <option value="4">Q4</option>
+                    </select>
+                </div>
+                <input type="text" id="qmj-search" class="glass-input" placeholder="Filter by Ticker/Industry..." style="flex: 1; min-width: 200px;" />
+            </div>
+
+            <div class="glass" style="padding: 1rem; border-radius: 12px; overflow-x: auto;">
+                <table class="screener-table" id="qmj-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="ticker" style="text-align:left;">Ticker ↕</th>
+                            <th class="sortable" data-sort="company_name" style="text-align:left;">Company ↕</th>
+                            <th class="sortable" data-sort="report_date" style="text-align:left;">Report Date ↕</th>
+                            <th class="sortable" data-sort="industry" style="text-align:left;">Industry ↕</th>
+                            <th class="sortable" data-sort="market_cap" style="text-align:right;">Market Cap ↕</th>
+                            <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent);">QMJ Score ↕</th>
+                            <th class="sortable" data-sort="valuation" style="text-align:right;">Valuation ↕</th>
+                            <th class="sortable" data-sort="momentum" style="text-align:right;">Momentum ↕</th>
+                        </tr>
+                    </thead>
+                    <tbody id="qmj-table-body">
+                        <tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <!-- FinOps Section -->
@@ -368,49 +406,52 @@
                         <h3>Intelligent Synthesis</h3>
                         <p>Claude 3 Haiku analyzes the raw data to extract high-impact insights, identifying catalysts and trends in human-friendly terms.</p>
                     </div>
-                    <div class="process-card glass" style="grid-column: 1 / -1;">
-                        <div class="process-step">04</div>
-                        <h3>Daily Discovery Agent</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
+                </div>
+
+                <div class="process-card glass" style="grid-column: 1 / -1; margin-top: 2rem; border-color: rgba(125, 211, 252, 0.2);">
+
+                        <div class="process-step" style="background: var(--accent);">05</div>
+                        <h3>Quality Minus Junk (QMJ) Formula</h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
                             <div>
-                                <p style="margin-bottom: 1.5rem;">The Discovery Agent is an autonomous "Hunter" node that triggers every morning at 8:00 AM. It scans the top 500 market cap leaders plus a high-volatility "Wildcard" bucket to surface assets you haven't tracked yet.</p>
-                                <div style="background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 12px; border: 1px solid var(--glass-border);">
-                                    <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 0.8rem; letter-spacing: 0.05em;">Quantitative Scoring</h4>
-                                    <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.8rem;">
-                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                                            <span style="color: #10b981;">●</span> 
-                                            <span>Universe Filtering: Excludes current watchlist to ensure fresh alpha.</span>
-                                        </li>
-                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                                            <span style="color: #38bdf8;">●</span> 
-                                            <span>Momentum Ranking: Sorts by 30-day relative price velocity.</span>
-                                        </li>
-                                        <li style="font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
-                                            <span style="color: #818cf8;">●</span> 
-                                            <span>Risk Normalization: Uses standard deviation to filter out low-liquidity noise.</span>
-                                        </li>
-                                    </ul>
+                                <p style="margin-bottom: 1.5rem; color: #cbd5e1;">Based on the methodology by Asness, Frazzini, and Pedersen (2018), "Quality" is defined as assets with high profitability, growth, and safety. This engine implements a robust version using SEC-standardized financial reports.</p>
+                                
+                                <div class="glass" style="padding: 1.2rem; border-radius: 12px; background: rgba(0,0,0,0.2);">
+                                    <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem;">1. Profitability (GP/A)</h4>
+                                    <p style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary);">The cleanest measure of economic performance, less prone to accounting manipulation.</p>
+                                    <div style="margin-top: 0.5rem; font-family: monospace; color: var(--text-primary);">Gross Profits / Total Assets</div>
+                                </div>
+
+                                <div class="glass" style="padding: 1.2rem; border-radius: 12px; background: rgba(0,0,0,0.2); margin-top: 1rem;">
+                                    <h4 style="font-size: 0.8rem; color: #10b981; text-transform: uppercase; margin-bottom: 1rem;">2. Safety (Low Leverage)</h4>
+                                    <p style="font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary);">Quality companies maintain manageable debt levels relative to their equity base.</p>
+                                    <div style="margin-top: 0.5rem; font-family: monospace; color: var(--text-primary);">Total Debt / Stockholders' Equity</div>
                                 </div>
                             </div>
+
                             <div style="display: flex; flex-direction: column; gap: 1.5rem;">
                                 <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(15, 23, 42, 0.4);">
-                                    <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">The Mathematical Formula</h4>
-                                    <div style="margin-bottom: 1.5rem;">
-                                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">1-MONTH PRICE MOMENTUM</p>
-                                        <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 8px; font-family: monospace; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.05);">
-                                            (Price<sub>Current</sub> / Price<sub>30 Days Ago</sub>) - 1
+                                    <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">Composite Score Calculation</h4>
+                                    <p style="font-size: 0.9rem; margin-bottom: 1rem;">We convert each metric into a <strong>cross-sectional percentile (0-100)</strong> within each reporting quarter.</p>
+                                    
+                                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                                        <div style="font-family: monospace; font-size: 1.2rem; text-align: center;">
+                                            QMJ = (z[Prof] + z[Safe]) / 2
                                         </div>
                                     </div>
-                                    <div>
-                                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem;">ANNUALIZED VOLATILITY (σ)</p>
-                                        <div style="background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 8px; font-family: monospace; font-size: 1.1rem; border: 1px solid rgba(255,255,255,0.05);">
-                                            StdDev(Daily Returns) × √252
-                                        </div>
-                                    </div>
+                                    
+                                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 1rem; line-height: 1.6;">
+                                        Where <strong>z</strong> is the standard percentile ranking. Assets in the 90th percentile for Profitability and 80th for Safety receive a QMJ score of 85.
+                                    </p>
                                 </div>
-                                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; font-style: italic;">
-                                    "The agent selects the intersection of high momentum and controllable risk, providing a qualitative narrative after the quantitative pass."
-                                </p>
+
+                                <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(15, 23, 42, 0.4);">
+                                    <h4 style="font-size: 0.8rem; color: #f59e0b; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">Value & Momentum (APM 2013)</h4>
+                                    <ul style="list-style: none; padding: 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                        <li style="margin-bottom: 0.5rem;"><strong>Value:</strong> Measured as Earnings Yield (Net Income / Market Cap). High yield indicates deep value.</li>
+                                        <li><strong>Momentum:</strong> 12-month price return, skipping the most recent month to avoid short-term reversals.</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -419,6 +460,8 @@
         </section>
 
     </div>
+
+
 
     <!-- Ticker Detail Modal -->
     <div id="ticker-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-ticker-title">

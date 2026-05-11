@@ -18,8 +18,26 @@ This project is built around the fundamental philosophy that AI integration must
 3. **LangGraph Orchestrator**: A Directed Acyclic Graph (DAG) routes tasks, maintains state, and sequences API calls to **AWS Bedrock (Anthropic Claude 3 Haiku)**.
 4. **FinOps Engine (DynamoDB)**: An interceptor node in the LangGraph DAG estimates token costs, queries a local `CostTracking` ledger, and physically blocks execution if it would breach your `DAILY_BUDGET_USD` limit.
 5. **Daily Discovery Agent**: An autonomous agent that triggers at 8:00 AM AEST to perform mass market analysis and surface "Hidden Gems" with **AI Smart Narratives** (3-bullet rationale with performance metrics).
+6. **Global QMJ Screener**: An Open Data Lakehouse architecture (dbt Core + DuckDB/Athena) calculates Quality Minus Junk (QMJ) proxy scores (Profitability + Safety) to rank tracked assets.
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
+
+## Quality Minus Junk (QMJ) Methodology
+
+The QMJ Screener evaluates fundamental financial strength based on the "Quality Minus Junk" framework, using data extracted from `yfinance`. The system calculates proxy metrics since standard API data is limited compared to institutional datasets.
+
+**Scoring Methodology:**
+Scores are calculated via `dbt` and `DuckDB` (local) or `Athena` (production), converting raw metrics into percentiles (1-100) across the tracked universe using SQL `PERCENT_RANK()`.
+
+1.  **Profitability Score (50%)**: Identifies companies with strong return on capital and cash generation.
+    *   *Return on Equity (ROE)*: `net_income / total_stockholder_equity`
+    *   *Return on Assets (ROA)*: `net_income / total_assets`
+    *   *Cash Flow Margin*: `operating_cash_flow / total_revenue`
+2.  **Safety Score (50%)**: Identifies companies with low leverage and default risk.
+    *   *Leverage Ratio (Inverse)*: `total_assets / total_debt`
+
+**Total QMJ Score** = `(Profitability Percentile + Safety Percentile) / 2`
+
 
 ## System Requirements
 
@@ -61,7 +79,32 @@ To run the engine on your local machine using an open-source LLM:
    ```bash
    docker-compose up -d --build
    ```
-6. **Access the Dashboard**: [http://localhost:8000](http://localhost:8000)
+6. **Initialize the QMJ Screener**:
+   The engine uses dbt Core to calculate analytical scores. Run the following once to set up your local DuckDB instance:
+   ```bash
+   cd src/dbt_qmj
+   dbt run
+   cd ../..
+   ```
+7. **Access the Dashboard**: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## Analytical Warehouse Setup (dbt)
+
+The platform utilizes an **Open Data Lakehouse** pattern. For local development, it uses **DuckDB** which requires no infrastructure.
+
+### Local Development (DuckDB)
+The `WarehouseClient` automatically detects your local environment. To update the QMJ scores after adding new tickers:
+```bash
+cd src/dbt_qmj && dbt run
+```
+
+### Production Deployment (AWS Athena)
+To enable the cloud-scale warehouse:
+1. Set `USE_ATHENA=true` in your environment.
+2. Provide your `S3_DATALAKE_BUCKET` name.
+3. dbt will automatically route transformations to **AWS Athena** over your S3 data lake.
 
 ---
 
@@ -129,29 +172,18 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 4: UX Polish & Global Access** - Multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations.
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
-- **[PLANNED] Phase 7: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 7: Global QMJ Screener** - Integrated an Open Data Lakehouse architecture (dbt Core + DuckDB/Athena) to rank assets by Quality Minus Junk (Profitability + Safety).
+- **[PLANNED] Phase 8: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
-## Development Blog: The Alpha-DAG Pivot
-
-### May 2026: From Monolith to Agentic Discovery
-The transition from Phase 1 to Phase 3 represented a significant shift in how we handle financial intelligence. By moving to **LangGraph**, we replaced a brittle background loop with a stateful DAG that can handle complex multi-step reasoning.
-
-The **Daily Discovery Agent** was the crowning achievement of this pivot. Instead of waiting for a user to track a ticker, the system now autonomously "hunts" for value at 8:00 AM every morning. By isolating quantitative math into a restricted **Quant MCP**, we've ensured that our most complex logic runs in a secure sandbox, while Bedrock handles the high-level synthesis only when our **FinOps Gate** confirms we are under budget.
-
-### May 2026: The Colima Networking Incident
-**Problem:** After a successful `docker-compose up --build`, the dashboard was completely unreachable at `localhost:8000`. `curl` returned `Connection refused` even though `docker ps` showed the container as `healthy`. The `lsof -i :8000` command returned nothing — no process was listed as the owner of the port.
-
-**Root Cause:** The project runs Docker via **Colima** (a lightweight macOS Docker runtime alternative to Docker Desktop). In Colima's default mode, it runs a Linux VM using Apple's Virtualization Framework without assigning it a host-bridged network interface. Port bindings like `0.0.0.0:8000->8000/tcp` are forwarded *inside* the Colima VM, but are not exposed to the macOS host network. This is why `localhost` and `127.0.0.1` both silently refused connections.
-
-**Fix:** Restart Colima with the `--network-address` flag, which provisions a dedicated bridged network interface and assigns the VM a stable LAN IP:
-```bash
-colima stop
-colima start --network-address
-# Then check your IP:
-colima list  # Shows ADDRESS column, e.g. 192.168.64.2
-```
-The dashboard is then accessible at `http://192.168.64.2:8000` (use your specific Colima IP).
-
-**Lesson:** When debugging container connectivity issues on macOS, always check the Docker runtime first (`docker context ls`). If it points to a Colima socket, `localhost` port forwarding behaves differently than Docker Desktop.
 
 ---
+
+## Project Tracking
+
+- **[Development Blog](./dev-blog/DEVELOPMENT_BLOG.md)** — Architectural pivots and engineering journals.
+- **[Changelog](./CHANGELOG.md)** — Version-by-version feature updates and bug fixes.
+
+---
+
+## License
+MIT License - See [LICENSE](LICENSE) for details.

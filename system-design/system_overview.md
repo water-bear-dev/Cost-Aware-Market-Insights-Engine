@@ -89,3 +89,15 @@ As part of the shift to autonomous workflows, the platform now runs a **Daily Di
 
 ---
 
+### 7. Phase 4: Global QMJ Screener
+As of **May 2026**, the system integrated an "Open Data Lakehouse" architecture to run a quantitative "Quality Minus Junk" (QMJ) screener.
+
+#### Open Data Lakehouse
+- **Data Ingestion**: The Market Data MCP was extended to pull fundamental financial statements (Income Statement, Balance Sheet, Cash Flow) and persist them as flattened JSON objects in a Bronze Data Lake layer (S3 for production, local `scratch/bronze/` for development).
+- **dbt Core Transformation**: 
+  - **Local Development**: Uses **DuckDB** to execute transformations over local JSON files with zero cloud cost.
+  - **Production**: Uses **AWS Athena** over the S3 Data Lake to provide serverless, scale-out analytics.
+- **QMJ Model**:
+  - Computes composite QMJ metrics: Profitability (ROE, ROA, Cash Flow Margin) and Safety (Leverage Ratio).
+  - Normalizes scores on a 0-100 scale using `PERCENT_RANK`.
+  - The FastAPI backend accesses the final Data Mart via `duckdb` (local) or `pyathena` (cloud) and exposes it to a dedicated frontend dashboard tab.

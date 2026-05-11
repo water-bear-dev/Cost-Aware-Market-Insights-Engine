@@ -3,6 +3,9 @@ import yfinance as yf
 import httpx
 import xml.etree.ElementTree as ET
 import structlog
+import os
+import json
+import boto3
 
 logger = structlog.get_logger(__name__)
 
@@ -108,6 +111,68 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
     except Exception as e:
         logger.error("Error fetching ticker data", ticker=ticker_symbol, error=str(e))
         return {}
+
+@mcp.tool()
+def fetch_financial_statements(tickers: list[str]) -> str:
+    """Fetches fundamental financial statements and saves them to the Bronze data lake.
+    
+    Args:
+        tickers: List of stock ticker symbols (e.g., ['AAPL', 'MSFT']).
+    """
+    bucket = os.getenv("S3_DATALAKE_BUCKET")
+    s3_client = boto3.client('s3') if bucket else None
+    
+    local_dir = "scratch/bronze/financials"
+    if not bucket:
+        os.makedirs(local_dir, exist_ok=True)
+        
+    results = []
+    
+    for ticker_symbol in tickers:
+        try:
+            ticker = yf.Ticker(ticker_symbol)
+            
+            def extract_latest(df):
+                if df is None or df.empty:
+                    return {}
+                # The columns are usually timestamps (dates of the statements)
+                # We sort them descending and pick the first column (latest date)
+                latest_date = sorted(df.columns, reverse=True)[0]
+                latest_data = df[latest_date].fillna(0).to_dict()
+                return latest_data, str(latest_date)
+            
+            latest_income, inc_date = extract_latest(ticker.income_stmt)
+            latest_bs, bs_date = extract_latest(ticker.balance_sheet)
+            latest_cf, cf_date = extract_latest(ticker.cashflow)
+            
+            data = {
+                "ticker": ticker_symbol,
+                "report_date": inc_date, # Approximation, assume they align
+                "net_income": latest_income.get("Net Income", 0),
+                "total_revenue": latest_income.get("Total Revenue", 0),
+                "total_assets": latest_bs.get("Total Assets", 0),
+                "total_equity": latest_bs.get("Stockholders Equity", 0) or latest_bs.get("Total Equity Gross Minority Interest", 0),
+                "total_debt": latest_bs.get("Total Debt", 0),
+                "operating_cash_flow": latest_cf.get("Operating Cash Flow", 0)
+            }
+            
+            json_data = json.dumps(data)
+            
+            if bucket:
+                s3_key = f"bronze/financials/{ticker_symbol}.json"
+                s3_client.put_object(Bucket=bucket, Key=s3_key, Body=json_data)
+                results.append(f"Saved {ticker_symbol} to S3 {bucket}/{s3_key}")
+            else:
+                file_path = os.path.join(local_dir, f"{ticker_symbol}.json")
+                with open(file_path, "w") as f:
+                    f.write(json_data)
+                results.append(f"Saved {ticker_symbol} to {file_path}")
+                
+        except Exception as e:
+            logger.error(f"Failed to fetch financials for {ticker_symbol}", error=str(e))
+            results.append(f"Failed {ticker_symbol}: {str(e)}")
+            
+    return "\n".join(results)
 
 if __name__ == "__main__":
     # Run using stdio transport

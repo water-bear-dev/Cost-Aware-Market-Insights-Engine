@@ -7,10 +7,38 @@ __pycache__/
 venv/
 env/
 .env
-.venv
+.venv/
+.logenv/
+.logvenv/
 pip-log.txt
+node_modules/
+__pypackages__/
+site-packages/
+bin/
+lib/
+include/
+share/
+dist/
+build/
+out/
 
-# OS generated files
+# dbt
+**/target/
+**/dbt_packages/
+**/logs/
+**/dbt_project.yml.user
+
+# Data Lake / Warehouse / Scratch
+scratch/
+!scratch/.gitkeep
+src/dbt_qmj/scratch/
+*.duckdb
+*.db
+
+# Debug & Temp
+debug_*.py
+test_*.py
+*.log
 .DS_Store
 .DS_Store?
 ._*

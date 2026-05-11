@@ -170,7 +170,157 @@ function initTabs() {
             btn.classList.add('active');
             document.getElementById(btn.dataset.tab).classList.add('active');
             if (btn.dataset.tab === 'discover-view') fetchDiscoverData();
+            if (btn.dataset.tab === 'screener-view') fetchQMJScreener();
         });
+    });
+}
+
+/* =====================================================
+   Screener (QMJ)
+   ===================================================== */
+let allQmjData = [];
+let qmjSortKey = 'qmj_score';
+let qmjSortDir = 'desc';
+
+async function fetchQMJScreener() {
+    const tbody = document.getElementById('qmj-table-body');
+    if (!tbody) return;
+
+    try {
+        const res = await fetch('/api/v1/screener/qmj');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'success' && data.data.length > 0) {
+                allQmjData = data.data;
+                populateQmjFilters(allQmjData);
+                initQmjTableEvents();
+                applyQmjTable();
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>';
+            }
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--negative);">Failed to load screener data.</td></tr>';
+        }
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--negative);">Network error.</td></tr>';
+    }
+}
+
+function populateQmjFilters(data) {
+    const yearSelect = document.getElementById('qmj-filter-year');
+    if (!yearSelect) return;
+
+    const years = [...new Set(data.map(d => d.reporting_year))].sort((a,b) => b-a);
+    yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    
+    // Set default to latest year if available
+    if (years.length > 0) yearSelect.value = years[0];
+}
+
+function initQmjTableEvents() {
+    const search = document.getElementById('qmj-search');
+    const year = document.getElementById('qmj-filter-year');
+    const quarter = document.getElementById('qmj-filter-quarter');
+
+    if (search && !search.hasListener) {
+        search.addEventListener('input', applyQmjTable);
+        year.addEventListener('change', applyQmjTable);
+        quarter.addEventListener('change', applyQmjTable);
+        search.hasListener = true;
+    }
+
+    document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
+        if (!th.hasListener) {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sort;
+                if (qmjSortKey === key) {
+                    qmjSortDir = qmjSortDir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    qmjSortKey = key;
+                    qmjSortDir = 'desc';
+                }
+                applyQmjTable();
+            });
+            th.hasListener = true;
+        }
+    });
+}
+
+function applyQmjTable() {
+    const tbody = document.getElementById('qmj-table-body');
+    const query = document.getElementById('qmj-search')?.value.toLowerCase().trim() || '';
+    const year = document.getElementById('qmj-filter-year')?.value || '';
+    const quarter = document.getElementById('qmj-filter-quarter')?.value || '';
+
+    let filtered = allQmjData.filter(d => {
+        const matchQuery = !query || 
+            d.ticker.toLowerCase().includes(query) || 
+            d.company_name.toLowerCase().includes(query) || 
+            d.industry.toLowerCase().includes(query);
+        const matchYear = !year || String(d.reporting_year) === year;
+        const matchQuarter = !quarter || String(d.reporting_quarter) === quarter;
+        return matchQuery && matchYear && matchQuarter;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+        let valA = a[qmjSortKey];
+        let valB = b[qmjSortKey];
+        
+        if (typeof valA === 'string') {
+            return qmjSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        return qmjSortDir === 'asc' ? valA - valB : valB - valA;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(row => `
+        <tr>
+            <td>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="font-weight: 700; color: var(--text-primary);">${row.ticker}</span>
+                    <span style="font-size: 0.65rem; color: var(--accent); background: rgba(255,255,255,0.05); padding: 0.1rem 0.3rem; border-radius: 4px;">${row.exchange}</span>
+                </div>
+            </td>
+            <td>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${row.company_name}</div>
+            </td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary);">${new Date(row.report_date).toLocaleDateString()}</td>
+            <td>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.8;">${row.industry}</div>
+                <div style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase;">${row.sector}</div>
+            </td>
+            <td style="text-align: right; font-size: 0.85rem; color: var(--text-secondary);">${formatLargePrice(row.market_cap)}</td>
+            <td style="text-align: right;">
+                <div style="font-weight: 700; color: var(--accent); font-size: 1.1rem;">${row.qmj_score.toFixed(1)}</div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Percentile</div>
+            </td>
+            <td style="text-align: right;">
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${(row.valuation * 100).toFixed(2)}%</div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Earn. Yield</div>
+            </td>
+            <td style="text-align: right;">
+                <div style="font-size: 0.9rem; color: ${row.momentum >= 0 ? 'var(--positive)' : 'var(--negative)'}; font-weight: 600;">
+                    ${row.momentum >= 0 ? '+' : ''}${row.momentum.toFixed(1)}%
+                </div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">1Y-1M Mom.</div>
+            </td>
+        </tr>
+    `).join('');
+
+    // Update sort headers UI
+    document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
+        th.classList.remove('active');
+        if (th.dataset.sort === qmjSortKey) {
+            th.classList.add('active');
+            th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, qmjSortDir === 'asc' ? '↑' : '↓');
+        } else {
+            th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, '↕');
+        }
     });
 }
 

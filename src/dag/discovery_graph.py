@@ -111,7 +111,7 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"[\n"
         f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"A 2-3 sentence narrative summary...\"}},\n"
         f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"A 2-3 sentence narrative summary...\"}}\n"
-        ]"
+        f"]"
     )
     
     try:
@@ -122,7 +122,6 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             ]
         elif settings.llm_provider == 'ollama':
             logger.info("Asking Ollama for recommendations", model=settings.ollama_model)
-            # Simpler prompt for Ollama
             ollama_prompt = (
                 f"Review these stock metrics:\n{metrics_str}\n\n"
                 "Pick 1 'S&P 500' stock and 1 'Hidden Gem'. "
@@ -133,93 +132,118 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                 "  {\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}\n"
                 "]"
             )
-            with httpx.Client(timeout=120.0) as client:
-                response = client.post(
-                    f"{settings.ollama_url}/api/generate",
-                    json={
-                        "model": settings.ollama_model,
-                        "prompt": ollama_prompt,
-                        "stream": False,
-                        "format": "json"
-                    }
-                )
-                response.raise_for_status()
-                data = response.json()
-                logger.info("Ollama full response", data=data)
-                text = data.get("response", "")
-                
-                # Robust JSON extraction
-                import re
-                # Try finding an object first (Ollama often prefers dicts)
-                match = re.search(r'\{.*\}', text, re.DOTALL)
-                if match:
-                    try:
-                        raw_obj = json.loads(match.group())
-                        if isinstance(raw_obj, dict):
-                            recs = []
-                            # Handle cases like {"S&P 500": {...}, "Hidden Gem": {...}}
-                            for cat, data in raw_obj.items():
-                                if isinstance(data, dict) and 'ticker' in data:
-                                    recs.append({
-                                        "ticker": data['ticker'],
-                                        "category": cat,
-                                        "rationale": data.get('rationale', ["Interesting momentum", "Strong metrics", "Watch closely"])
-                                    })
-                                elif isinstance(data, str):
-                                    # Handle cases like {"S&P 500": "AAPL"}
-                                    recs.append({
-                                        "ticker": data,
-                                        "category": cat,
-                                        "rationale": ["Featured pick", "Strong data signals", "Market leader"]
-                                    })
-                        else:
-                            recs = []
-                    except json.JSONDecodeError:
-                        recs = []
-                else:
-                    # Try finding a list
-                    match = re.search(r'\[.*\]', text, re.DOTALL)
-                    if match:
+            try:
+                with httpx.Client(timeout=120.0) as client:
+                    response = client.post(
+                        f"{settings.ollama_url}/api/generate",
+                        json={
+                            "model": settings.ollama_model,
+                            "prompt": ollama_prompt,
+                            "stream": False,
+                            "format": "json"
+                        }
+                    )
+                    response.raise_for_status()
+                    data = response.json()
+                    text = data.get("response", "")
+                    logger.info("Ollama response text", text=text)
+                    
+                    # Robust JSON extraction
+                    import re
+                    # 1. Try finding a list [...] first
+                    list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
+                    if list_match:
                         try:
-                            recs = json.loads(match.group())
+                            recs = json.loads(list_match.group())
                         except json.JSONDecodeError:
                             recs = []
-                    else:
-                        recs = []
+                    
+                    # 2. If no list, try finding an object {...}
+                    if not recs:
+                        obj_match = re.search(r'\{.*\}', text, re.DOTALL)
+                        if obj_match:
+                            try:
+                                raw_obj = json.loads(obj_match.group())
+                                # If it's a dict, convert to expected list format
+                                if isinstance(raw_obj, dict):
+                                    recs = []
+                                    # Handle cases like {"S&P 500": {...}, "Hidden Gem": {...}}
+                                    for cat in ["S&P 500", "Hidden Gem"]:
+                                        val = raw_obj.get(cat)
+                                        if isinstance(val, dict) and 'ticker' in val:
+                                            recs.append({"ticker": val['ticker'], "category": cat, "rationale": val.get('rationale', '')})
+                                        elif isinstance(val, str):
+                                            recs.append({"ticker": val, "category": cat, "rationale": "High-interest asset surfaced by Discovery Agent."})
+                                    
+                                    # Handle cases like {"ticker": "AAPL", "category": "S&P 500", ...}
+                                    if not recs and 'ticker' in raw_obj:
+                                        recs = [raw_obj]
+                            except:
+                                recs = []
+            except Exception as e:
+                logger.error("Ollama connection failed", error=str(e))
+                recs = []
         else:
-            logger.info("Asking Bedrock for recommendations")
-            bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
-            body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 500,
-                "temperature": 0.4,
-                "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-            }
-            response = bedrock.invoke_model(
-                modelId="anthropic.claude-3-haiku-20240307-v1:0",
-                contentType="application/json",
-                accept="application/json",
-                body=json.dumps(body)
-            )
-            response_body = json.loads(response.get('body').read())
-            text = response_body.get('content')[0].get('text', '')
-            
-            # Find JSON block
-            start = text.find('[')
-            end = text.rfind(']') + 1
-            if start != -1 and end != 0:
-                recs = json.loads(text[start:end])
-            else:
-                logger.warning("Bedrock returned no JSON list", text=text)
+            # Bedrock path
+            try:
+                logger.info("Asking Bedrock for recommendations")
+                bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
+                body = {
+                    "anthropic_version": "bedrock-2023-05-31",
+                    "max_tokens": 500,
+                    "temperature": 0.4,
+                    "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+                }
+                response = bedrock.invoke_model(
+                    modelId="anthropic.claude-3-haiku-20240307-v1:0",
+                    contentType="application/json",
+                    accept="application/json",
+                    body=json.dumps(body)
+                )
+                response_body = json.loads(response.get('body').read())
+                text = response_body.get('content')[0].get('text', '')
+                
+                # Find JSON block
+                import re
+                list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
+                if list_match:
+                    recs = json.loads(list_match.group())
+                else:
+                    logger.warning("Bedrock returned no JSON list", text=text)
+                    recs = []
+            except Exception as e:
+                logger.error("Bedrock invocation failed", error=str(e))
                 recs = []
                 
+        # --- Fallback Logic ---
+        # If AI failed but we have metrics, pick the top momentum ones
+        if not recs and state.get("metrics"):
+            logger.info("Using fallback quant picks as AI failed")
+            sp500_tickers = state.get("sp500_universe", [])
+            gem_tickers = state.get("hidden_gems_universe", [])
+            metrics = state.get("metrics", {})
+            
+            def get_best(tickers):
+                valid = [t for t in tickers if t in metrics]
+                if not valid: return None
+                return max(valid, key=lambda t: metrics[t].get("momentum_1mo", -1))
+
+            best_sp = get_best(sp500_tickers)
+            best_gem = get_best(gem_tickers)
+            
+            if best_sp:
+                recs.append({"ticker": best_sp, "category": "S&P 500", "rationale": "surfaced based on strong 1-month momentum signals."})
+            if best_gem:
+                recs.append({"ticker": best_gem, "category": "Hidden Gem", "rationale": "surfaced as a high-momentum volatile asset."})
+
         # Log cost
         log_cost("DISCOVERY", 500, 200)
         
         if not recs:
-            logger.warning("Discovery agent generated empty recommendations", raw_text=text)
+            logger.warning("Discovery agent generated empty recommendations")
             
         return {"recommendations": recs}
+
         
     except Exception as e:
         logger.error("Discovery recommendation failed", error=str(e), provider=settings.llm_provider)

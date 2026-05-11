@@ -2,9 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## [2.9.3] - 2026-05-08
+## [2.9.5] - 2026-05-11
 
 ### Added
+- **Documentation Consolidation** — Migrated the "Alpha-DAG Pivot" and "Colima Networking" technical logs from the `README.md` to the dedicated `DEVELOPMENT_BLOG.md`.
+
+### Fixed
+- **UI Structural Stability** — Corrected nested HTML `div` imbalances in the "How it Works" section of `index.html` to prevent documentation content from leaking into other dashboard tabs.
+- **QMJ Screener UI** — Refined the screener table layout with minimum widths to prevent column overlap in high-density views.
+
+## [2.9.4] - 2026-05-11
+
+### Added
+- **Global QMJ Screener** — Integrated a quantitative "Quality Minus Junk" (QMJ) screener directly into the dashboard.
+- **Open Data Lakehouse Architecture** — Implemented a dual-engine transformation pipeline using dbt Core.
+  - Development runs cost-free using DuckDB over local JSON files.
+  - Production scales serverlessly using AWS Athena over S3.
+- **Fundamental Ingestion** — Expanded the Market Data MCP to fetch comprehensive financial statements (Income Statement, Balance Sheet, Cash Flow) directly from yfinance.
+- **QMJ Scoring Model** — Developed modular SQL logic to compute proxy Profitability (ROE, ROA, Cash Flow Margin) and Safety (Leverage Ratio) scores, ranked across the tracked universe using `PERCENT_RANK`.
+
+## [2.9.3] - 2026-05-08### Added
 - **Global Currency Localization** — Implemented comprehensive support for international markets including Hong Kong (**HKD**), Canada (**CAD**), Singapore (**SGD**), and New Zealand (**NZD**).
 - **Exchange-Aware Formatting** — The dashboard now automatically applies native currency symbols (¥, HK$, A$, etc.) based on an asset's primary exchange, ensuring accurate labeling even when the global base currency is set to USD.
 - **Live FX Fetching** — Integrated a real-time exchange rate bridge using the Yahoo Finance FX API, providing live-updated conversion metrics for all supported global currencies.

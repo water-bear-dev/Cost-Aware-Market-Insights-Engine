@@ -1,0 +1,16 @@
+qmj_screener:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '../../scratch/qmj_screener.duckdb'
+      # DuckDB requires no credentials for local files.
+      threads: 4
+
+    prod:
+      type: athena
+      s3_staging_dir: "s3://{{ env_var('S3_DATALAKE_BUCKET', 'default-bucket') }}/athena-staging/"
+      region_name: "us-east-1"  # Or your AWS region
+      schema: "qmj_screener"
+      database: "awsdatacatalog"
+      threads: 4
