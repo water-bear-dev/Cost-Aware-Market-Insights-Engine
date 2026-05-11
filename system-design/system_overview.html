@@ -244,6 +244,78 @@ AI Market Insights Engine – System Architecture & Intelligence Roadmap</h1>
 </figure>
 <p>A multi-agent, institutional-grade financial intelligence engine. The system leverages <strong>LangGraph</strong> for stateful DAG orchestration, <strong>dbt</strong> for financial engineering (Quality Minus Junk), and <strong>AWS Bedrock</strong> for synthesized insights. Secured via sandboxed <strong>MCPs</strong> and monitored with a strict <strong>FinOps budget gate</strong>.</p>
 <p>The architecture has evolved from a monolithic background loop to the <strong>Alpha-DAG Pivot</strong>, enabling autonomous discovery and complex multi-universe reasoning.</p>
+
+<h4 id="alpha-dag-system-diagram">Final Alpha-DAG Architecture</h4>
+<pre class="mermaid"><code>flowchart TB
+    subgraph Presentation ["Presentation Layer"]
+        FastAPI["FastAPI"]
+        Dash["Glassmorphic Dashboard"]
+        JS["Vanilla JS"]
+    end
+
+    subgraph Intelligence ["Alpha-DAG Orchestration (LangGraph)"]
+        direction LR
+        Gate["FinOps Gate\n(USD Budget Enforcement)"]
+        Hunter["Discovery Hunter\n(Global Ticker Filter)"]
+        Synth["AI Synthesis"]
+        Bedrock["Amazon Bedrock"]
+
+        Gate --&gt; Hunter --&gt; Synth --&gt; Bedrock
+    end
+
+    subgraph DataLayer ["Quantitative & Data Layer"]
+        direction TB
+        MarketMCP["MCP: Market Data\n(Sandboxed Docker)"]
+        QuantMCP["MCP: Quant Compute\n(Sandboxed Docker)"]
+        DBT["dbt Pipeline\n(QMJ Z-Scores)"]
+        Warehouse["Analytics Warehouse\n(DuckDB -&gt; Athena)"]
+
+        MarketMCP --&gt; DBT --&gt; Warehouse
+    end
+
+    subgraph Ingestion ["Ingestion"]
+        YFinance["Global Market Ingestion\n(yfinance)"]
+    end
+
+    subgraph AWS ["AWS Cloud Infrastructure"]
+        Fargate["ECS Fargate\n(prod)"]
+        Athena["Athena"]
+        CW["CloudWatch"]
+        DDB_Market[("Market Data")]
+        DDB_Insights[("Insights")]
+        DDB_Costs[("Cost Tracking")]
+
+        Fargate -.- Athena
+        Fargate -.- DDB_Market
+        Fargate -.- DDB_Insights
+        Fargate -.- DDB_Costs
+    end
+
+    %% Connections
+    YFinance -- "raw data" --&gt; DBT
+    Warehouse -- "QMJ scores" --&gt; Hunter
+    QuantMCP -- "QMJ scores" --&gt; Hunter
+    Synth -- "insights" --&gt; Dash
+    Dash -- "feedback loop" --&gt; Gate
+    Gate -- "debit budget" --&gt; DDB_Costs
+    
+    Fargate -- "runs on" --&gt; Intelligence
+    CW -- "observability + alarms" --&gt; Intelligence
+    CW -- "observability + alarms" --&gt; AWS
+
+    %% Styling
+    classDef intelligence fill:#6a4c93,color:#fff,stroke:#333,stroke-width:2px;
+    classDef datalayer fill:#1982c4,color:#fff,stroke:#333,stroke-width:2px;
+    classDef aws fill:#ff595e,color:#fff,stroke:#333,stroke-width:2px;
+    classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
+    classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
+
+    class Gate,Hunter,Synth,Bedrock intelligence;
+    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
+    class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
+    class DDB_Costs cost;
+    class Presentation presentation;
+</code></pre>
 <h4
 id="phases-1-4-development-architecture-public-subnet-no-albnat">Phases
 1-4: Development Architecture (public subnet, no ALB/NAT)</h4>

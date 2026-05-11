@@ -9,6 +9,80 @@ The dashboard is structured around three core views:
 
 ![Dashboard Preview](./system-design/system_architecture.png)
 
+## System Architecture
+
+```mermaid
+flowchart TB
+    subgraph Presentation ["Presentation Layer"]
+        FastAPI["FastAPI"]
+        Dash["Glassmorphic Dashboard"]
+        JS["Vanilla JS"]
+    end
+
+    subgraph Intelligence ["Alpha-DAG Orchestration (LangGraph)"]
+        direction LR
+        Gate["FinOps Gate\n(USD Budget Enforcement)"]
+        Hunter["Discovery Hunter\n(Global Ticker Filter)"]
+        Synth["AI Synthesis"]
+        Bedrock["Amazon Bedrock"]
+
+        Gate --> Hunter --> Synth --> Bedrock
+    end
+
+    subgraph DataLayer ["Quantitative & Data Layer"]
+        direction TB
+        MarketMCP["MCP: Market Data\n(Sandboxed Docker)"]
+        QuantMCP["MCP: Quant Compute\n(Sandboxed Docker)"]
+        DBT["dbt Pipeline\n(QMJ Z-Scores)"]
+        Warehouse["Analytics Warehouse\n(DuckDB -> Athena)"]
+
+        MarketMCP --> DBT --> Warehouse
+    end
+
+    subgraph Ingestion ["Ingestion"]
+        YFinance["Global Market Ingestion\n(yfinance)"]
+    end
+
+    subgraph AWS ["AWS Cloud Infrastructure"]
+        Fargate["ECS Fargate\n(prod)"]
+        Athena["Athena"]
+        CW["CloudWatch"]
+        DDB_Market[("Market Data")]
+        DDB_Insights[("Insights")]
+        DDB_Costs[("Cost Tracking")]
+
+        Fargate -.- Athena
+        Fargate -.- DDB_Market
+        Fargate -.- DDB_Insights
+        Fargate -.- DDB_Costs
+    end
+
+    %% Connections
+    YFinance -- "raw data" --> DBT
+    Warehouse -- "QMJ scores" --> Hunter
+    QuantMCP -- "QMJ scores" --> Hunter
+    Synth -- "insights" --> Dash
+    Dash -- "feedback loop" --> Gate
+    Gate -- "debit budget" --> DDB_Costs
+    
+    Fargate -- "runs on" --> Intelligence
+    CW -- "observability + alarms" --> Intelligence
+    CW -- "observability + alarms" --> AWS
+
+    %% Styling
+    classDef intelligence fill:#6a4c93,color:#fff,stroke:#333,stroke-width:2px;
+    classDef datalayer fill:#1982c4,color:#fff,stroke:#333,stroke-width:2px;
+    classDef aws fill:#ff595e,color:#fff,stroke:#333,stroke-width:2px;
+    classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
+    classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
+
+    class Gate,Hunter,Synth,Bedrock intelligence;
+    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
+    class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
+    class DDB_Costs cost;
+    class Presentation presentation;
+```
+
 ## Overview & Architecture Highlights
 
 This project is built around the fundamental philosophy that AI integration must be cost-aware from day one. It utilizes a distributed **Alpha-DAG** system built with LangGraph and the Model Context Protocol (MCP) to ensure modularity, security, and strict financial control.

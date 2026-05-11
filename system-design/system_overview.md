@@ -8,41 +8,74 @@ The system has evolved from a monolithic background loop to a **stateful, agenti
 
 ```mermaid
 flowchart TB
-  User["Market Analyst\n(Browser)"] -->|HTTPS| ALB["Application Load Balancer\n(Public Subnets)"]
-  
-  subgraph vpc [VPC: 10.0.0.0/16]
-    subgraph privSub [Private Subnets]
-      Fargate["ECS Fargate Task\n(Python/FastAPI Engine)\nAlpha-DAG Orchestrator"]
+    subgraph Presentation ["Presentation Layer"]
+        FastAPI["FastAPI"]
+        Dash["Glassmorphic Dashboard"]
+        JS["Vanilla JS"]
     end
+
+    subgraph Intelligence ["Alpha-DAG Orchestration (LangGraph)"]
+        direction LR
+        Gate["FinOps Gate\n(USD Budget Enforcement)"]
+        Hunter["Discovery Hunter\n(Global Ticker Filter)"]
+        Synth["AI Synthesis"]
+        Bedrock["Amazon Bedrock"]
+
+        Gate --> Hunter --> Synth --> Bedrock
+    end
+
+    subgraph DataLayer ["Quantitative & Data Layer"]
+        direction TB
+        MarketMCP["MCP: Market Data\n(Sandboxed Docker)"]
+        QuantMCP["MCP: Quant Compute\n(Sandboxed Docker)"]
+        DBT["dbt Pipeline\n(QMJ Z-Scores)"]
+        Warehouse["Analytics Warehouse\n(DuckDB -> Athena)"]
+
+        MarketMCP --> DBT --> Warehouse
+    end
+
+    subgraph Ingestion ["Ingestion"]
+        YFinance["Global Market Ingestion\n(yfinance)"]
+    end
+
+    subgraph AWS ["AWS Cloud Infrastructure"]
+        Fargate["ECS Fargate\n(prod)"]
+        Athena["Athena"]
+        CW["CloudWatch"]
+        DDB_Market[("Market Data")]
+        DDB_Insights[("Insights")]
+        DDB_Costs[("Cost Tracking")]
+
+        Fargate -.- Athena
+        Fargate -.- DDB_Market
+        Fargate -.- DDB_Insights
+        Fargate -.- DDB_Costs
+    end
+
+    %% Connections
+    YFinance -- "raw data" --> DBT
+    Warehouse -- "QMJ scores" --> Hunter
+    QuantMCP -- "QMJ scores" --> Hunter
+    Synth -- "insights" --> Dash
+    Dash -- "feedback loop" --> Gate
+    Gate -- "debit budget" --> DDB_Costs
     
-    subgraph pubSub [Public Subnets]
-      NAT["NAT Gateway\n(Egress for Bedrock/News)"]
-    end
-  end
+    Fargate -- "runs on" --> Intelligence
+    CW -- "observability + alarms" --> Intelligence
+    CW -- "observability + alarms" --> AWS
 
-  ALB -->|Port 8000| Fargate
-  
-  subgraph DAG [Alpha-DAG / LangGraph]
-    FinOps[FinOps Gate Node] --> Hunter[Discovery Hunter]
-    Hunter --> Synthesis[Bedrock Synthesis Node]
-  end
+    %% Styling
+    classDef intelligence fill:#6a4c93,color:#fff,stroke:#333,stroke-width:2px;
+    classDef datalayer fill:#1982c4,color:#fff,stroke:#333,stroke-width:2px;
+    classDef aws fill:#ff595e,color:#fff,stroke:#333,stroke-width:2px;
+    classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
+    classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
 
-  Fargate --> DAG
-  Fargate -->|"Egress via NAT"| Bedrock["AWS Bedrock\n(Claude 3 Haiku)"]
-  Fargate -->|"Egress via NAT"| YahooFinance["Yahoo Finance / RSS"]
-  
-  subgraph MCP [Sandboxed MCPs]
-    MarketMCP[Market Data MCP]
-    QuantMCP[Quant Compute MCP]
-  end
-
-  Fargate --> MCP
-  
-  Fargate <-->|"VPC Endpoint"| DDB_Market["DynamoDB: MarketData"]
-  Fargate <-->|"VPC Endpoint"| DDB_Insights["DynamoDB: Insights"]
-  Fargate <-->|"VPC Endpoint"| DDB_Costs["DynamoDB: CostTracking"]
-  
-  Fargate -->|Custom Metrics| CW["CloudWatch Monitoring\n+ FinOps Alarms"]
+    class Gate,Hunter,Synth,Bedrock intelligence;
+    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
+    class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
+    class DDB_Costs cost;
+    class Presentation presentation;
 ```
 
 ### 2. Tangible Milestones & Roadmap
