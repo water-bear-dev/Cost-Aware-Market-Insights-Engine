@@ -9,15 +9,15 @@ stats AS (
         reporting_year,
         reporting_quarter,
         AVG(profitability_gpa) as avg_prof,
-        STDDEV(profitability_gpa) as std_prof,
+        COALESCE(STDDEV_POP(profitability_gpa), 0) as std_prof,
         AVG(leverage_ratio) as avg_lev,
-        STDDEV(leverage_ratio) as std_lev,
+        COALESCE(STDDEV_POP(leverage_ratio), 0) as std_lev,
         AVG(growth_yoy) as avg_growth,
-        STDDEV(growth_yoy) as std_growth,
+        COALESCE(STDDEV_POP(growth_yoy), 0) as std_growth,
         AVG(earnings_yield) as avg_value,
-        STDDEV(earnings_yield) as std_value,
+        COALESCE(STDDEV_POP(earnings_yield), 0) as std_value,
         AVG(momentum) as avg_mom,
-        STDDEV(momentum) as std_mom
+        COALESCE(STDDEV_POP(momentum), 0) as std_mom
     FROM metrics
     GROUP BY reporting_year, reporting_quarter
 ),
@@ -25,12 +25,12 @@ stats AS (
 z_scores AS (
     SELECT
         m.*,
-        CASE WHEN s.std_prof > 0 THEN (m.profitability_gpa - s.avg_prof) / s.std_prof ELSE 0 END AS z_prof,
+        COALESCE(CASE WHEN s.std_prof > 0 THEN (m.profitability_gpa - s.avg_prof) / s.std_prof ELSE 0 END, 0) AS z_prof,
         -- Safety is inverse of leverage, so lower leverage = higher safety (negative Z score of leverage)
-        CASE WHEN s.std_lev > 0 THEN -(m.leverage_ratio - s.avg_lev) / s.std_lev ELSE 0 END AS z_safety,
-        CASE WHEN s.std_growth > 0 THEN (m.growth_yoy - s.avg_growth) / s.std_growth ELSE 0 END AS z_growth,
-        CASE WHEN s.std_value > 0 THEN (m.earnings_yield - s.avg_value) / s.std_value ELSE 0 END AS z_value,
-        CASE WHEN s.std_mom > 0 THEN (m.momentum - s.avg_mom) / s.std_mom ELSE 0 END AS z_mom,
+        COALESCE(CASE WHEN s.std_lev > 0 THEN -(m.leverage_ratio - s.avg_lev) / s.std_lev ELSE 0 END, 0) AS z_safety,
+        COALESCE(CASE WHEN s.std_growth > 0 THEN (m.growth_yoy - s.avg_growth) / s.std_growth ELSE 0 END, 0) AS z_growth,
+        COALESCE(CASE WHEN s.std_value > 0 THEN (m.earnings_yield - s.avg_value) / s.std_value ELSE 0 END, 0) AS z_value,
+        COALESCE(CASE WHEN s.std_mom > 0 THEN (m.momentum - s.avg_mom) / s.std_mom ELSE 0 END, 0) AS z_mom,
         
         PERCENT_RANK() OVER (PARTITION BY m.reporting_year, m.reporting_quarter ORDER BY m.profitability_gpa ASC) * 100 AS prof_percentile,
         PERCENT_RANK() OVER (PARTITION BY m.reporting_year, m.reporting_quarter ORDER BY m.leverage_ratio DESC) * 100 AS safety_percentile,
@@ -52,6 +52,7 @@ SELECT
     market_cap,
     
     -- Final QMJ Composite (Profitability + Safety + Growth + Value + Momentum)
+    -- Using COALESCE to ensure missing factors don't nullify the whole score
     ROUND((z_prof + z_safety + z_growth + z_value + z_mom) / 5, 4) AS qmj_score,
     
     -- Academic Metrics

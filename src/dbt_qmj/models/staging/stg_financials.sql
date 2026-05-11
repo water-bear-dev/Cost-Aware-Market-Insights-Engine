@@ -2,7 +2,7 @@
 
 {% if target.name == 'dev' %}
   WITH raw_data AS (
-    SELECT * FROM read_json_auto('../../scratch/bronze/financials/*.json')
+    SELECT * FROM read_json_auto('../../scratch/bronze/financials/*.json', columns={'ticker': 'VARCHAR', 'company_name': 'VARCHAR', 'exchange': 'VARCHAR', 'industry': 'VARCHAR', 'sector': 'VARCHAR', 'market_cap': 'VARCHAR', 'momentum': 'VARCHAR', 'report_date': 'VARCHAR', 'net_income': 'VARCHAR', 'gross_profit': 'VARCHAR', 'total_revenue': 'VARCHAR', 'total_assets': 'VARCHAR', 'total_equity': 'VARCHAR', 'total_debt': 'VARCHAR', 'operating_cash_flow': 'VARCHAR'})
   )
 {% else %}
   -- Prod assumes the data is exposed via AWS Glue
@@ -19,7 +19,7 @@ SELECT
     raw_data.sector,
     TRY_CAST(raw_data.market_cap AS DOUBLE) AS market_cap,
     TRY_CAST(raw_data.momentum AS DOUBLE) AS momentum,
-    TRY_CAST(raw_data.report_date AS DATE) AS report_date,
+    TRY_CAST(raw_data.report_date AS TIMESTAMP)::DATE AS report_date,
     TRY_CAST(raw_data.net_income AS DOUBLE) AS net_income,
     TRY_CAST(raw_data.gross_profit AS DOUBLE) AS gross_profit,
     TRY_CAST(raw_data.total_revenue AS DOUBLE) AS total_revenue,

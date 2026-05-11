@@ -25,33 +25,34 @@ SELECT
     EXTRACT(YEAR FROM report_date) AS reporting_year,
     
     -- QMJ Profitability: Gross Profits / Total Assets (Standard QMJ Paper)
+    -- Cap at 1000 to prevent 'Out of Range' errors from bad data
     CASE 
-        WHEN total_assets > 0 THEN gross_profit / total_assets 
+        WHEN total_assets > 0 THEN LEAST(1000, gross_profit / total_assets)
         ELSE NULL 
     END AS profitability_gpa,
     
     -- ROE as secondary profitability
     CASE 
-        WHEN total_equity > 0 THEN net_income / total_equity 
+        WHEN total_equity > 0 THEN LEAST(1000, net_income / total_equity)
         ELSE NULL 
     END AS return_on_equity,
 
     -- Safety: Leverage (Total Debt / Total Equity) - Standard QMJ Paper
     CASE 
-        WHEN total_equity > 0 THEN total_debt / total_equity 
+        WHEN total_equity > 0 THEN LEAST(1000, total_debt / total_equity)
         ELSE 0 
     END AS leverage_ratio,
 
     -- Value: Earnings Yield (Net Income / Market Cap) as proxy for B/P
     CASE 
-        WHEN market_cap > 0 THEN net_income / market_cap 
+        WHEN market_cap > 0 THEN LEAST(1000, net_income / market_cap)
         ELSE NULL 
     END AS earnings_yield,
     
     -- Growth: YoY Growth in Gross Profit (fallback to Revenue)
     CASE
-        WHEN prev_gross_profit > 0 THEN (gross_profit - prev_gross_profit) / prev_gross_profit
-        WHEN prev_revenue > 0 THEN (total_revenue - prev_revenue) / prev_revenue
+        WHEN prev_gross_profit > 0 THEN LEAST(1000, (gross_profit - prev_gross_profit) / prev_gross_profit)
+        WHEN prev_revenue > 0 THEN LEAST(1000, (total_revenue - prev_revenue) / prev_revenue)
         ELSE NULL
     END AS growth_yoy
 

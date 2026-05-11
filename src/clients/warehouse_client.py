@@ -72,7 +72,8 @@ class WarehouseClient:
                         df[z_col] = df[z_col].fillna(0)
             
             # Recalculate composite QMJ score if we added new factors
-            df['qmj_score'] = df[required_z].mean(axis=1)
+            # pandas.mean(axis=1) handles NaNs by averaging the non-NaN values
+            df['qmj_score'] = df[required_z].mean(axis=1).fillna(0)
             
             # Replace NaN/Inf with None for JSON compliance
             return df.replace({float('nan'): None, float('inf'): None, float('-inf'): None}).to_dict(orient="records")

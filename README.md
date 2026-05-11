@@ -251,7 +251,7 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 4: UX Polish & Global Access** - Multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations.
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
-- **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, added an API-throttled Force Refresh system, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
+- **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
 - **[PLANNED] Phase 9: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 

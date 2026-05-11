@@ -803,3 +803,14 @@ As the engine scaled to ~600 tickers (S&P 500 + ASX 200) to fuel the Global QMJ 
 - **Dashboard Streamlining**: Reverted the default tracked list to a focused set of **FAANG** tickers. This ensures the primary dashboard remains high-performance and provides a clear, high-signal focus for daily monitoring.
 - **Screener Isolation**: Maintained the full 600-ticker analytical warehouse in DuckDB/dbt, ensuring that while the dashboard is streamlined, the engine's "Research" capabilities remain globally competitive.
 - **System Stability**: Resolved Python 3.9 compatibility issues and synchronized UI function names to ensure the new tabbed architecture is production-grade.
+
+## Entry 41: Resilience Hardening & The "Permissive" Screener
+
+*Date: 2026-05-12*
+
+To expand the reach of the QMJ Screener without sacrificing analytical integrity, we implemented a **Resilience Hardening** pass on the data pipeline and the factor model.
+
+- **Permissive Factor Ranking**: Refactored the SQL/dbt logic to treat missing fundamental factors (e.g., Growth or Safety) as **Neutral (0)** rather than Null. This prevents companies with incomplete data from being excluded, allowing for a much broader "top-of-funnel" view of the market.
+- **Resilient Ingestion Fallbacks**: Upgraded the ingestion engine to search through all available historical reports if the latest one is missing. It now automatically pivots to **Quarterly reports** if Yearly data is unavailable, fulfilling the "earliest timeframe" requirement for asset coverage.
+- **Mathematical Safety (Outlier Capping)**: Implemented `LEAST(1000, ...)` guards on all factor calculations. This prevents "Out of Range" errors in the DuckDB analytical engine caused by extreme outliers or broken financial data (e.g., division by near-zero equity).
+- **Data Type Resilience**: Optimized the `stg_financials` layer to treat JSON inputs as `VARCHAR` before casting, preventing type-inference failures during mass ingestion of heterogeneous ticker data.
