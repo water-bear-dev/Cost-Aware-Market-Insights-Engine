@@ -7,8 +7,6 @@ The dashboard is structured around three core views:
 - **Discover** — A global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
 - **Costs / How it Works** — FinOps observability and architecture education.
 
-![Dashboard Preview](./system-design/system_architecture.png)
-
 ## System Architecture
 
 ```mermaid
