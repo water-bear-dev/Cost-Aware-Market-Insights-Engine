@@ -14,8 +14,10 @@ let currentModalInsight = null;
 let lastMarketData = {};
 let lastInsightsData = {};
 let dailyPicksData = {};
+let lastDiscoverCommodities = [];
 
 let currentCurrency = 'USD';
+let currentCommodityUnit = 'Imperial';
 let EXCHANGE_RATES = {
     'USD': { rate: 1.0, symbol: '$' },
     'EUR': { rate: 0.92, symbol: '€' },
@@ -274,7 +276,7 @@ function applyQmjTable() {
     });
 
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
         return;
     }
 
@@ -296,8 +298,17 @@ function applyQmjTable() {
             </td>
             <td style="text-align: right; font-size: 0.85rem; color: var(--text-secondary);">${formatLargePrice(row.market_cap)}</td>
             <td style="text-align: right;">
-                <div style="font-weight: 700; color: var(--accent); font-size: 1.1rem;">${row.qmj_score.toFixed(1)}</div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Percentile</div>
+                <div style="font-weight: 700; color: var(--accent); font-size: 1.1rem;">${row.qmj_score ? row.qmj_score.toFixed(2) : '—'}</div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Composite Z</div>
+            </td>
+            <td style="text-align: right;">
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_prof !== null && row.z_prof !== undefined ? row.z_prof.toFixed(2) : '—'}</div>
+            </td>
+            <td style="text-align: right;">
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_growth !== null && row.z_growth !== undefined ? row.z_growth.toFixed(2) : '—'}</div>
+            </td>
+            <td style="text-align: right;">
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_safety !== null && row.z_safety !== undefined ? row.z_safety.toFixed(2) : '—'}</div>
             </td>
             <td style="text-align: right;">
                 <div style="font-size: 0.9rem; color: var(--text-primary);">${(row.valuation * 100).toFixed(2)}%</div>
@@ -399,23 +410,55 @@ window.handleManageDelete = async (ticker, btn) => {
    Currency
    ===================================================== */
 function initCurrency() {
-    const selector = document.getElementById('currency-selector');
-    if (!selector) return;
+    const selectors = [
+        document.getElementById('currency-selector'),
+        document.getElementById('discover-currency-main'),
+        document.getElementById('discover-currency-news'),
+        document.getElementById('screener-currency')
+    ];
     
-    selector.addEventListener('change', (e) => {
-        currentCurrency = e.target.value;
-        // Trigger re-render of all price-related elements
-        if (Object.keys(lastMarketData).length > 0) {
-            patchInsightsGrid(lastMarketData, lastInsightsData);
-            updatePortfolioChart(Object.values(lastMarketData));
-            fetchCosts();
-            fetchDashboardCosts();
-            // If modal is open, refresh it
-            if (currentModalTicker) {
-                renderModalContent(currentModalMkt, currentModalInsight);
+    selectors.forEach(selector => {
+        if (!selector) return;
+        selector.addEventListener('change', (e) => {
+            currentCurrency = e.target.value;
+            // Sync all selectors
+            selectors.forEach(s => { if(s && s !== e.target) s.value = currentCurrency; });
+            
+            // Trigger re-render of all price-related elements
+            if (Object.keys(lastMarketData).length > 0) {
+                patchInsightsGrid(lastMarketData, lastInsightsData);
+                updatePortfolioChart(Object.values(lastMarketData));
+                fetchCosts();
+                fetchDashboardCosts();
+                // If modal is open, refresh it
+                if (currentModalTicker) {
+                    renderModalContent(currentModalMkt, currentModalInsight);
+                }
             }
-        }
+            
+            // Re-render other tabs
+            fetchDiscoverData(); // Fetch is cached, so it just re-renders with new currency
+            renderQMJScreener();
+        });
     });
+
+    const imperialBtn = document.getElementById('unit-imperial');
+    const metricBtn = document.getElementById('unit-metric');
+    
+    if (imperialBtn && metricBtn) {
+        imperialBtn.addEventListener('click', (e) => {
+            currentCommodityUnit = 'Imperial';
+            imperialBtn.classList.add('active');
+            metricBtn.classList.remove('active');
+            renderCommodities(lastDiscoverCommodities || []);
+        });
+        metricBtn.addEventListener('click', (e) => {
+            currentCommodityUnit = 'Metric';
+            metricBtn.classList.add('active');
+            imperialBtn.classList.remove('active');
+            renderCommodities(lastDiscoverCommodities || []);
+        });
+    }
 }
 
 /* =====================================================
@@ -1708,11 +1751,15 @@ async function fetchDiscoverData() {
     fetchDiscoverNews();
     fetchDailyPicks();  // also refresh daily picks when switching to Discover
 
-    // Auto-refresh indices every 5 min, news every hour
+    // Auto-refresh ALL Discover info every 30 minutes
     clearInterval(_discoverRefreshTimer);
     clearInterval(_discoverNewsTimer);
-    _discoverRefreshTimer = setInterval(fetchDiscoverIndices, 5 * 60 * 1000);
-    _discoverNewsTimer    = setInterval(fetchDiscoverNews,   60 * 60 * 1000);
+    _discoverRefreshTimer = setInterval(() => {
+        fetchDiscoverIndices();
+        fetchDiscoverMovers();
+        fetchDiscoverNews();
+        fetchDailyPicks();
+    }, 30 * 60 * 1000);
 }
 
 async function fetchDiscoverIndices() {
@@ -1721,7 +1768,8 @@ async function fetchDiscoverIndices() {
         if (!res.ok) return;
         const data = await res.json();
         renderMarketIndices(data.regions || []);
-        renderCommodities(data.commodities || []);
+        lastDiscoverCommodities = data.commodities || [];
+        renderCommodities(lastDiscoverCommodities);
     } catch(e) { console.error('Discover indices failed', e); }
 }
 
@@ -1792,13 +1840,29 @@ function renderCommodities(commodities) {
     el.innerHTML = commodities.map(c => {
         const isPos = c.change_pct >= 0;
         const sign  = isPos ? '+' : '';
+        
+        // Unit conversion logic
+        let displayPrice = c.price;
+        let displayUnit = c.unit;
+        
+        if (currentCommodityUnit === 'Metric') {
+            if (c.unit === 'oz') {
+                displayPrice = displayPrice / 28.3495; // Price per gram
+                displayUnit = 'g';
+            } else if (c.unit === 'bbl') {
+                displayPrice = displayPrice / 158.987; // Price per liter
+                displayUnit = 'L';
+            }
+        }
+        
+        // Use formatPrice to apply the selected global currency logic
         return `<div class="discover-index-card">
             <div class="discover-region-label">${c.icon} ${c.name}</div>
-            <div class="discover-index-name">per ${c.unit} · USD</div>
+            <div class="discover-index-name">per ${displayUnit}</div>
             <div class="discover-index-price">
                 <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
                     <span style="font-size: 0.5rem; color: var(--accent); font-weight: 700; opacity: 0.7;">CLOSE</span>
-                    <div>$${c.price.toLocaleString()}</div>
+                    <div>${formatPrice(displayPrice, c.currency || 'USD')}</div>
                 </div>
                 ${renderExtendedHours(c)}
             </div>

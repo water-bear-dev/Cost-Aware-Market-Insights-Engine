@@ -2,6 +2,13 @@
 
 WITH base AS (
     SELECT * FROM {{ ref('stg_financials') }}
+),
+with_lag AS (
+    SELECT
+        *,
+        LAG(total_revenue, 1) OVER (PARTITION BY ticker ORDER BY report_date ASC) as prev_revenue,
+        LAG(gross_profit, 1) OVER (PARTITION BY ticker ORDER BY report_date ASC) as prev_gross_profit
+    FROM base
 )
 
 SELECT
@@ -39,7 +46,14 @@ SELECT
     CASE 
         WHEN market_cap > 0 THEN net_income / market_cap 
         ELSE NULL 
-    END AS earnings_yield
+    END AS earnings_yield,
+    
+    -- Growth: YoY Growth in Gross Profit (fallback to Revenue)
+    CASE
+        WHEN prev_gross_profit > 0 THEN (gross_profit - prev_gross_profit) / prev_gross_profit
+        WHEN prev_revenue > 0 THEN (total_revenue - prev_revenue) / prev_revenue
+        ELSE NULL
+    END AS growth_yoy
 
-FROM base
+FROM with_lag
 WHERE report_date IS NOT NULL

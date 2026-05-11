@@ -150,6 +150,7 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                     
                     # Robust JSON extraction
                     import re
+                    recs = []
                     # 1. Try finding a list [...] first
                     list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
                     if list_match:

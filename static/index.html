@@ -144,11 +144,27 @@
             </div>
 
             <!-- 🌍 Global Markets — grouped by region -->
-            <h2 class="discover-section-title">🌍 Global Markets</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 class="discover-section-title" style="margin: 0;">🌍 Global Markets</h2>
+                <select id="discover-currency-main" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                    <option value="USD">USD ($)</option>
+                    <option value="AUD">AUD (A$)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="JPY">JPY (¥)</option>
+                    <option value="HKD">HKD (HK$)</option>
+                </select>
+            </div>
             <div id="discover-indices" class="discover-indices-wrapper"></div>
 
             <!-- ⚡ Commodities -->
-            <h2 class="discover-section-title" style="margin-top:2.5rem;">⚡ Commodities</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem;">
+                <h2 class="discover-section-title" style="margin: 0;">⚡ Commodities</h2>
+                <div class="glass-input" style="display: flex; gap: 0.5rem; padding: 0.25rem; border-radius: 6px;">
+                    <button id="unit-imperial" class="period-btn active" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Imperial</button>
+                    <button id="unit-metric" class="period-btn" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Metric</button>
+                </div>
+            </div>
             <div id="discover-commodities" class="discover-commodity-grid"></div>
 
             <!-- 🚀 Top Movers -->
@@ -189,7 +205,17 @@
             </div>
 
             <!-- 📰 Market News -->
-            <h2 class="discover-section-title" style="margin-top:2.5rem;">📰 Market News <span id="news-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem;">
+                <h2 class="discover-section-title" style="margin: 0;">📰 Market News <span id="news-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
+                <select id="discover-currency-news" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                    <option value="USD">USD ($)</option>
+                    <option value="AUD">AUD (A$)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="JPY">JPY (¥)</option>
+                    <option value="HKD">HKD (HK$)</option>
+                </select>
+            </div>
             <div id="discover-news" class="discover-news-feed"></div>
 
         </section>
@@ -207,7 +233,17 @@
                         <option value="4">Q4</option>
                     </select>
                 </div>
-                <input type="text" id="qmj-search" class="glass-input" placeholder="Filter by Ticker/Industry..." style="flex: 1; min-width: 200px;" />
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <select id="screener-currency" class="glass-input" style="width: auto;">
+                        <option value="USD">USD ($)</option>
+                        <option value="AUD">AUD (A$)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="HKD">HKD (HK$)</option>
+                    </select>
+                    <input type="text" id="qmj-search" class="glass-input" placeholder="Filter by Ticker/Industry..." style="flex: 1; min-width: 200px;" />
+                </div>
             </div>
 
             <div class="glass" style="padding: 1rem; border-radius: 12px; overflow-x: auto;">
@@ -220,12 +256,15 @@
                             <th class="sortable" data-sort="industry" style="text-align:left;">Industry ↕</th>
                             <th class="sortable" data-sort="market_cap" style="text-align:right;">Market Cap ↕</th>
                             <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent);">QMJ Score ↕</th>
+                            <th class="sortable" data-sort="z_prof" style="text-align:right;">Prof (Z) ↕</th>
+                            <th class="sortable" data-sort="z_growth" style="text-align:right;">Growth (Z) ↕</th>
+                            <th class="sortable" data-sort="z_safety" style="text-align:right;">Safety (Z) ↕</th>
                             <th class="sortable" data-sort="valuation" style="text-align:right;">Valuation ↕</th>
                             <th class="sortable" data-sort="momentum" style="text-align:right;">Momentum ↕</th>
                         </tr>
                     </thead>
                     <tbody id="qmj-table-body">
-                        <tr><td colspan="8" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
+                        <tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
                     </tbody>
                 </table>
             </div>

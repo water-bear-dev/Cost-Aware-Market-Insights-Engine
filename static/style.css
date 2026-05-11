@@ -273,7 +273,7 @@ body {
     transition: border-color 0.2s;
 }
 .news-feed-item:hover { border-color: rgba(56,189,248,0.25); }
-.news-feed-meta { min-width: 88px; flex-shrink: 0; }
+.news-feed-meta { width: 120px; flex-shrink: 0; }
 .news-feed-source { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; }
 .news-feed-time   { font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px; }
 .news-feed-content { flex: 1; min-width: 0; }
