@@ -188,8 +188,10 @@ async function fetchQMJScreener() {
     const tbody = document.getElementById('qmj-table-body');
     if (!tbody) return;
 
+    const universe = document.getElementById('qmj-filter-universe')?.value || 'sp500';
+
     try {
-        const res = await fetch('/api/v1/screener/qmj');
+        const res = await fetch(`/api/v1/screener/qmj?universe=${universe}`);
         if (res.ok) {
             const data = await res.json();
             if (data.status === 'success' && data.data.length > 0) {
@@ -223,11 +225,13 @@ function initQmjTableEvents() {
     const search = document.getElementById('qmj-search');
     const year = document.getElementById('qmj-filter-year');
     const quarter = document.getElementById('qmj-filter-quarter');
+    const universe = document.getElementById('qmj-filter-universe');
 
     if (search && !search.hasListener) {
         search.addEventListener('input', applyQmjTable);
         year.addEventListener('change', applyQmjTable);
         quarter.addEventListener('change', applyQmjTable);
+        universe.addEventListener('change', fetchQMJScreener);
         search.hasListener = true;
     }
 
@@ -369,6 +373,32 @@ function initControls() {
             managePanel.classList.remove('open');
         }
     });
+
+    // Force Refresh Button
+    const forceRefreshBtn = document.getElementById('force-refresh-btn');
+    if (forceRefreshBtn) {
+        forceRefreshBtn.addEventListener('click', () => {
+            const now = Date.now();
+            if (forceRefreshBtn.dataset.lastRefresh && now - parseInt(forceRefreshBtn.dataset.lastRefresh) < 30000) {
+                // Throttle for 30 seconds
+                const remaining = Math.ceil((30000 - (now - parseInt(forceRefreshBtn.dataset.lastRefresh))) / 1000);
+                forceRefreshBtn.textContent = `Wait ${remaining}s...`;
+                setTimeout(() => forceRefreshBtn.textContent = '↻ Force Refresh', 2000);
+                return;
+            }
+            forceRefreshBtn.dataset.lastRefresh = now.toString();
+            forceRefreshBtn.textContent = 'Refreshing...';
+            
+            // Call fetchDiscoverData to refresh the dashboard
+            if (typeof fetchDiscoverData === 'function') {
+                fetchDiscoverData().finally(() => {
+                    forceRefreshBtn.textContent = '↻ Force Refresh';
+                });
+            } else {
+                forceRefreshBtn.textContent = '↻ Force Refresh';
+            }
+        });
+    }
 }
 
 function renderManageList() {
@@ -413,7 +443,6 @@ function initCurrency() {
     const selectors = [
         document.getElementById('currency-selector'),
         document.getElementById('discover-currency-main'),
-        document.getElementById('discover-currency-news'),
         document.getElementById('screener-currency')
     ];
     
@@ -1858,15 +1887,17 @@ function renderCommodities(commodities) {
         // Use formatPrice to apply the selected global currency logic
         return `<div class="discover-index-card">
             <div class="discover-region-label">${c.icon} ${c.name}</div>
-            <div class="discover-index-name">per ${displayUnit}</div>
-            <div class="discover-index-price">
-                <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
-                    <span style="font-size: 0.5rem; color: var(--accent); font-weight: 700; opacity: 0.7;">CLOSE</span>
-                    <div>${formatPrice(displayPrice, c.currency || 'USD')}</div>
+            <div class="discover-index-price" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
                 </div>
-                ${renderExtendedHours(c)}
+                <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                    <div style="display: flex; align-items: baseline; gap: 0.25rem;">
+                        <span style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1;">${formatPrice(displayPrice, c.currency || 'USD')}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);">/${displayUnit}</span>
+                    </div>
+                </div>
             </div>
-            <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
         </div>`;
     }).join('');
 }
@@ -1907,11 +1938,11 @@ function renderTopNews(articles) {
         const desc = a.description || '';
         return `<div class="news-feed-item">
             <div class="news-feed-meta">
-                <div class="news-feed-source">${a.source || 'News'}</div>
+                <div class="news-feed-source" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${a.source || 'News'}">${a.source || 'News'}</div>
                 <div class="news-feed-time">${time}</div>
             </div>
-            <div class="news-feed-content">
-                <a class="news-feed-title" href="${a.url}" target="_blank" rel="noopener noreferrer">${a.title}</a>
+            <div class="news-feed-content" style="flex: 1; min-width: 0;">
+                <a class="news-feed-title" href="${a.url}" target="_blank" rel="noopener noreferrer" style="display: block;">${a.title}</a>
                 ${desc ? `<p class="news-feed-desc">${desc}</p>` : ''}
             </div>
         </div>`;

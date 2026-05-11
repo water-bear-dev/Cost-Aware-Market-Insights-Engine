@@ -235,21 +235,15 @@
 <body>
 <h1
 id="cost-aware-ai-market-insights-engine-system-design-implementation-plan">Cost-Aware
-AI Market Insights Engine – System Design &amp; Implementation Plan</h1>
+AI Market Insights Engine – System Architecture & Intelligence Roadmap</h1>
+<p style="text-align: center; color: #666; font-style: italic;">Status: Phase 8 [Institutional QMJ Screener] Complete</p>
 <h2 id="architecture-overview">Architecture Overview</h2>
 <figure>
 <img src="./system_architecture.png" alt="System Architecture" />
 <figcaption aria-hidden="true">System Architecture</figcaption>
 </figure>
-<p>A Dockerized Python (FastAPI) application running on <strong>ECS
-Fargate</strong>, persisting to <strong>DynamoDB</strong>, synthesizing
-insights via <strong>AWS Bedrock</strong>, and secured with
-<strong>Secrets Manager</strong> + least-privilege IAM – all with
-rigorous AI cost tracking and budget enforcement.</p>
-<p>Development is split into two architecture stages: <strong>Phases
-1-4</strong> use a simplified public-subnet deployment to minimize cost
-during development, and <strong>Phase 5</strong> adds production-grade
-networking (private subnet, NAT Gateway, ALB).</p>
+<p>A multi-agent, institutional-grade financial intelligence engine. The system leverages <strong>LangGraph</strong> for stateful DAG orchestration, <strong>dbt</strong> for financial engineering (Quality Minus Junk), and <strong>AWS Bedrock</strong> for synthesized insights. Secured via sandboxed <strong>MCPs</strong> and monitored with a strict <strong>FinOps budget gate</strong>.</p>
+<p>The architecture has evolved from a monolithic background loop to the <strong>Alpha-DAG Pivot</strong>, enabling autonomous discovery and complex multi-universe reasoning.</p>
 <h4
 id="phases-1-4-development-architecture-public-subnet-no-albnat">Phases
 1-4: Development Architecture (public subnet, no ALB/NAT)</h4>
@@ -330,26 +324,29 @@ a cost-effective public-subnet deployment (~$21/mo) to validate the core
 engine. Phase 5 adds production networking (~$72/mo).</p>
 <pre class="mermaid"><code>timeline
     title Project Implementation Milestones
-    Milestone 1 : Local Data Engine
-                : Docker + FastAPI setup
-                : yfinance ingestion
-                : Local DynamoDB
-    Milestone 2 : Cloud Deployment MVP
-                : CloudFormation VPC
-                : ECS Fargate deploy
-                : API Gateway + Cloud Map
-    Milestone 3 : AI Integration
-                : Bedrock Claude 3 Haiku
-                : Prompt Engineering
-                : Budget/Cost Gates
-    Milestone 4 : FinOps Observability
-                : CloudWatch Custom Metrics
-                : Budget Alarms
-                : Costs API Dashboard
-    Milestone 5 : Production Hardening
-                : Private Subnets
-                : NAT Gateway &amp; ALB
-                : VPC Endpoints</code></pre>
+    Phase 1-5 : Infrastructure &amp; MVP
+              : ECS Fargate + DynamoDB
+              : Bedrock Integration
+              : FinOps Budget Gate
+    Phase 6   : Alpha-DAG Pivot
+              : LangGraph Orchestration
+              : State-Aware Discovery
+              : Sandboxed Quant MCP
+    Phase 7   : Multi-Universe Ingestion
+              : S&amp;P 500 + ASX Universes
+              : dbt Transformation Pipeline
+              : DuckDB Analytics Layer
+    Phase 8   : Institutional QMJ Screener
+              : Quality-Minus-Junk Metrics
+              : Force Refresh Engine
+              : UI/UX Refinement [COMPLETE]
+    Phase 9   : Sentiment Agent [PLANNED]
+              : Alternative Data (Reddit/X)
+              : NLP Trend Detection
+    Phase 10  : Portfolio &amp; Risk [PLANNED]
+              : Portfolio Optimization
+              : Risk Parity Analysis
+</code></pre>
 <h3 id="milestone-1-local-data-engine-the-foundation">Milestone 1: Local
 Data Engine (The Foundation)</h3>
 <p><strong>Goal:</strong> Establish the project structure and build the
@@ -406,10 +403,34 @@ CloudFormation template including Private Subnets, NAT Gateway, and
 Application Load Balancer (ALB). - Fargate task migrated to the private
 subnet (<code>assignPublicIp: DISABLED</code>). - VPC Endpoints for
 DynamoDB and Secrets Manager.</p>
-<p><strong>Success Criteria:</strong> The API remains fully functional
-via API Gateway, but the Fargate container is no longer directly
-accessible from internet scans, with all outbound AI traffic
-successfully routing via the NAT Gateway.</p>
+
+<hr />
+
+<h2 id="advanced-engine-architecture">Advanced Engine Architecture</h2>
+
+<h3 id="alpha-dag-intelligence-langgraph">1. Alpha-DAG Intelligence (LangGraph)</h3>
+<p>The core intelligence of the system is orchestrated via a <strong>stateful Directed Acyclic Graph (DAG)</strong>. This replaced the brittle legacy background loops, allowing for autonomous reasoning and budget-aware execution.</p>
+<ul>
+<li><strong>FinOps Gate Node:</strong> Heuristic check of spend vs budget before any LLM invocation.</li>
+<li><strong>Discovery Hunter:</strong> Autonomous daily search for value across global tickers.</li>
+<li><strong>Synthesis Node:</strong> Claude 3 Haiku via Bedrock for narrative generation.</li>
+<li><strong>Persistence:</strong> State is saved to DynamoDB, allowing for "resume-from-checkpoint" capabilities in complex discovery flows.</li>
+</ul>
+
+<h3 id="institutional-qmj-screener">2. Institutional QMJ Screener</h3>
+<p>The <strong>Quality Minus Junk (QMJ)</strong> engine implements the AQR-inspired factor strategy to rank stocks based on their financial health.</p>
+<ul>
+<li><strong>Transformation Pipeline:</strong> Managed via <code>dbt</code>, transforming raw <code>yfinance</code> data into normalized Z-scores.</li>
+<li><strong>Three Pillars of Quality:</strong>
+  <ul>
+    <li><strong>Profitability:</strong> GPOA, ROE, and Gross Margin.</li>
+    <li><strong>Growth:</strong> 5-year growth in profitability metrics.</li>
+    <li><strong>Safety:</strong> Volatility, Leverage, and Bankruptcy risk (O-Score).</li>
+  </ul>
+</li>
+<li><strong>Multi-Universe Support:</strong> Separate processing for S&amp;P 500 (US) and ASX (Australia) universes.</li>
+<li><strong>Storage Layer:</strong> DuckDB for high-speed local analytics; Athena for production-scale historical analysis.</li>
+</ul>
 <hr />
 <h2 id="component-details">Component Details</h2>
 <h3 id="docker-container-the-compute">1. Docker Container (The
@@ -674,16 +695,19 @@ class="sourceCode json"><code class="sourceCode json"><span id="cb9-1"><a href="
 <span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;actual_cost_usd&quot;</span><span class="fu">:</span> <span class="dv">0</span><span class="er">.000548</span><span class="fu">,</span></span>
 <span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&quot;timestamp&quot;</span><span class="fu">:</span> <span class="st">&quot;2026-03-13T10:30:15Z&quot;</span></span>
 <span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
-<p><strong>How data flows through the tables:</strong></p>
+<p><strong>How data flows through the system:</strong></p>
 <ol type="1">
-<li>Ingestion writes raw market data to <strong>MarketData</strong> (one
-item per ticker per run).</li>
-<li>Synthesis reads from MarketData, calls Bedrock, writes the
-AI-generated text to <strong>Insights</strong> (one item per ticker per
-run) and the cost record to <strong>CostTracking</strong> (one item per
-Bedrock call).</li>
-<li>The API reads from <strong>Insights</strong> (serve to consumers)
-and <strong>CostTracking</strong> (budget/spend queries).</li>
+<li><strong>Ingestion:</strong> Raw data is pulled from <code>yfinance</code> and stored in <strong>MarketData</strong>.</li>
+<li><strong>Transformation (dbt):</strong> The <code>dbt_qmj</code> pipeline runs, calculating Z-scores for Profitability, Growth, and Safety across universes.</li>
+<li><strong>Screener Load:</strong> Final metrics are loaded into the <strong>Warehouse</strong> (DuckDB/Athena).</li>
+<li><strong>Discovery DAG:</strong> The <strong>Alpha-DAG</strong> triggers:
+  <ul>
+    <li>Heuristic budget check (FinOps Gate).</li>
+    <li>Ticker prioritization (Hunter Node).</li>
+    <li>AI Synthesis via Bedrock (Synthesis Node).</li>
+  </ul>
+</li>
+<li><strong>API Delivery:</strong> FastAPI serves combined financial metrics and AI narratives to the glassmorphic dashboard.</li>
 </ol>
 <p><strong>Billing:</strong> All tables use <strong>on-demand
 (PAY_PER_REQUEST)</strong> mode – no capacity planning needed, pay only
@@ -852,46 +876,25 @@ cost-per-insight metric.</li>
 ├── Dockerfile                        # Multi-stage Docker build
 ├── docker-compose.yml                # Local dev (app + DynamoDB Local)
 ├── requirements.txt                  # All Python dependencies
-├── ROADMAP.md                        # Phased delivery roadmap
 ├── README.md                         # Project overview + setup instructions
-├── infrastructure/
-│   └── cloudformation.yaml           # VPC, ECS, ALB, DynamoDB, IAM, Secrets
+├── CHANGELOG.md                      # Detailed version history
+├── dev-blog/                         # Architectural decision logs
+├── infra/                            # CloudFormation &amp; Deployment configs
+├── system-design/                    # Diagrams &amp; System Overviews
 ├── src/
-│   ├── __init__.py
-│   ├── main.py                       # FastAPI app + APScheduler setup
-│   ├── config.py                     # Environment config loader
-│   ├── models.py                     # Pydantic data models
-│   ├── ingestion/
-│   │   ├── __init__.py
-│   │   └── service.py                # yfinance data fetch + DynamoDB write
-│   ├── synthesis/
-│   │   ├── __init__.py
-│   │   ├── service.py                # Bedrock invocation + insight storage
-│   │   └── prompts.py                # Prompt templates
-│   ├── cost_tracking/
-│   │   ├── __init__.py
-│   │   └── service.py                # Budget gate, cost logging, estimation
-│   ├── routes/
-│   │   ├── __init__.py
-│   │   ├── insights.py               # /insights endpoints
-│   │   ├── costs.py                  # /costs + /costs/dashboard endpoints
-│   │   └── health.py                 # /health endpoint
-│   └── clients/
-│       ├── __init__.py
-│       ├── dynamo.py                 # DynamoDB client helpers
-│       ├── bedrock.py                # Bedrock client wrapper
-│       └── secrets.py                # Secrets Manager client
-├── tests/
-│   ├── unit/
-│   │   ├── test_ingestion.py
-│   │   ├── test_synthesis.py
-│   │   ├── test_cost_tracker.py
-│   │   └── test_api.py
-│   └── integration/
-│       └── test_e2e.py
-└── .github/
-    └── workflows/
-        └── deploy.yml                # CI/CD: test, docker build, push ECR, deploy</code></pre>
+│   ├── main.py                       # FastAPI entry point
+│   ├── config.py                     # Environment &amp; Secret loading
+│   ├── dag/                          # LangGraph state machine &amp; nodes
+│   ├── dbt_qmj/                      # dbt models for Quality-Minus-Junk
+│   ├── mcp/                          # Model Context Protocol servers (Quant, Market)
+│   ├── ingestion/                    # Raw data acquisition
+│   ├── synthesis/                    # AI Narrative generation
+│   ├── cost_tracking/                # FinOps Budget Gate
+│   ├── routes/                       # API Endpoints (Insights, Screener, Costs)
+│   ├── clients/                      # AWS (Dynamo, Bedrock) &amp; Warehouse (DuckDB)
+│   └── models.py                     # Pydantic data schemas
+└── static/                           # Glassmorphic Frontend Dashboard
+</code></pre>
 <h3 id="infrastructure-as-code-cloudformation">11. Infrastructure as
 Code (CloudFormation)</h3>
 <p>The <code>infrastructure/cloudformation.yaml</code> will define all

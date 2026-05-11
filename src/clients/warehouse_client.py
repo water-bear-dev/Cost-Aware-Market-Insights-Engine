@@ -17,9 +17,16 @@ class WarehouseClient:
                 region_name=os.getenv("AWS_REGION", "us-east-1")
             )
 
-    def get_qmj_screener(self):
-        query = """
+    def get_qmj_screener(self, universe: str = None):
+        where_clause = ""
+        if universe == 'asx':
+            where_clause = "WHERE ticker LIKE '%.AX'"
+        elif universe == 'sp500':
+            where_clause = "WHERE ticker NOT LIKE '%.AX'"
+            
+        query = f"""
             SELECT * FROM fct_qmj_screener
+            {where_clause}
             ORDER BY report_date DESC, qmj_score DESC
         """
         

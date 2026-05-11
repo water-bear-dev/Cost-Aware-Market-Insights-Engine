@@ -173,7 +173,8 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
 - **[COMPLETE] Phase 7: Global QMJ Screener** - Integrated an Open Data Lakehouse architecture (dbt Core + DuckDB/Athena) to rank assets by Quality Minus Junk (Profitability + Safety).
-- **[PLANNED] Phase 8: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 8: Scalable Infrastructure & UX Mastery** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, added an API-throttled Force Refresh system, and executed final UI/UX alignment passes.
+- **[PLANNED] Phase 9: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 
 ---

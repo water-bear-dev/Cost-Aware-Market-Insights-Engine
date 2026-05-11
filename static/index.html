@@ -24,9 +24,12 @@
                 <div class="logo-icon"></div>
                 <h1>Market Insights Engine</h1>
             </div>
-            <div class="health-indicator">
-                <div class="dot pulse-animation" id="db-health-dot"></div>
-                <span id="db-health-text">Checking System...</span>
+            <div class="health-indicator" style="display: flex; gap: 1rem; align-items: center;">
+                <button id="force-refresh-btn" class="glass-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px;">↻ Force Refresh</button>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <div class="dot pulse-animation" id="db-health-dot"></div>
+                    <span id="db-health-text">Checking System...</span>
+                </div>
             </div>
         </header>
 
@@ -207,14 +210,6 @@
             <!-- 📰 Market News -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem;">
                 <h2 class="discover-section-title" style="margin: 0;">📰 Market News <span id="news-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
-                <select id="discover-currency-news" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
-                    <option value="USD">USD ($)</option>
-                    <option value="AUD">AUD (A$)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="JPY">JPY (¥)</option>
-                    <option value="HKD">HKD (HK$)</option>
-                </select>
             </div>
             <div id="discover-news" class="discover-news-feed"></div>
 
@@ -223,7 +218,13 @@
         <section id="screener-view" class="tab-content">
             <div class="manage-filter-row glass" style="margin-bottom: 1.5rem; padding: 1rem 1.5rem;">
                 <div style="display: flex; gap: 1rem; align-items: center; flex: 1;">
-                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase;">Period Filter:</span>
+                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase;">Universe:</span>
+                    <select id="qmj-filter-universe" class="glass-input" style="width: auto;">
+                        <option value="sp500">S&P 500</option>
+                        <option value="asx">ASX</option>
+                    </select>
+                    
+                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-left: 1rem;">Period Filter:</span>
                     <select id="qmj-filter-year" class="glass-input" style="width: auto;"></select>
                     <select id="qmj-filter-quarter" class="glass-input" style="width: auto;">
                         <option value="">All Quarters</option>
@@ -255,12 +256,12 @@
                             <th class="sortable" data-sort="report_date" style="text-align:left;">Report Date ↕</th>
                             <th class="sortable" data-sort="industry" style="text-align:left;">Industry ↕</th>
                             <th class="sortable" data-sort="market_cap" style="text-align:right;">Market Cap ↕</th>
-                            <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent);">QMJ Score ↕</th>
-                            <th class="sortable" data-sort="z_prof" style="text-align:right;">Prof (Z) ↕</th>
-                            <th class="sortable" data-sort="z_growth" style="text-align:right;">Growth (Z) ↕</th>
-                            <th class="sortable" data-sort="z_safety" style="text-align:right;">Safety (Z) ↕</th>
-                            <th class="sortable" data-sort="valuation" style="text-align:right;">Valuation ↕</th>
-                            <th class="sortable" data-sort="momentum" style="text-align:right;">Momentum ↕</th>
+                            <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent);" title="Quality Minus Junk: Composite score of Profitability, Growth, and Safety">QMJ Score ↕</th>
+                            <th class="sortable" data-sort="z_prof" style="text-align:right;" title="Profitability Z-Score: Gross Profits / Total Assets">Prof (Z) ↕</th>
+                            <th class="sortable" data-sort="z_growth" style="text-align:right;" title="Growth Z-Score: YoY Growth in Gross Profit">Growth (Z) ↕</th>
+                            <th class="sortable" data-sort="z_safety" style="text-align:right;" title="Safety Z-Score: Inverse of Leverage (Total Debt / Total Equity)">Safety (Z) ↕</th>
+                            <th class="sortable" data-sort="valuation" style="text-align:right;" title="Earnings Yield (Net Income / Market Cap)">Valuation ↕</th>
+                            <th class="sortable" data-sort="momentum" style="text-align:right;" title="1-Year Price Momentum">Momentum ↕</th>
                         </tr>
                     </thead>
                     <tbody id="qmj-table-body">

@@ -18,3 +18,4 @@ dbt-duckdb>=1.8.0
 dbt-athena-community>=1.8.0
 pandas>=2.0.0
 pyathena>=3.0.0
+lxml

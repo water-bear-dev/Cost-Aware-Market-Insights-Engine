@@ -1,9 +1,10 @@
 # AI Market Insights Engine -- Final System Architecture
 
-## Final Production State (As of 2026-04-13)
+## Final Production State (Phase 8 Complete)
+**Status:** Institutional-Grade QMJ Screener & Alpha-DAG Pivot [COMPLETE]
 
 ### 1. High-Level Architecture
-The system has evolved from a static containerized service to a fully dynamic, event-driven intelligence engine running on **AWS ECS Fargate**.
+The system has evolved from a monolithic background loop to a **stateful, agentic discovery engine** orchestrated via **LangGraph**. It combines institutional-grade factor analysis (QMJ) with cost-aware AI synthesis.
 
 ```mermaid
 flowchart TB
@@ -11,7 +12,7 @@ flowchart TB
   
   subgraph vpc [VPC: 10.0.0.0/16]
     subgraph privSub [Private Subnets]
-      Fargate["ECS Fargate Task\n(Python/FastAPI Engine)\nDynamic Watchlist Engine"]
+      Fargate["ECS Fargate Task\n(Python/FastAPI Engine)\nAlpha-DAG Orchestrator"]
     end
     
     subgraph pubSub [Public Subnets]
@@ -20,84 +21,90 @@ flowchart TB
   end
 
   ALB -->|Port 8000| Fargate
+  
+  subgraph DAG [Alpha-DAG / LangGraph]
+    FinOps[FinOps Gate Node] --> Hunter[Discovery Hunter]
+    Hunter --> Synthesis[Bedrock Synthesis Node]
+  end
+
+  Fargate --> DAG
   Fargate -->|"Egress via NAT"| Bedrock["AWS Bedrock\n(Claude 3 Haiku)"]
   Fargate -->|"Egress via NAT"| YahooFinance["Yahoo Finance / RSS"]
   
+  subgraph MCP [Sandboxed MCPs]
+    MarketMCP[Market Data MCP]
+    QuantMCP[Quant Compute MCP]
+  end
+
+  Fargate --> MCP
+  
   Fargate <-->|"VPC Endpoint"| DDB_Market["DynamoDB: MarketData"]
   Fargate <-->|"VPC Endpoint"| DDB_Insights["DynamoDB: Insights"]
-  Fargate <-->|"VPC Endpoint"| DDB_Tickers["DynamoDB: Tickers"]
   Fargate <-->|"VPC Endpoint"| DDB_Costs["DynamoDB: CostTracking"]
   
   Fargate -->|Custom Metrics| CW["CloudWatch Monitoring\n+ FinOps Alarms"]
 ```
 
-### 2. Significant Implementation Pivots
-During development, the following architectural shifts were made to improve UX and scalability:
+### 2. Tangible Milestones & Roadmap
 
-| Feature | Initial Design (Static) | Final Evolution (Dynamic) |
-| :--- | :--- | :--- |
-| **Ticker Management** | Hardcoded `config.py` environment variables. | **DynamoDB-Backed Watchlist**: Tickers managed live via UI/API. |
-| **AI Synthesis Loop** | Fixed 15-minute background job. | **Hybrid Logic**: 5-minute background cron + **Fast-Path Sync** for new assets. |
-| **Cost Estimation** | Static placeholder values. | **Dynamic Calibration**: $0.0002 baseline projection synced with Haiku real-world usage. |
-| **Dashboard Layout** | Unified single-page view. | **Tabbed "Insights-First" UI**: Dedicated views for Market Analysis vs. FinOps. |
+| Phase | Milestone | Features | Status |
+| :--- | :--- | :--- | :--- |
+| **1-5** | **Infrastructure & MVP** | ECS Fargate, DynamoDB, Bedrock, FinOps Budget Gate. | **Complete** |
+| **6** | **Alpha-DAG Pivot** | LangGraph Orchestration, State-Aware Discovery, Sandboxed MCPs. | **Complete** |
+| **7** | **Multi-Universe Ingestion** | S&P 500 + ASX Universes, dbt Pipeline, DuckDB Analytics. | **Complete** |
+| **8** | **Institutional QMJ Screener** | Quality-Minus-Junk Metrics, Z-Scores, Force Refresh Engine, UI Polish. | **Complete** |
+| **9** | **Sentiment Agent** | Alternative Data (Reddit/X), NLP Trend Detection. | **Planned** |
+| **10** | **Portfolio & Risk** | Portfolio Optimization, Risk Parity Analysis. | **Planned** |
 
-### 3. Component Updates
+### 3. Advanced Engine Architecture
 
-#### A. The Watchlist Engine (`Tickers` Table)
-A late-stage pivot introduced a fourth DynamoDB table. This allowed the engine to scale its ingestion and synthesis logic based on user-tracked assets in real-time.
+#### A. Alpha-DAG Intelligence (LangGraph)
+The core intelligence is orchestrated via a stateful Directed Acyclic Graph (DAG) replacing legacy background loops.
+- **FinOps Gate Node**: Heuristic check of spend vs budget ($5.00/day threshold) before any LLM invocation.
+- **Discovery Hunter**: Autonomous daily search for value across global tickers.
+- **Synthesis Node**: Claude 3 Haiku via Bedrock for narrative generation with temperature calibration (0.3).
+- **State Persistence**: DAG state is saved to DynamoDB for "resume-from-checkpoint" reliability.
 
-#### B. The Synthesis Fast-Path
-To prevent the "Awaiting AI Synthesis" lag, we decoupled the synthesis logic. When a user tracks a new ticker:
-1. The engine fetches market data immediately.
-2. It triggers a `synthesize_single_insight` call synchronously.
-3. The background 5-minute cron then maintains the data freshness for that asset.
+#### B. Institutional QMJ Screener
+The **Quality Minus Junk (QMJ)** engine implements the AQR factor strategy to rank stocks across universes.
+- **Three Pillars of Quality**:
+    - **Profitability**: GPOA, ROE, and Gross Margin.
+    - **Growth**: 5-year growth in profitability metrics.
+    - **Safety**: Volatility, Leverage, and Bankruptcy risk (O-Score).
+- **Transformation Pipeline**: Managed via `dbt`, transforming raw fundamental data into normalized Z-scores.
+- **Multi-Universe**: Separate logic for **S&P 500 (US)** and **ASX (Australia)**.
+- **Warehouse client**: Uses DuckDB for low-latency local dashboard analytics and Athena for production historical runs.
 
-#### C. FinOps & Observability
-- **Budget Gate**: Every AI call is gated by a sub-cent cost projection ($0.0002/run).
-- **Alarms**: SNS-linked CloudWatch alarms trigger at 80% and 100% of the $5.00 daily threshold.
-- **Metrics**: Custom metrics track `InsightsGenerated` and `DailyAICost` with 1-minute granularity.
+#### C. Force Refresh Engine
+- **Throttling**: Integrated a global "Force Refresh" button with a 30-second client-side cooldown to manage data ingestion load.
+- **Scope**: Refreshes ticker prices and news headlines without triggering expensive QMJ re-calculations (only quarterly).
 
-### 4. Networking Hardening
-The application is fully isolated in a **Private Subnet**.
-- **Inbound**: Only via the Application Load Balancer.
-- **Outbound**: All non-AWS traffic (Google News, Yahoo Finance) routes through the NAT Gateway.
-- **Internal**: DynamoDB traffic stays within the AWS backbone via **VPC Gateway Endpoints** (Cost $0.00).
+### 4. Component Isolation (MCP)
+To maintain security and execution isolation, external capabilities are decoupled into independent **Model Context Protocol (MCP)** servers:
+1. **Market Data MCP**: Encapsulates `yfinance` logic and Google News RSS parsing.
+2. **Quant Compute MCP**: A network-restricted Docker container running Pandas/Numpy for heavy math, completely insulated from AWS credentials.
 
----
+### 5. Project Structure
+```text
+market-insights-engine/
+├── Dockerfile                        # Multi-stage Docker build
+├── infra/                            # CloudFormation & Deployment configs
+├── system-design/                    # Diagrams & System Overviews
+├── dev-blog/                         # Architectural decision logs
+├── src/
+│   ├── main.py                       # FastAPI entry point
+│   ├── dag/                          # LangGraph state machine & nodes
+│   ├── dbt_qmj/                      # dbt models for Quality-Minus-Junk
+│   ├── mcp/                          # MCP servers (Quant, Market)
+│   ├── cost_tracking/                # FinOps Budget Gate
+│   ├── routes/                       # API Endpoints (Insights, Screener, Costs)
+│   ├── clients/                      # AWS (Dynamo, Bedrock) & Warehouse (DuckDB)
+│   └── models.py                     # Pydantic data schemas
+└── static/                           # Glassmorphic Frontend Dashboard
+```
 
-### 5. Phase 2: Alpha-DAG Architecture
-As of **May 2026**, the system was upgraded to a distributed, multi-agent model utilizing **LangGraph** and the **Model Context Protocol (MCP)**.
-
-#### Distributed Orchestration
-The monolithic `APScheduler` was replaced by a LangGraph Directed Acyclic Graph (DAG). The FastAPI server now acts as a client to the LangGraph Orchestrator (The Host). 
-
-#### MCP Isolation Strategy
-To maintain strict security and execution isolation (Non-Negotiable Constraints), external capabilities are decoupled into independent MCP servers:
-1. **Market Data MCP Server**: Encapsulates `yfinance` logic and Google News RSS parsing.
-2. **Quant Compute MCP Server**: A heavily isolated, network-restricted Docker container running Pandas/Numpy to execute quantitative calculations. It is completely insulated from AWS credentials.
-
-#### FinOps Interceptor Node
-The DAG executes a **FinOps Pre-Flight Gate** as its first node. Before any Bedrock calls are made, this node estimates token costs, reads the `CostTracking` DynamoDB ledger, and physically halts the graph execution if the `$5.00` daily budget is breached, guaranteeing zero unexpected spend.
-
----
-
-### 6. Phase 3: Daily Discovery Agent
-As part of the shift to autonomous workflows, the platform now runs a **Daily Discovery Agent** at 8:00 AM AEST.
-- **Universe Scan**: Evaluates 20 distinct assets (S&P 500 stalwarts vs volatile Hidden Gems).
-- **Quant Calculation**: Downloads bulk historical data to calculate annualized volatility and momentum.
-- **AI Selection**: Prompts Bedrock to determine the optimal "Ticker to Watch" for both categories and persists them to the dashboard's new dynamic banner.
-
----
-
-### 7. Phase 4: Global QMJ Screener
-As of **May 2026**, the system integrated an "Open Data Lakehouse" architecture to run a quantitative "Quality Minus Junk" (QMJ) screener.
-
-#### Open Data Lakehouse
-- **Data Ingestion**: The Market Data MCP was extended to pull fundamental financial statements (Income Statement, Balance Sheet, Cash Flow) and persist them as flattened JSON objects in a Bronze Data Lake layer (S3 for production, local `scratch/bronze/` for development).
-- **dbt Core Transformation**: 
-  - **Local Development**: Uses **DuckDB** to execute transformations over local JSON files with zero cloud cost.
-  - **Production**: Uses **AWS Athena** over the S3 Data Lake to provide serverless, scale-out analytics.
-- **QMJ Model**:
-  - Computes composite QMJ metrics: Profitability (ROE, ROA, Cash Flow Margin) and Safety (Leverage Ratio).
-  - Normalizes scores on a 0-100 scale using `PERCENT_RANK`.
-  - The FastAPI backend accesses the final Data Mart via `duckdb` (local) or `pyathena` (cloud) and exposes it to a dedicated frontend dashboard tab.
+### 6. Networking & Security
+- **Private Subnet**: The application is fully isolated; no public IP is assigned to the Fargate container.
+- **Inbound**: Traffic permitted only from the Application Load Balancer (ALB).
+- **Outbound**: All external traffic (Yahoo Finance, News) routes via a **NAT Gateway**.
+- **Internal**: DynamoDB traffic stays within the AWS backbone via **VPC Gateway Endpoints** (Cost: $0.00).

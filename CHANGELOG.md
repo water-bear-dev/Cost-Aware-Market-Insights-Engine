@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.6] - 2026-05-11
+
+### Added
+- **Expanded Universe & Filtering** — Added toggle to dynamically switch the QMJ Screener between S&P 500 and ASX universes.
+- **Force Refresh Engine** — Integrated a throttled manual refresh button to trigger instantaneous data ingestion across all endpoints, capped at a 30-second interval to prevent API saturation.
+- **Enhanced Tooltips** — Appended native, explanatory tooltips to the QMJ Screener column headers (QMJ Score, Profitability, Growth, Safety, Valuation, Momentum).
+- **Extended Commodities Tracking** — Added Aluminium, Copper, Nickel, and Tin with seamless Metric/Imperial unit conversion logic.
+- **Architecture Diagram** — Finalised and exported the comprehensive system agent architecture via Mermaid.
+
+### Fixed
+- **Discover UI Streamlining** — Removed redundant currency dropdowns from news sections to improve vertical rhythm and readability.
+- **Commodities Typography** — Tightened layout alignments and unit display constraints within the Commodities dashboard.
+
 ## [2.9.5] - 2026-05-11
 
 ### Added

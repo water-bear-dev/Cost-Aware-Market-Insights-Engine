@@ -10,6 +10,7 @@ env/
 .venv/
 .logenv/
 .logvenv/
+.logvenv
 pip-log.txt
 node_modules/
 __pypackages__/
