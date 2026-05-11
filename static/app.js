@@ -63,7 +63,7 @@ function formatExchange(code) {
 
 function formatPrice(value, tickerCurrency = 'USD', forceLocal = false) {
     if (value === null || value === undefined) return 'N/A';
-    
+
     // Normalize ticker currency
     let tc = tickerCurrency;
     if (tc === 'GBp') tc = 'GBP'; // Convert British Pence to Pounds for rate lookup
@@ -75,49 +75,49 @@ function formatPrice(value, tickerCurrency = 'USD', forceLocal = false) {
     const useLocal = forceLocal || (isDefaultView && tc !== 'USD');
 
     const targetCurrency = useLocal ? tc : currentCurrency;
-    
+
     // 1. Convert Ticker Price -> USD
     let valInTickerBase = value;
     if (tickerCurrency === 'GBp') valInTickerBase = value / 100;
 
     const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
     const usdValue = valInTickerBase / tickerRate;
-    
+
     // 2. Convert USD -> Target Currency
     const { rate, symbol } = EXCHANGE_RATES[targetCurrency] || EXCHANGE_RATES['USD'];
     const converted = usdValue * rate;
-    
+
     const decimals = (targetCurrency === 'JPY') ? 0 : 2;
-    return `${symbol}${converted.toLocaleString(undefined, { 
-        minimumFractionDigits: decimals, 
-        maximumFractionDigits: decimals 
+    return `${symbol}${converted.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
     })}`;
 }
 
 function formatLargePrice(value, tickerCurrency = 'USD') {
     if (value === null || value === undefined || value === 0) return '—';
-    
+
     // Normalize ticker currency for symbol lookup
     let tc = tickerCurrency === 'GBp' ? 'GBP' : tickerCurrency;
     if (!EXCHANGE_RATES[tc]) tc = 'USD';
 
     const isDefaultView = currentCurrency === 'USD';
     const targetCurrency = (isDefaultView && tc !== 'USD') ? tc : currentCurrency;
-    
+
     // 1. Convert Ticker Price -> USD
     let valInTickerBase = value;
     if (tickerCurrency === 'GBp') valInTickerBase = value / 100;
     const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
     const usdValue = valInTickerBase / tickerRate;
-    
+
     // 2. Convert USD -> Target Currency
     const { rate, symbol } = EXCHANGE_RATES[targetCurrency] || EXCHANGE_RATES['USD'];
     const v = usdValue * rate;
 
     if (v >= 1e12) return `${symbol}${(v / 1e12).toFixed(2)}T`;
-    if (v >= 1e9)  return `${symbol}${(v / 1e9).toFixed(2)}B`;
-    if (v >= 1e6)  return `${symbol}${(v / 1e6).toFixed(2)}M`;
-    if (v >= 1e3)  return `${symbol}${(v / 1e3).toFixed(1)}K`;
+    if (v >= 1e9) return `${symbol}${(v / 1e9).toFixed(2)}B`;
+    if (v >= 1e6) return `${symbol}${(v / 1e6).toFixed(2)}M`;
+    if (v >= 1e3) return `${symbol}${(v / 1e3).toFixed(1)}K`;
     return formatPrice(value, tickerCurrency);
 }
 
@@ -127,11 +127,11 @@ function renderExtendedHours(mkt) {
     const preChg = mkt.pre_market_change || mkt.preMarketChangePercent;
     const post = mkt.post_market_price || mkt.postMarketPrice;
     const postChg = mkt.post_market_change || mkt.postMarketChangePercent;
-    
+
     if (!pre && !post) return '';
-    
+
     let html = '<div style="font-size: 0.65rem; font-weight: 500; color: var(--text-secondary); margin-top: 2px; display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; opacity: 0.9;">';
-    
+
     if (pre && pre !== 'None') {
         const chg = parseFloat(preChg || 0);
         const color = chg >= 0 ? '#10b981' : '#f43f5e';
@@ -142,7 +142,7 @@ function renderExtendedHours(mkt) {
         const color = chg >= 0 ? '#10b981' : '#f43f5e';
         html += `<span><span style="color:var(--accent); font-weight: 700; font-size: 0.6rem;">POST</span> ${formatPrice(parseFloat(post), mkt.currency || 'USD')} <span style="color:${color}; font-size: 0.6rem;">(${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%)</span></span>`;
     }
-    
+
     html += '</div>';
     return html;
 }
@@ -199,7 +199,7 @@ async function fetchQMJScreener() {
                 allQmjData = data.data;
                 populateQmjFilters(allQmjData);
                 initQmjTableEvents();
-                applyQmjTable();
+                renderQMJScreener();
             } else {
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>';
             }
@@ -215,9 +215,9 @@ function populateQmjFilters(data) {
     const yearSelect = document.getElementById('qmj-filter-year');
     if (!yearSelect) return;
 
-    const years = [...new Set(data.map(d => d.reporting_year))].sort((a,b) => b-a);
+    const years = [...new Set(data.map(d => d.reporting_year))].sort((a, b) => b - a);
     yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
-    
+
     // Set default to latest year if available
     if (years.length > 0) yearSelect.value = years[0];
 }
@@ -229,9 +229,9 @@ function initQmjTableEvents() {
     const universe = document.getElementById('qmj-filter-universe');
 
     if (search && !search.hasListener) {
-        search.addEventListener('input', applyQmjTable);
-        year.addEventListener('change', applyQmjTable);
-        quarter.addEventListener('change', applyQmjTable);
+        search.addEventListener('input', renderQMJScreener);
+        year.addEventListener('change', renderQMJScreener);
+        quarter.addEventListener('change', renderQMJScreener);
         universe.addEventListener('change', fetchQMJScreener);
         search.hasListener = true;
     }
@@ -246,23 +246,23 @@ function initQmjTableEvents() {
                     qmjSortKey = key;
                     qmjSortDir = 'desc';
                 }
-                applyQmjTable();
+                renderQMJScreener();
             });
             th.hasListener = true;
         }
     });
 }
 
-function applyQmjTable() {
+function renderQMJScreener() {
     const tbody = document.getElementById('qmj-table-body');
     const query = document.getElementById('qmj-search')?.value.toLowerCase().trim() || '';
     const year = document.getElementById('qmj-filter-year')?.value || '';
     const quarter = document.getElementById('qmj-filter-quarter')?.value || '';
 
     let filtered = allQmjData.filter(d => {
-        const matchQuery = !query || 
-            d.ticker.toLowerCase().includes(query) || 
-            d.company_name.toLowerCase().includes(query) || 
+        const matchQuery = !query ||
+            d.ticker.toLowerCase().includes(query) ||
+            d.company_name.toLowerCase().includes(query) ||
             d.industry.toLowerCase().includes(query);
         const matchYear = !year || String(d.reporting_year) === year;
         const matchQuarter = !quarter || String(d.reporting_quarter) === quarter;
@@ -273,7 +273,7 @@ function applyQmjTable() {
     filtered.sort((a, b) => {
         let valA = a[qmjSortKey];
         let valB = b[qmjSortKey];
-        
+
         if (typeof valA === 'string') {
             return qmjSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
@@ -351,7 +351,7 @@ function initControls() {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.density-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
             const density = btn.dataset.density;
             grid.className = 'insights-grid';
             if (density !== 'standard') {
@@ -366,7 +366,7 @@ function initControls() {
             document.querySelectorAll('.trend-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentPeriod = btn.dataset.trend;
-            
+
             // Refresh all sparklines in insights container
             Object.keys(sparklineInstances).forEach(id => {
                 if (id.startsWith('sparkline-card-')) {
@@ -415,7 +415,7 @@ function initControls() {
             forceRefreshBtn.classList.add('loading');
             const originalContent = forceRefreshBtn.innerHTML;
             forceRefreshBtn.querySelector('span').textContent = 'Refreshing...';
-            
+
             try {
                 await fetchDiscoverData();
                 await fetchMarketAndInsights();
@@ -431,17 +431,17 @@ async function refreshTickerSparkline(ticker, period) {
     const elementId = `sparkline-card-${ticker}`;
     const container = document.getElementById(elementId);
     if (!container) return;
-    
+
     container.style.opacity = '0.5';
     try {
         const res = await fetch(`/api/v1/market/history/${ticker}?period=${period}`);
         if (!res.ok) return;
         const data = await res.json();
-        
+
         if (data.ohlcv && data.ohlcv.length > 0) {
             const closes = data.ohlcv.map(d => d.close).filter(v => v !== null);
-            const trendColor = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
-            
+            const trendColor = closes[closes.length - 1] >= closes[0] ? '#10b981' : '#f43f5e';
+
             drawSparkline(elementId, closes, trendColor);
         }
     } catch (e) {
@@ -454,7 +454,7 @@ async function refreshTickerSparkline(ticker, period) {
 function renderManageList() {
     const list = document.getElementById('manage-list');
     const tickers = Object.keys(lastMarketData).sort();
-    
+
     if (tickers.length === 0) {
         list.innerHTML = '<li style="font-size:0.8rem; color:var(--text-secondary); text-align:center; padding:1rem;">Your watchlist is empty</li>';
         return;
@@ -495,14 +495,14 @@ function initCurrency() {
         document.getElementById('discover-currency-main'),
         document.getElementById('screener-currency')
     ];
-    
+
     selectors.forEach(selector => {
         if (!selector) return;
         selector.addEventListener('change', (e) => {
             currentCurrency = e.target.value;
             // Sync all selectors
-            selectors.forEach(s => { if(s && s !== e.target) s.value = currentCurrency; });
-            
+            selectors.forEach(s => { if (s && s !== e.target) s.value = currentCurrency; });
+
             // Trigger re-render of all price-related elements
             if (Object.keys(lastMarketData).length > 0) {
                 patchInsightsGrid(lastMarketData, lastInsightsData);
@@ -514,7 +514,7 @@ function initCurrency() {
                     renderModalContent(currentModalMkt, currentModalInsight);
                 }
             }
-            
+
             // Re-render other tabs
             fetchDiscoverData(); // Fetch is cached, so it just re-renders with new currency
             renderQMJScreener();
@@ -523,7 +523,7 @@ function initCurrency() {
 
     const imperialBtn = document.getElementById('unit-imperial');
     const metricBtn = document.getElementById('unit-metric');
-    
+
     if (imperialBtn && metricBtn) {
         imperialBtn.addEventListener('click', (e) => {
             currentCommodityUnit = 'Imperial';
@@ -603,7 +603,7 @@ function setupTickerForm() {
         }
     });
 
-    input.addEventListener('keydown', e => { 
+    input.addEventListener('keydown', e => {
         if (e.key === 'Enter') {
             btn.click();
             resultsList.classList.remove('active');
@@ -692,7 +692,7 @@ async function fetchDailyPicks() {
         const res = await fetch('/api/v1/daily_picks');
         if (res.ok) {
             const data = await res.json();
-            
+
             if (!data || data.length === 0) {
                 // If we're on first load and no data, show a subtle finding state if the container isn't hidden yet
                 if (grid.children.length === 0) {
@@ -706,7 +706,7 @@ async function fetchDailyPicks() {
                 }
                 return;
             }
-            
+
             container.style.display = 'block';
             data.forEach(p => dailyPicksData[p.actual_ticker] = p);
 
@@ -755,7 +755,7 @@ async function fetchDailyPicks() {
                             ${pick.headlines.slice(0, 3).map(h => `
                                 <div class="daily-news-item">
                                     <a class="daily-news-link" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">${h.title}</a>
-                                    <div class="daily-news-source">${h.source || 'News'}${h.published ? ` · ${new Date(h.published).toLocaleDateString('en-AU', {day:'numeric', month:'short'})}` : ''}</div>
+                                    <div class="daily-news-source">${h.source || 'News'}${h.published ? ` · ${new Date(h.published).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}</div>
                                 </div>
                             `).join('')}
                         </div>
@@ -812,7 +812,7 @@ window.handleAddFeatured = async (ticker, btn) => {
     const originalText = btn.textContent;
     btn.disabled = true;
     btn.textContent = "Adding...";
-    
+
     try {
         const res = await fetch('/api/v1/tickers', {
             method: 'POST',
@@ -865,11 +865,11 @@ async function triggerBatchSynthesis() {
                 const delay = marketData.indexOf(mkt) * 800;
                 setTimeout(() => {
                     fetch(`/api/v2/tickers/${mkt.ticker}/synthesize`, { method: 'POST' })
-                        .catch(() => {});
+                        .catch(() => { });
                 }, delay);
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 const activeIngestion = new Set();
@@ -897,7 +897,7 @@ async function triggerBatchIngestion(marketData) {
                     });
             }, delay);
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 /* =====================================================
@@ -915,7 +915,7 @@ async function fetchHealth() {
                 txt.textContent = 'System Healthy';
             }
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 /* =====================================================
@@ -929,7 +929,7 @@ async function fetchCosts() {
             document.getElementById('budget-total').textContent = formatPrice(data.daily_budget_usd);
             document.getElementById('budget-spend').textContent = formatPrice(data.current_spend_usd);
             document.getElementById('budget-remaining').textContent = formatPrice(data.remaining_budget_usd);
-            
+
             let breakdownEl = document.getElementById('budget-breakdown');
             if (!breakdownEl) {
                 const spendContainer = document.getElementById('budget-spend').parentElement;
@@ -941,13 +941,13 @@ async function fetchCosts() {
                 spendContainer.appendChild(breakdownEl);
             }
             breakdownEl.innerHTML = `AI: ${formatPrice(data.llm_spend_usd)} | Uptime: ${formatPrice(data.infrastructure_spend_usd)}`;
-            
+
             const pBar = document.getElementById('budget-progress');
             pBar.style.width = `${Math.min(data.utilization_pct, 100)}%`;
             if (data.utilization_pct > 80) pBar.classList.add('danger');
             else pBar.classList.remove('danger');
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 async function fetchDashboardCosts() {
@@ -958,11 +958,11 @@ async function fetchDashboardCosts() {
             document.getElementById('dashboard-total-7d').textContent = formatPrice(data.metrics.total_7_days_usd);
             document.getElementById('dashboard-average-7d').textContent = formatPrice(data.metrics.daily_average_usd);
             document.getElementById('dashboard-projected-30d').textContent = formatPrice(data.metrics.projected_30_days_usd);
-            drawSparkline('sparkline-7d', [1,2,1.5,3,2.5,4,data.metrics.total_7_days_usd*100], '#38bdf8');
-            drawSparkline('sparkline-avg', [1,1.5,1.2,1.8,1.5,1.9,data.metrics.daily_average_usd*500], '#c084fc');
-            drawSparkline('sparkline-30d', [10,12,11,15,14,18,data.metrics.projected_30_days_usd*20], '#10b981');
+            drawSparkline('sparkline-7d', [1, 2, 1.5, 3, 2.5, 4, data.metrics.total_7_days_usd * 100], '#38bdf8');
+            drawSparkline('sparkline-avg', [1, 1.5, 1.2, 1.8, 1.5, 1.9, data.metrics.daily_average_usd * 500], '#c084fc');
+            drawSparkline('sparkline-30d', [10, 12, 11, 15, 14, 18, data.metrics.projected_30_days_usd * 20], '#10b981');
         }
-    } catch (e) {}
+    } catch (e) { }
 }
 
 function drawSparkline(elementId, dataset, color) {
@@ -980,7 +980,7 @@ function drawSparkline(elementId, dataset, color) {
     if (!sparklineInstances[elementId]) {
         container.innerHTML = '<canvas></canvas>';
         const ctx = container.querySelector('canvas').getContext('2d');
-        
+
         // Calculate min/max for zooming
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
@@ -989,25 +989,25 @@ function drawSparkline(elementId, dataset, color) {
 
         sparklineInstances[elementId] = new Chart(ctx, {
             type: 'line',
-            data: { labels: dataset.map((_,i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4 }] },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { display: false }, 
+            data: { labels: dataset.map((_, i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
                     tooltip: { enabled: false },
-                    datalabels: { display: false } 
-                }, 
-                scales: { 
-                    x: { display: false }, 
-                    y: { 
+                    datalabels: { display: false }
+                },
+                scales: {
+                    x: { display: false },
+                    y: {
                         display: false,
                         min: minVal - padding,
                         max: maxVal + padding,
-                        beginAtZero: false 
-                    } 
-                }, 
-                animation: false 
+                        beginAtZero: false
+                    }
+                },
+                animation: false
             }
         });
     } else {
@@ -1016,7 +1016,7 @@ function drawSparkline(elementId, dataset, color) {
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
         const padding = range === 0 ? 1 : range * 0.1;
-        
+
         sparklineInstances[elementId].data.datasets[0].data = dataset;
         sparklineInstances[elementId].data.datasets[0].borderColor = color;
         sparklineInstances[elementId].options.scales.y.min = minVal - padding;
@@ -1052,7 +1052,7 @@ async function fetchMarketAndInsights() {
 
         lastMarketData = newMarket;
         lastInsightsData = newInsights;
-        
+
         triggerBatchIngestion(marketArr);
 
     } catch (e) {
@@ -1147,11 +1147,11 @@ function buildNewsHtml(mkt) {
 
 function buildCard(mkt, insight, index) {
     const wrapper = document.createElement('div');
-    wrapper.dataset.ticker   = mkt.ticker;
-    wrapper.dataset.company  = mkt.company_name || '';
+    wrapper.dataset.ticker = mkt.ticker;
+    wrapper.dataset.company = mkt.company_name || '';
     wrapper.dataset.exchange = mkt.exchange || '';
-    wrapper.dataset.price    = mkt.close_price || 0;
-    wrapper.dataset.change   = mkt.change_pct  || 0;
+    wrapper.dataset.price = mkt.close_price || 0;
+    wrapper.dataset.change = mkt.change_pct || 0;
     wrapper.className = 'insight-card';
     wrapper.style.animationDelay = `${index * 0.05}s`;
 
@@ -1193,7 +1193,7 @@ function updateCard(wrapper, mkt, insight) {
             insightEl.innerHTML = newText + (insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : '');
         }
     }
-    
+
     // Update data attributes for filtering/sorting
     wrapper.dataset.price = mkt.close_price || 0;
     wrapper.dataset.change = mkt.change_pct || 0;
@@ -1202,12 +1202,12 @@ function updateCard(wrapper, mkt, insight) {
 }
 
 
-window.changeCardPeriod = async function(ticker, period) {
+window.changeCardPeriod = async function (ticker, period) {
     const container = document.getElementById(`sparkline-card-${ticker}`);
     if (!container) return;
-    
+
     cardPeriods[ticker] = period;
-    
+
     // Highlight the button immediately
     const card = container.closest('.insight-card');
     if (card) {
@@ -1222,7 +1222,7 @@ window.changeCardPeriod = async function(ticker, period) {
         const data = await response.json();
         if (data.ohlcv && data.ohlcv.length > 0) {
             const closes = data.ohlcv.map(d => d.close).filter(c => c > 0);
-            const color = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
+            const color = closes[closes.length - 1] >= closes[0] ? '#10b981' : '#f43f5e';
             drawSparkline(`sparkline-card-${ticker}`, closes, color);
         }
     } catch (e) {
@@ -1436,9 +1436,9 @@ function openModal(ticker) {
         b.classList.toggle('active', b.dataset.period === '1mo');
     });
 
-    const mkt     = lastMarketData[ticker]  || {};
-    const insight  = lastInsightsData[ticker] || null;
-    currentModalMkt    = mkt;
+    const mkt = lastMarketData[ticker] || {};
+    const insight = lastInsightsData[ticker] || null;
+    currentModalMkt = mkt;
     currentModalInsight = insight;
 
     renderModalContent(mkt, insight);
@@ -1453,23 +1453,23 @@ async function openDailyPickModal(ticker) {
         openModal(ticker);
         return;
     }
-    
+
     // Otherwise, mock a skeleton and fetch history on-demand
     currentModalTicker = ticker;
     currentPeriod = '1mo';
     document.querySelectorAll('.period-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.period === '1mo');
     });
-    
+
     currentModalMkt = { ticker: ticker, status: 'pending_data' };
     const pick = dailyPicksData[ticker];
-    currentModalInsight = { 
-        insight_text: pick ? pick.rationale : 'Fetching full analysis...', 
-        model_used: 'discovery-agent', 
+    currentModalInsight = {
+        insight_text: pick ? pick.rationale : 'Fetching full analysis...',
+        model_used: 'discovery-agent',
         signal: 'WATCH',
-        cost_usd: 0 
+        cost_usd: 0
     };
-    
+
     renderModalContent(currentModalMkt, currentModalInsight);
     await loadModalChart(ticker, '1mo');
 }
@@ -1483,12 +1483,12 @@ function renderModalContent(mkt, insight) {
         ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
         ${ticker}
     `;
-    if (!mkt.name) document.getElementById('modal-ticker-name').textContent  = 'Loading company info...';
+    if (!mkt.name) document.getElementById('modal-ticker-name').textContent = 'Loading company info...';
 
     // Signal badge
-    const signal   = insight ? (insight.signal || 'HOLD') : 'HOLD';
+    const signal = insight ? (insight.signal || 'HOLD') : 'HOLD';
     const sigBadge = document.getElementById('modal-signal-badge');
-    sigBadge.className   = `signal-badge ${signal.toLowerCase()}`;
+    sigBadge.className = `signal-badge ${signal.toLowerCase()}`;
     sigBadge.textContent = signal;
 
     // Hero stats (price, change, open, high, low)
@@ -1498,7 +1498,7 @@ function renderModalContent(mkt, insight) {
     document.getElementById('modal-insight-text').innerHTML =
         insight ? formatInsight(insight.insight_text) : 'No AI synthesis available yet.';
     document.getElementById('modal-insight-meta').textContent =
-        insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd||0).toFixed(6)}` : ''; // Keep cost in USD for FinOps accuracy
+        insight ? `Model: ${insight.model_used} · Cost: $${(insight.cost_usd || 0).toFixed(6)}` : ''; // Keep cost in USD for FinOps accuracy
 
     // News articles from card data
     renderModalNews(mkt);
@@ -1510,7 +1510,7 @@ function renderModalContent(mkt, insight) {
     } else {
         // Clear key stats and analyst while loading
         document.getElementById('modal-key-stats').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading statistics...</p>';
-        document.getElementById('modal-analyst').innerHTML    = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
+        document.getElementById('modal-analyst').innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">Loading analyst data...</p>';
         document.getElementById('modal-about-section').style.display = 'none';
     }
 
@@ -1532,7 +1532,7 @@ function renderHeroStats(mkt) {
     }
 
     const isPos = (mkt.change_pct || 0) >= 0;
-    const sign  = isPos ? '+' : '';
+    const sign = isPos ? '+' : '';
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
     document.getElementById('modal-hero-stats').innerHTML = `
         <div class="hero-stat main">
@@ -1542,7 +1542,7 @@ function renderHeroStats(mkt) {
         </div>
         <div class="hero-stat main">
             <div class="hero-stat-label">DAY CHANGE</div>
-            <div class="hero-stat-value main" style="color:${changeColor}">${sign}${(mkt.change_pct||0).toFixed(2)}%</div>
+            <div class="hero-stat-value main" style="color:${changeColor}">${sign}${(mkt.change_pct || 0).toFixed(2)}%</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
@@ -1565,20 +1565,20 @@ function renderKeyStats(info, mkt) {
         if (isPrice) return formatPrice(parseFloat(v), mkt.currency);
         return parseFloat(v).toFixed(dec || 2);
     };
-    const fmtVol = v => v ? (v >= 1e9 ? `${(v/1e9).toFixed(2)}B` : v >= 1e6 ? `${(v/1e6).toFixed(2)}M` : `${(v/1e3).toFixed(1)}K`) : '—';
-    
+    const fmtVol = v => v ? (v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : `${(v / 1e3).toFixed(1)}K`) : '—';
+
     const stats = [
-        { label: 'Market Cap',     value: formatLargePrice(info.market_cap, mkt.currency) },
-        { label: 'P/E Ratio',      value: fmt(info.pe_ratio, false, 1) },
-        { label: 'Fwd P/E',        value: fmt(info.forward_pe, false, 1) },
-        { label: 'EPS (TTM)',      value: fmt(info.eps, true) },
-        { label: 'Div. Yield',     value: info.dividend_yield ? `${(info.dividend_yield*100).toFixed(2)}%` : '—' },
-        { label: 'Beta',           value: fmt(info.beta, false, 2) },
-        { label: '52W High',       value: fmt(info['52w_high'], true) },
-        { label: '52W Low',        value: fmt(info['52w_low'],  true) },
-        { label: 'Mean Target',    value: fmt(info.target_price, true) },
-        { label: 'Volume',         value: fmtVol(mkt.volume) },
-        { label: 'Avg Volume',     value: fmtVol(info.avg_volume) },
+        { label: 'Market Cap', value: formatLargePrice(info.market_cap, mkt.currency) },
+        { label: 'P/E Ratio', value: fmt(info.pe_ratio, false, 1) },
+        { label: 'Fwd P/E', value: fmt(info.forward_pe, false, 1) },
+        { label: 'EPS (TTM)', value: fmt(info.eps, true) },
+        { label: 'Div. Yield', value: info.dividend_yield ? `${(info.dividend_yield * 100).toFixed(2)}%` : '—' },
+        { label: 'Beta', value: fmt(info.beta, false, 2) },
+        { label: '52W High', value: fmt(info['52w_high'], true) },
+        { label: '52W Low', value: fmt(info['52w_low'], true) },
+        { label: 'Mean Target', value: fmt(info.target_price, true) },
+        { label: 'Volume', value: fmtVol(mkt.volume) },
+        { label: 'Avg Volume', value: fmtVol(info.avg_volume) },
     ];
 
     document.getElementById('modal-key-stats').innerHTML = stats.map(s => `
@@ -1591,13 +1591,13 @@ function renderKeyStats(info, mkt) {
 
 function renderModalNews(mkt) {
     const container = document.getElementById('modal-news-list');
-    const links     = mkt.headline_links || [];
-    const headlines = mkt.headlines      || [];
+    const links = mkt.headline_links || [];
+    const headlines = mkt.headlines || [];
 
     if (links.length > 0) {
         container.innerHTML = links.slice(0, 5).map(h => {
             if (!h.title) return '';
-            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
             return `
                 <a class="news-article-card" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">
                     <div class="news-article-source">${h.source || 'News'}${pub ? ` · ${pub}` : ''}</div>
@@ -1620,10 +1620,10 @@ function renderAboutSection(info) {
     document.getElementById('modal-about-text').textContent = info.business_summary;
     const metaEl = document.getElementById('modal-about-meta');
     const tags = [
-        info.sector   ? { label: info.sector }   : null,
+        info.sector ? { label: info.sector } : null,
         info.industry ? { label: info.industry } : null,
-        info.country  ? { label: info.country }  : null,
-        info.exchange ? { label: info.exchange }  : null,
+        info.country ? { label: info.country } : null,
+        info.exchange ? { label: info.exchange } : null,
     ].filter(Boolean);
     metaEl.innerHTML = tags.map(t =>
         `<span class="about-tag">${t.label}</span>`
@@ -1654,7 +1654,7 @@ async function loadModalChart(ticker, period) {
         // Build labels + close prices
         const labels = data.ohlcv.map(d => {
             const dt = new Date(d.time);
-            return period === '1d' ? dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : dt.toLocaleDateString();
+            return period === '1d' ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : dt.toLocaleDateString();
         });
         const closes = data.ohlcv.map(d => d.close);
 
@@ -1664,7 +1664,7 @@ async function loadModalChart(ticker, period) {
         }
 
         // Color based on trend
-        const trendColor = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
+        const trendColor = closes[closes.length - 1] >= closes[0] ? '#10b981' : '#f43f5e';
 
         // Update hero stats if this is a pending discovery pick
         if (currentModalMkt && currentModalMkt.status === 'pending_data') {
@@ -1674,7 +1674,7 @@ async function loadModalChart(ticker, period) {
             let high = today.high;
             let low = today.low;
             let prevClose = data.ohlcv.length > 1 ? data.ohlcv[data.ohlcv.length - 2].close : today.close;
-            
+
             if (data.info) {
                 if (data.info.current_price) close = data.info.current_price;
                 if (data.info.previous_close) prevClose = data.info.previous_close;
@@ -1682,9 +1682,9 @@ async function loadModalChart(ticker, period) {
                 if (data.info.day_high) high = data.info.day_high;
                 if (data.info.day_low) low = data.info.day_low;
             }
-            
+
             const change_pct = prevClose ? ((close - prevClose) / prevClose) * 100 : 0;
-            
+
             currentModalMkt.close_price = close;
             currentModalMkt.open_price = open;
             currentModalMkt.high_price = high;
@@ -1693,7 +1693,7 @@ async function loadModalChart(ticker, period) {
             currentModalMkt.volume = today.volume;
             currentModalMkt.currency = data.info ? data.info.currency : 'USD';
             currentModalMkt.status = 'loaded';
-            
+
             renderHeroStats(currentModalMkt);
         }
 
@@ -1739,13 +1739,15 @@ async function loadModalChart(ticker, period) {
                 },
                 scales: {
                     x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
-                    y: { 
+                    y: {
                         beginAtZero: false,
-                        ticks: { color: '#94a3b8', callback: v => {
-                            const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-                            return `${symbol}${(v * rate).toFixed(0)}`;
-                        } }, 
-                        grid: { color: 'rgba(255,255,255,0.04)' } 
+                        ticks: {
+                            color: '#94a3b8', callback: v => {
+                                const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
+                                return `${symbol}${(v * rate).toFixed(0)}`;
+                            }
+                        },
+                        grid: { color: 'rgba(255,255,255,0.04)' }
                     }
                 }
             }
@@ -1773,22 +1775,22 @@ function renderAnalystBar(summary) {
     const container = document.getElementById('modal-analyst');
     if (!summary) { container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">No analyst data available.</p>'; return; }
 
-    const total = (summary.strong_buy||0) + (summary.buy||0) + (summary.hold||0) + (summary.sell||0) + (summary.strong_sell||0);
+    const total = (summary.strong_buy || 0) + (summary.buy || 0) + (summary.hold || 0) + (summary.sell || 0) + (summary.strong_sell || 0);
     if (total === 0) { container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.85rem;">No analyst ratings on record.</p>'; return; }
 
     const rows = [
-        { label: 'Strong Buy', count: summary.strong_buy||0, color: '#10b981' },
-        { label: 'Buy',        count: summary.buy||0,        color: '#34d399' },
-        { label: 'Hold',       count: summary.hold||0,       color: '#94a3b8' },
-        { label: 'Sell',       count: summary.sell||0,       color: '#fb7185' },
-        { label: 'Strong Sell',count: summary.strong_sell||0,color: '#f43f5e' },
+        { label: 'Strong Buy', count: summary.strong_buy || 0, color: '#10b981' },
+        { label: 'Buy', count: summary.buy || 0, color: '#34d399' },
+        { label: 'Hold', count: summary.hold || 0, color: '#94a3b8' },
+        { label: 'Sell', count: summary.sell || 0, color: '#fb7185' },
+        { label: 'Strong Sell', count: summary.strong_sell || 0, color: '#f43f5e' },
     ];
 
     container.innerHTML = rows.map(r => `
         <div class="analyst-row">
             <span class="analyst-label">${r.label}</span>
             <div class="analyst-bar-bg">
-                <div class="analyst-bar-fill" style="width:${total ? (r.count/total*100) : 0}%; background:${r.color};"></div>
+                <div class="analyst-bar-fill" style="width:${total ? (r.count / total * 100) : 0}%; background:${r.color};"></div>
             </div>
             <span class="analyst-count">${r.count}</span>
         </div>
@@ -1796,26 +1798,26 @@ function renderAnalystBar(summary) {
 }
 function formatInsight(text, limit = null) {
     if (!text) return '';
-    
+
     // Handle array input (sometimes returned by discovery agent)
     let rawText = Array.isArray(text) ? text.join('\n') : String(text);
     let formatted = rawText.trim();
-    
+
     // Handle numbered or dash bullets
     const lines = formatted.split('\n');
     let bullets = [];
     let firstLine = '';
-    
+
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-        
+
         if (!firstLine) firstLine = trimmed;
 
         // Lenient bullet detection: Numbered (1. 2.), dash (-), or star (*)
         if (trimmed.match(/^(\d+\.|-|\*)\s?|^\u2022/)) {
             let content = trimmed.replace(/^(\d+\.|-|\*)\s?|^\u2022/, '').trim();
-            
+
             // User requested: Remove "What to watch" from the overview (limit mode)
             if (limit && (content.toLowerCase().includes('what to watch') || content.toLowerCase().includes('what\'s next'))) {
                 continue;
@@ -1846,7 +1848,7 @@ function formatInsight(text, limit = null) {
 
     // Handle any remaining bold (simple **bold**)
     formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
+
     return formatted;
 }
 
@@ -1854,7 +1856,7 @@ function formatInsight(text, limit = null) {
    Discover Tab — fetch, render
    ===================================================== */
 let _discoverRefreshTimer = null;
-let _discoverNewsTimer    = null;
+let _discoverNewsTimer = null;
 
 async function fetchDiscoverData() {
     fetchDiscoverIndices();
@@ -1881,7 +1883,7 @@ async function fetchDiscoverIndices() {
         renderMarketIndices(data.regions || []);
         lastDiscoverCommodities = data.commodities || [];
         renderCommodities(lastDiscoverCommodities);
-    } catch(e) { console.error('Discover indices failed', e); }
+    } catch (e) { console.error('Discover indices failed', e); }
 }
 
 async function fetchDiscoverMovers() {
@@ -1890,13 +1892,13 @@ async function fetchDiscoverMovers() {
         if (!res.ok) return;
         const data = await res.json();
         renderMovers('gainers-table', data.gainers || [], true);
-        renderMovers('losers-table',  data.losers  || [], false);
+        renderMovers('losers-table', data.losers || [], false);
         if (data.as_of) {
             const d = new Date(data.as_of);
             document.getElementById('movers-as-of').textContent =
-                `· as of ${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+                `· as of ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         }
-    } catch(e) { console.error('Discover movers failed', e); }
+    } catch (e) { console.error('Discover movers failed', e); }
 }
 
 async function fetchDiscoverNews() {
@@ -1908,9 +1910,9 @@ async function fetchDiscoverNews() {
         if (data.as_of) {
             const d = new Date(data.as_of);
             document.getElementById('news-as-of').textContent =
-                `· updated ${d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+                `· updated ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         }
-    } catch(e) { console.error('Discover news failed', e); }
+    } catch (e) { console.error('Discover news failed', e); }
 }
 
 function renderMarketIndices(regions) {
@@ -1921,7 +1923,7 @@ function renderMarketIndices(regions) {
         if (!r.indices || !r.indices.length) return '';
         const cards = r.indices.map(idx => {
             const isPos = idx.change_pct >= 0;
-            const sign  = isPos ? '+' : '';
+            const sign = isPos ? '+' : '';
             // Format price with commas; don't prepend $ for non-USD
             const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
             const currencyLabel = idx.currency && idx.currency !== 'USD' ? idx.currency : '$';
@@ -1950,12 +1952,12 @@ function renderCommodities(commodities) {
     if (!el) return;
     el.innerHTML = commodities.map(c => {
         const isPos = c.change_pct >= 0;
-        const sign  = isPos ? '+' : '';
-        
+        const sign = isPos ? '+' : '';
+
         // Unit conversion logic
         let displayPrice = c.price;
         let displayUnit = c.unit;
-        
+
         if (currentCommodityUnit === 'Metric') {
             if (c.unit === 'oz') {
                 displayPrice = displayPrice / 28.3495; // Price per gram
@@ -1965,7 +1967,7 @@ function renderCommodities(commodities) {
                 displayUnit = 'L';
             }
         }
-        
+
         // Use formatPrice to apply the selected global currency logic
         return `<div class="discover-index-card">
             <div class="discover-region-label">${c.icon} ${c.name}</div>
@@ -1992,10 +1994,10 @@ function renderMovers(tableId, movers, isGainer) {
         return;
     }
     tbody.innerHTML = movers.map((m, i) => {
-        const sign  = m.change_pct >= 0 ? '+' : '';
+        const sign = m.change_pct >= 0 ? '+' : '';
         const color = m.change_pct >= 0 ? '#10b981' : '#f43f5e';
         // Truncate long company names
-        const name  = (m.company_name || m.ticker).length > 22
+        const name = (m.company_name || m.ticker).length > 22
             ? (m.company_name || m.ticker).substring(0, 20) + '…'
             : (m.company_name || m.ticker);
         return `<tr>
@@ -2020,13 +2022,13 @@ function renderTopNews(articles) {
         const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
         const timeStr = d ? d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
         const tz = a.timezone || 'UTC';
-        
+
         const fullTime = d ? `${dateStr}, ${timeStr} (${tz})` : '';
         const desc = a.description || '';
-        
+
         // Remove currency symbols from news headlines (as requested)
         const title = (a.title || '').replace(/[\$\£\€\¥]/g, '');
-        
+
         return `<div class="news-feed-item">
             <div class="news-feed-meta">
                 <div class="news-feed-source" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.2;" title="${a.source || 'News'}">${a.source || 'News'}</div>
@@ -2046,30 +2048,30 @@ function renderTopNews(articles) {
 // Exchange code → normalised exchange name
 const EXCHANGE_MAP = {
     NMS: 'Nasdaq', NGS: 'Nasdaq', NNM: 'Nasdaq', NCM: 'Nasdaq',
-    NYQ: 'NYSE',   NYS: 'NYSE',
+    NYQ: 'NYSE', NYS: 'NYSE',
     ASX: 'ASX',
-    LSE: 'LSE',    IOB: 'LSE',
-    TYO: 'TSE',    JPX: 'TSE',
+    LSE: 'LSE', IOB: 'LSE',
+    TYO: 'TSE', JPX: 'TSE',
     HKG: 'HKEX',
 };
 // Exchange → country bucket
 const EXCHANGE_COUNTRY = {
     Nasdaq: 'US', NYSE: 'US',
-    ASX:    'AU',
-    LSE:    'EU',
-    TSE:    'ASIA', HKEX: 'ASIA',
+    ASX: 'AU',
+    LSE: 'EU',
+    TSE: 'ASIA', HKEX: 'ASIA',
 };
 
 let _activeSortKey = 'name';
 
 function initManageFilters() {
-    const search   = document.getElementById('asset-search');
-    const country  = document.getElementById('filter-country');
+    const search = document.getElementById('asset-search');
+    const country = document.getElementById('filter-country');
     const exchange = document.getElementById('filter-exchange');
 
     if (!search) return;
 
-    search.addEventListener('input',   applyManageFilters);
+    search.addEventListener('input', applyManageFilters);
     country.addEventListener('change', applyManageFilters);
     exchange.addEventListener('change', applyManageFilters);
 
@@ -2084,21 +2086,21 @@ function initManageFilters() {
 }
 
 function applyManageFilters() {
-    const query    = (document.getElementById('asset-search')?.value   || '').toLowerCase().trim();
-    const country  = (document.getElementById('filter-country')?.value  || '');
-    const exchange = (document.getElementById('filter-exchange')?.value  || '');
+    const query = (document.getElementById('asset-search')?.value || '').toLowerCase().trim();
+    const country = (document.getElementById('filter-country')?.value || '');
+    const exchange = (document.getElementById('filter-exchange')?.value || '');
 
     const cards = Array.from(document.querySelectorAll('#insights-container .insight-card, #insights-container [data-ticker]'));
     if (!cards.length) return;
 
     cards.forEach(card => {
-        const ticker  = (card.dataset.ticker  || '').toLowerCase();
+        const ticker = (card.dataset.ticker || '').toLowerCase();
         const company = (card.dataset.company || '').toLowerCase();
-        const exc     = EXCHANGE_MAP[card.dataset.exchange] || card.dataset.exchange || '';
-        const cntry   = EXCHANGE_COUNTRY[exc] || '';
+        const exc = EXCHANGE_MAP[card.dataset.exchange] || card.dataset.exchange || '';
+        const cntry = EXCHANGE_COUNTRY[exc] || '';
 
-        const matchQuery    = !query   || ticker.includes(query) || company.includes(query);
-        const matchCountry  = !country  || cntry === country;
+        const matchQuery = !query || ticker.includes(query) || company.includes(query);
+        const matchCountry = !country || cntry === country;
         const matchExchange = !exchange || exc === exchange;
 
         card.style.display = (matchQuery && matchCountry && matchExchange) ? '' : 'none';
@@ -2116,11 +2118,11 @@ function applyManageFilters() {
         const aC = parseFloat(a.dataset.change || 0);
         const bC = parseFloat(b.dataset.change || 0);
         switch (_activeSortKey) {
-            case 'price-desc':  return bP - aP;
-            case 'price-asc':   return aP - bP;
+            case 'price-desc': return bP - aP;
+            case 'price-asc': return aP - bP;
             case 'change-desc': return bC - aC;
-            case 'change-asc':  return aC - bC;
-            default:            return aT.localeCompare(bT);
+            case 'change-asc': return aC - bC;
+            default: return aT.localeCompare(bT);
         }
     });
     visible.forEach(c => container.appendChild(c));

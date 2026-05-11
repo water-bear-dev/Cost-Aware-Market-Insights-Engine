@@ -112,11 +112,13 @@ The engine leverages a distributed agentic architecture (Alpha-DAG) combined wit
 - [x] Global Discovery Hub (Indices, Commodities, Movers, News).
 - [x] Pre/Post-Market Price Visibility + Cron-driven hydration.
 
-#### Phase 8: Global Quality Screener (Completed)
-- [x] Integration of dbt-DuckDB for analytical modeling.
+#### Phase 8: Global Quality Screener & Institutional Pivot (Completed)
+- [x] Integration of dbt-DuckDB for analytical modeling across 600+ tickers.
 - [x] Implementation of 5-Factor QMJ Model (Profitability, Growth, Safety, Valuation, Momentum).
-- [x] Universal Screen (S&P 500 + ASX comparison).
-- [x] High-performance, sticky-header scrollable UI.
+- [x] Universal Screen (S&P 500 + ASX comparison) with sticky-header scrollable UI.
+- [x] **Institutional Pivot**: Decoupled "Broad Screening" from "Active Monitoring".
+- [x] Focused FAANG-centric dashboard for high-signal daily tracking.
+- [x] Python 3.9 compatibility hardening for institutional runtime environments.
 
 ### 3. Advanced Engine Architecture
 

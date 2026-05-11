@@ -3,8 +3,9 @@
 A fully containerized Python (FastAPI) application designed to ingest stock market data, synthesize it using AI, and surface those insights on a premium frontend dashboard—all while rigorously enforcing strict financial guardrails (FinOps) to guarantee AI generation costs never exceed a daily budget.
 
 The dashboard is structured around three core views:
-- **Manage** — Track up to 30 assets with live sparklines, AI synthesis signals, and flexible grid layouts. Search, filter by exchange or country, and sort by price or change.
-- **Discover** — A global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
+- **Manage** — A high-signal, institutional-grade terminal focused on **FAANG** assets (or custom watchlists). Features live sparklines, AI synthesis signals, and 24-hour momentum tracking.
+- **Screener** — A quantitative powerhouse ranking **600+ tickers** across the S&P 500 and ASX universes using the **Quality Minus Junk (QMJ)** factor model.
+- **Discover** — Global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
 - **Costs / How it Works** — FinOps observability and architecture education.
 
 ## System Architecture
@@ -89,8 +90,9 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 
 ### 🚀 Key Capabilities
 
-*   **Autonomous QMJ Screening**: Multi-factor Z-score analysis covering Profitability, Growth, Safety, Valuation (Earnings Yield), and Momentum.
-*   **Global Market Intelligence**: Side-by-side comparison of S&P 500 (US) and ASX (AU) assets with normalized currency and timezone logic.
+*   **Institutional Dashboard Pivot**: Optimized for high-signal monitoring of elite assets (FAANG by default), decoupling active tracking from broad-market discovery.
+*   **Autonomous QMJ Screening**: Multi-factor Z-score analysis ranking 600+ companies across US and AU markets.
+*   **Global Market Intelligence**: Side-by-side comparison of S&P 500 and ASX assets with normalized currency and timezone logic.
 *   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality hidden gems.
 *   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure Bedrock/Claude spend never exceeds your daily threshold.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
@@ -121,7 +123,7 @@ Scores are calculated via `dbt` and `DuckDB` (local) or `Athena` (production), c
 - **Docker & Docker Compose**: The easiest way to spin up the local DynamoDB ledger alongside the application.
 - **AWS Account**: Required for production deployment and invoking the **Amazon Bedrock (Anthropic Claude 3 Haiku)** models.
 - **AWS CLI (`aws`)**: Must be configured with `aws configure` locally before running deployment scripts.
-- **Python 3.12+**: Required for `langgraph` and `mcp` compatibility.
+- **Python 3.9+**: The core engine maintains strict compatibility with Python 3.9 environments, essential for localized institutional deployments.
 - **Model Subscriptions**: Ensure that you have requested access to `Anthropic Claude 3 Haiku` inside the AWS Bedrock console in your target region before going live.
 
 ## Environment & LLM Support
@@ -249,8 +251,7 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 4: UX Polish & Global Access** - Multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations.
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
-- **[COMPLETE] Phase 7: Global QMJ Screener** - Integrated an Open Data Lakehouse architecture (dbt Core + DuckDB/Athena) to rank assets by Quality Minus Junk (Profitability + Safety).
-- **[COMPLETE] Phase 8: Scalable Infrastructure & UX Mastery** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, added an API-throttled Force Refresh system, and executed final UI/UX alignment passes.
+- **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, added an API-throttled Force Refresh system, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
 - **[PLANNED] Phase 9: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 

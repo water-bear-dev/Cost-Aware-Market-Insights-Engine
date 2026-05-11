@@ -2,21 +2,6 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
-## Entry 39: Stabilizing the Global Quality Screener
-
-*Date: 2026-05-11*
-
-With the dbt pipeline established, our final push for Phase 8 focused on stabilization and analytical depth. We transitioned from a simple 2-factor QMJ proxy to a comprehensive **5-Factor Model**, incorporating Profitability, Growth, Safety, Valuation, and Momentum.
-
-**Engineering the Fallback:**
-We encountered a scenario where the dbt models might not have processed the latest ingested data (e.g., between scheduled runs). To solve this, we updated `WarehouseClient` with a defensive fallback layer. If a query requests Z-scores that aren't yet in the database, the client performs a high-performance **Pandas-based Z-score calculation** on the fly. This ensures the UI is never "stale" or missing metrics.
-
-**UI Scalability & The Scroll Trap:**
-As we added the ASX universe alongside the S&P 500, the screener table became massive. To preserve the TradingView-grade experience, we refactored the viewport into a **fixed-height, scrollable container** with **sticky headers**. This allows users to browse hundreds of high-quality assets while keeping the factor labels in view at all times.
-
-**Universe Unification:**
-We implemented an "All Universes" toggle, allowing for the first time a direct relative ranking of US vs. AU assets. By normalizing the Z-score calculation across the entire active dataset, the engine now surfaces the true global "Quality" outliers, fulfilling the Phase 8 objective of a robust, globalized analytical engine.
-
 ## Entry 1: Shifting gears to the Local MVP
 
 *Date: 2026-03-27*
@@ -27,6 +12,7 @@ Initially, our roadmap established an aggressive push directly into AWS. Phase 1
 
 By building a local `docker-compose.yml` framework alongside `amazon/dynamodb-local`, we constructed our core backend Python logic—the automated `APScheduler` loop, `yfinance` data extraction algorithms, `pydantic` schemas, and crucial `boto3` wrappers—without locking a single credential.
 
+
 ## Entry 2: Enforcing FinOps Guardrails 
 
 *Date: 2026-03-27*
@@ -36,6 +22,7 @@ With the structural base implemented, we tackled the primary function of the eng
 We constructed `src/cost_tracking/service.py` which tracks daily spend exactly how an enterprise ledger would. When `src/synthesis/service.py` operates, it doesn't just call Bedrock arbitrarily. It builds the prompt size, multiplies by the configured Token Rate (e.g., $0.00025 per 1K Input Tokens), grabs the `get_daily_spend()` amount out of the DynamoDB ledger, and blocks the request entirely if the calculation exceeds the user's `$5.00` `DAILY_BUDGET_USD` environment variable.
 
 For Phase 1, we implemented the entire algorithm locally, logging simulated "local-mock" Bedrock expenditures into the database. Now, when Phase 2 moves us into live Bedrock execution, our wallet is perfectly protected. 
+
 
 ## Entry 3: Surfacing Analytics via the Dashboard
 
@@ -50,6 +37,7 @@ It gracefully renders out exactly how much our mock AI is costing the system aga
 **What's next?**
 Phase 2! The foundational algorithms and cost-gate algorithms are stable. The next goal is executing AWS CloudFormation to secure an ECS perimeter and wiring in Anthropic's Claude to read the real Yahoo Finance news feeds on our live UI.
 
+
 ## Entry 4: Aggregating Live Market News
 
 *Date: 2026-03-27*
@@ -59,6 +47,7 @@ While `yfinance` provides excellent ticker pricing data, we wanted the Insights 
 We updated `src/ingestion/service.py` to ping the Google News RSS feed for each ticker during the ingestion cycle. We parse the XML tree using the built-in `xml.etree.ElementTree` to extract the single most relevant aggregated headline from top financial publishers (Bloomberg, Reuters, CNBC, etc.) across the web.
 
 This unified headline is then packaged into the DynamoDB `MarketData` item and injected directly into our Phase 1 mock-synthesis response, displaying live news straight on the frontend dashboard without spending a dime on paid news APIs.
+
 
 ## Entry 5: Bridging the Cloud MVP via Bedrock and CloudFormation
 
@@ -77,6 +66,7 @@ Deployment isn't always linear. We hit several real-world AWS hurdles that we qu
 5. **Static Asset Persistence:** We discovered our dashboard was missing from the cloud image. We updated the `Dockerfile` to explicitly `COPY static/` and ensured our non-root `appuser` owned the application directory to prevent runtime `PermissionError` when starting Uvicorn.
 6. **Casing & IAM Hygiene:** Minor bugs like a casing mismatch in Pydantic settings (`AWS_DEFAULT_REGION` vs `aws_default_region`) and missing `ListTables` permissions were caught in the logs and resolved via IAM policy updates.
 
+
 ## Entry 6: Entering Milestone 3 - FinOps & Observability
 
 *Date: 2026-04-13*
@@ -88,6 +78,7 @@ We introduced a native `src/clients/cloudwatch.py` wrapper, allowing the `synthe
 In `infra/cloudformation.yml`, we integrated these FinOps metrics by deploying two `AWS::CloudWatch::Alarm` resources backed by an SNS Topic. If an aggregation of our cost logic ever spikes past a $4.00 warning threshold or triggers the $5.00 exhaust limit within a daily window, an immediate email is dispatched to the admin. 
 
 Lastly, to visualize this raw spend, we built `GET /api/v1/costs/dashboard` inside `src/routes/costs.py`, which performs a rolling 7-day query map against the `CostTracking` table to compute 30-day projected run-rates to feed directly into our UI later transparently.
+
 
 ## Entry 7: Completing Milestones 3 & 4 (Production Networking & Advanced FinOps Dashboard)
 
@@ -101,6 +92,7 @@ Then, we tackled **Milestone 4: Production Security Hardening**. Previously, our
 3. **VPC Endpoints:** Since NAT Gateways charge per-GB for data processing, we provisioned a **Gateway VPC Endpoint** for DynamoDB. This ensures that the engine's constant logging of tick data and AI insights traverses the private AWS backbone for free, rather than incurring unnecessary NAT processing fees.
 
 Our Cost-Aware Market Insights Engine is now a robust, fully-containerized, and enterprise-grade microservice!
+
 
 ## Entry 8: Frontend Splitting, TradingView UX, and Dynamic Trackers
 
@@ -116,6 +108,7 @@ Previously, the engine relied on a hard-coded environment variable (`settings.ti
 
 **TradingView-UX:**
 To make the market data more actionable, we built a `GET /api/v1/market` endpoint and stitched this inside `app.js` alongside our insight queries. Cards now display current price, percentage change (stylized with positive/negative pills), and up to three aggregated Google News headlines for context—acting highly similar to TradingView's ticker cards. Finally, a `Chart.js` canvas aggregates the live asset prices to formulate a comparative portfolio visualization across the active tracked fleet.
+
 
 ## Entry 9: Cloud Orchestration Finalization & The Last Mile
 
@@ -576,6 +569,7 @@ The main portfolio bar chart received a significant "FinOps" refinement. We remo
 
 
 
+
 ## Entry 33: Deep System Stabilization and Global Market Parity
 
 **Date:** 2026-05-07
@@ -597,6 +591,7 @@ To properly support Australian (e.g., `NAB.AX`) and European markets, we moved b
 
 
 The engine is now significantly more stable, accurate across international borders, and better prepared for the 30-ticker volume expansion.
+
 
 ## Entry 34: Designing the "Discover" Experience — From Watchlist to Market Intelligence Hub
 
@@ -675,6 +670,7 @@ With the UI and AI synthesis logic now fully refined, we are ready to scale the 
 
 ---
 
+
 ### May 7, 2026: Achieving 24-Hour Market Transparency
 
 The final pieces of the Market Discovery Hub have fallen into place, focusing on absolute data clarity and real-time relevance. 
@@ -724,6 +720,7 @@ We've standardized the terminology across the platform—moving away from generi
 
 We've bridged the gap between "at-a-glance" monitoring and deep historical analysis. By adding **interactive period selectors** to every tracked asset card, we've transformed the static sparklines into dynamic research tools. Users can now toggle between a 1-day view and a 1-year view without leaving the Manage tab, allowing for rapid-fire validation of long-term trends against short-term price action.
 
+
 ## Entry 37: The Analytical Leap — Global QMJ Screener & Data Lakehouse
 
 *Date: 2026-05-11*
@@ -749,6 +746,7 @@ The engine is now a dual-threat platform: **Momentum Discovery** via LangGraph a
 
 **What's Next?**
 Phase 8: Multi-Agent Collaborative Refinement. We will be wiring these QMJ scores back into the Discovery Agent's decision-making node, allowing the AI to "self-filter" its own recommendations based on fundamental quality before they ever reach the user.
+
 
 ## Entry 38: The Alpha-DAG Pivot and Colima Networking
 
@@ -778,3 +776,30 @@ colima list  # Shows ADDRESS column, e.g. 192.168.64.2
 The dashboard is then accessible at `http://192.168.64.2:8000` (use your specific Colima IP).
 
 **Lesson:** When debugging container connectivity issues on macOS, always check the Docker runtime first (`docker context ls`). If it points to a Colima socket, `localhost` port forwarding behaves differently than Docker Desktop.
+
+
+## Entry 39: Stabilizing the Global Quality Screener
+
+*Date: 2026-05-11*
+
+With the dbt pipeline established, our final push for Phase 8 focused on stabilization and analytical depth. We transitioned from a simple 2-factor QMJ proxy to a comprehensive **5-Factor Model**, incorporating Profitability, Growth, Safety, Valuation, and Momentum.
+
+**Engineering the Fallback:**
+We encountered a scenario where the dbt models might not have processed the latest ingested data (e.g., between scheduled runs). To solve this, we updated `WarehouseClient` with a defensive fallback layer. If a query requests Z-scores that aren't yet in the database, the client performs a high-performance **Pandas-based Z-score calculation** on the fly. This ensures the UI is never "stale" or missing metrics.
+
+**UI Scalability & The Scroll Trap:**
+As we added the ASX universe alongside the S&P 500, the screener table became massive. To preserve the TradingView-grade experience, we refactored the viewport into a **fixed-height, scrollable container** with **sticky headers**. This allows users to browse hundreds of high-quality assets while keeping the factor labels in view at all times.
+
+**Universe Unification:**
+We implemented an "All Universes" toggle, allowing for the first time a direct relative ranking of US vs. AU assets. By normalizing the Z-score calculation across the entire active dataset, the engine now surfaces the true global "Quality" outliers, fulfilling the Phase 8 objective of a robust, globalized analytical engine.
+
+
+## Entry 40: The Institutional Pivot — Dashboard Streamlining
+
+*Date: 2026-05-12*
+
+As the engine scaled to ~600 tickers (S&P 500 + ASX 200) to fuel the Global QMJ Screener, the "Manage" dashboard became overwhelmed. We executed an **Institutional Pivot** to decouple "Tracked Monitoring" from "Global Screening".
+
+- **Dashboard Streamlining**: Reverted the default tracked list to a focused set of **FAANG** tickers. This ensures the primary dashboard remains high-performance and provides a clear, high-signal focus for daily monitoring.
+- **Screener Isolation**: Maintained the full 600-ticker analytical warehouse in DuckDB/dbt, ensuring that while the dashboard is streamlined, the engine's "Research" capabilities remain globally competitive.
+- **System Stability**: Resolved Python 3.9 compatibility issues and synchronized UI function names to ensure the new tabbed architecture is production-grade.

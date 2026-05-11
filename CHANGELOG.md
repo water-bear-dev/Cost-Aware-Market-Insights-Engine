@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.8] - 2026-05-12
+
+### Added
+- **Institutional Pivot** — Decoupled "Tracked Monitoring" from "Global Screening" to streamline the primary dashboard.
+- **FAANG-Centric Watchlist** — Reverted the default dashboard ticker list to a high-signal focused set (`META`, `AAPL`, `AMZN`, `NFLX`, `GOOGL`).
+- **Dashboard Reset Utility** — Added `scripts/reset_dashboard.py` to purge bloated ticker metadata and restore dashboard focus.
+
+### Changed
+- **Screener Isolation** — Optimized the QMJ Screener to maintain the full 600+ ticker universe in the analytical layer (DuckDB) while the active dashboard remains focused on institutional assets.
+- **Ingestion Guardrails** — Disabled unauthorized mass-seeding in `scripts/seed_universes.py` to prevent future ticker bloat.
+
+### Fixed
+- **Python 3.9 Compatibility** — Resolved type hinting issues and runtime errors specific to Python 3.9 environments.
+- **UI Function Synchronization** — Renamed `applyQmjTable` to `renderQMJScreener` for architectural consistency and resolved event listener detachment bugs.
+
 ## [2.9.7] - 2026-05-11
 
 ### Added
