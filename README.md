@@ -83,14 +83,19 @@ flowchart TB
 
 ## Overview & Architecture Highlights
 
-This project is built around the fundamental philosophy that AI integration must be cost-aware from day one. It utilizes a distributed **Alpha-DAG** system built with LangGraph and the Model Context Protocol (MCP) to ensure modularity, security, and strict financial control.
+The **Cost-Aware Market Insights Engine** is a professional-grade, autonomous financial intelligence platform. It combines agentic AI orchestration (via LangGraph) with a high-performance analytical warehouse (dbt + DuckDB) to provide deep-dive market insights while maintaining strict enterprise-grade budget guardrails.
 
-1. **Data Ingestion via MCP**: `yfinance` logic and Google News RSS extraction are decoupled into a dedicated Market Data MCP server.
-2. **Quant Compute Sandbox**: Mathematical calculations (Pandas/Numpy) are executed in a strictly isolated, network-restricted MCP container with zero AWS credentials.
-3. **LangGraph Orchestrator**: A Directed Acyclic Graph (DAG) routes tasks, maintains state, and sequences API calls to **AWS Bedrock (Anthropic Claude 3 Haiku)**.
-4. **FinOps Engine (DynamoDB)**: An interceptor node in the LangGraph DAG estimates token costs, queries a local `CostTracking` ledger, and physically blocks execution if it would breach your `DAILY_BUDGET_USD` limit.
-5. **Daily Discovery Agent**: An autonomous agent that triggers at 8:00 AM AEST to perform mass market analysis and surface "Hidden Gems" with **AI Smart Narratives** (3-bullet rationale with performance metrics).
-6. **Global QMJ Screener**: An Open Data Lakehouse architecture (dbt Core + DuckDB/Athena) calculates Quality Minus Junk (QMJ) proxy scores (Profitability + Safety) to rank tracked assets.
+The engine has now evolved into a **Global Quality Screener**, specializing in **Quality Minus Junk (QMJ)** factor analysis across the S&P 500 and ASX universes.
+
+### 🚀 Key Capabilities
+
+*   **Autonomous QMJ Screening**: Multi-factor Z-score analysis covering Profitability, Growth, Safety, Valuation (Earnings Yield), and Momentum.
+*   **Global Market Intelligence**: Side-by-side comparison of S&P 500 (US) and ASX (AU) assets with normalized currency and timezone logic.
+*   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality hidden gems.
+*   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure Bedrock/Claude spend never exceeds your daily threshold.
+*   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
+*   **Hybrid AI Synthesis**: Seamlessly toggle between AWS Bedrock (Production) and local Ollama/Gemma (Development) models.
+*   **Analytics Warehouse**: dbt-driven data lakehouse architecture for scalable, reproducible financial modeling.
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
 

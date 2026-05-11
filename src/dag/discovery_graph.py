@@ -103,14 +103,15 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"You are a professional market analyst writing for everyday investors. Review these quantitative metrics for 20 tickers:\n"
         f"{metrics_str}\n\n"
         f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
-        f"based on a mix of momentum and volatility.\n\n"
-        f"For the 'rationale', write 2-3 human-understandable sentences in plain English. "
-        f"Explain what is happening with the price right now and why it stands out. Avoid jargon like 'standard deviation' or 'annualized volatility'. "
-        f"Do NOT use bullet points. Write it as a single cohesive paragraph that sounds like a smart summary.\n\n"
+        f"based on a mix of momentum, volatility, and trend strength.\n\n"
+        f"For the 'rationale', provide a deep-dive analysis (3-4 human-understandable sentences). "
+        f"Explain specifically what is happening with the price right now, mention the momentum or volatility signals in plain terms, and state why it stands out among the peer group. "
+        f"Avoid jargon like 'standard deviation' or 'annualized volatility'. "
+        f"Do NOT use bullet points. Write it as a single cohesive, high-conviction paragraph.\n\n"
         f"Output MUST be pure JSON matching this schema:\n"
         f"[\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"A 2-3 sentence narrative summary...\"}},\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"A 2-3 sentence narrative summary...\"}}\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}}\n"
         f"]"
     )
     
@@ -300,6 +301,21 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 post_market_price = None
                 post_market_change = None
 
+            # Fetch news for this specific recommendation
+            ticker_news = []
+            try:
+                t_obj = yf.Ticker(t)
+                raw_news = t_obj.news[:3] # Get top 3 news
+                for n in raw_news:
+                    ticker_news.append({
+                        "title": n.get("title"),
+                        "publisher": n.get("publisher"),
+                        "link": n.get("link"),
+                        "provider_publish_time": n.get("providerPublishTime")
+                    })
+            except Exception as news_err:
+                logger.warning("Failed to fetch news for daily pick", ticker=t, error=str(news_err))
+
             # We use a special ticker ID for easy fetching
             category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
             ticker_id = f"_DAILY_{category_clean}_"
@@ -325,7 +341,8 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'pre_market_price': str(pre_market_price) if pre_market_price else None,
                 'pre_market_change': str(pre_market_change) if pre_market_change else None,
                 'post_market_price': str(post_market_price) if post_market_price else None,
-                'post_market_change': str(post_market_change) if post_market_change else None
+                'post_market_change': str(post_market_change) if post_market_change else None,
+                'news': json.dumps(ticker_news)
             }
             insights_table.put_item(Item=item)
             logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])

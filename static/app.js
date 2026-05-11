@@ -188,9 +188,10 @@ async function fetchQMJScreener() {
     const tbody = document.getElementById('qmj-table-body');
     if (!tbody) return;
 
-    const universe = document.getElementById('qmj-filter-universe')?.value || 'sp500';
+    const universe = document.getElementById('qmj-filter-universe')?.value || 'all';
 
     try {
+        allQmjData = []; // Clear old data to prevent mixing
         const res = await fetch(`/api/v1/screener/qmj?universe=${universe}`);
         if (res.ok) {
             const data = await res.json();
@@ -315,14 +316,12 @@ function applyQmjTable() {
                 <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_safety !== null && row.z_safety !== undefined ? row.z_safety.toFixed(2) : '—'}</div>
             </td>
             <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${(row.valuation * 100).toFixed(2)}%</div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Earn. Yield</div>
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_value !== null && row.z_value !== undefined ? row.z_value.toFixed(2) : '—'}</div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Z-Value</div>
             </td>
             <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: ${row.momentum >= 0 ? 'var(--positive)' : 'var(--negative)'}; font-weight: 600;">
-                    ${row.momentum >= 0 ? '+' : ''}${row.momentum.toFixed(1)}%
-                </div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">1Y-1M Mom.</div>
+                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_mom !== null && row.z_mom !== undefined ? row.z_mom.toFixed(2) : '—'}</div>
+                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Z-Momentum</div>
             </td>
         </tr>
     `).join('');
@@ -361,6 +360,28 @@ function initControls() {
         });
     });
 
+    // Trend Period Selection
+    document.querySelectorAll('.trend-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.trend-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentPeriod = btn.dataset.trend;
+            
+            // Refresh all sparklines in insights container
+            Object.keys(sparklineInstances).forEach(id => {
+                if (id.startsWith('sparkline-card-')) {
+                    const ticker = id.replace('sparkline-card-', '');
+                    refreshTickerSparkline(ticker, currentPeriod);
+                }
+            });
+
+            // If modal is open, update its chart too
+            if (currentModalTicker) {
+                loadModalChart(currentModalTicker, currentPeriod);
+            }
+        });
+    });
+
     // Manage Panel Toggle
     manageBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -374,30 +395,59 @@ function initControls() {
         }
     });
 
-    // Force Refresh Button
+    // Refresh Button
     const forceRefreshBtn = document.getElementById('force-refresh-btn');
     if (forceRefreshBtn) {
-        forceRefreshBtn.addEventListener('click', () => {
+        forceRefreshBtn.addEventListener('click', async () => {
             const now = Date.now();
             if (forceRefreshBtn.dataset.lastRefresh && now - parseInt(forceRefreshBtn.dataset.lastRefresh) < 30000) {
-                // Throttle for 30 seconds
                 const remaining = Math.ceil((30000 - (now - parseInt(forceRefreshBtn.dataset.lastRefresh))) / 1000);
-                forceRefreshBtn.textContent = `Wait ${remaining}s...`;
-                setTimeout(() => forceRefreshBtn.textContent = '↻ Force Refresh', 2000);
+                forceRefreshBtn.innerHTML = `Wait ${remaining}s...`;
+                setTimeout(() => {
+                    forceRefreshBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Refresh
+                    `;
+                }, 2000);
                 return;
             }
             forceRefreshBtn.dataset.lastRefresh = now.toString();
-            forceRefreshBtn.textContent = 'Refreshing...';
+            forceRefreshBtn.classList.add('loading');
+            const originalContent = forceRefreshBtn.innerHTML;
+            forceRefreshBtn.querySelector('span').textContent = 'Refreshing...';
             
-            // Call fetchDiscoverData to refresh the dashboard
-            if (typeof fetchDiscoverData === 'function') {
-                fetchDiscoverData().finally(() => {
-                    forceRefreshBtn.textContent = '↻ Force Refresh';
-                });
-            } else {
-                forceRefreshBtn.textContent = '↻ Force Refresh';
+            try {
+                await fetchDiscoverData();
+                await fetchMarketAndInsights();
+            } finally {
+                forceRefreshBtn.classList.remove('loading');
+                forceRefreshBtn.innerHTML = originalContent;
             }
         });
+    }
+}
+
+async function refreshTickerSparkline(ticker, period) {
+    const elementId = `sparkline-card-${ticker}`;
+    const container = document.getElementById(elementId);
+    if (!container) return;
+    
+    container.style.opacity = '0.5';
+    try {
+        const res = await fetch(`/api/v1/market/history/${ticker}?period=${period}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.ohlcv && data.ohlcv.length > 0) {
+            const closes = data.ohlcv.map(d => d.close).filter(v => v !== null);
+            const trendColor = closes[closes.length-1] >= closes[0] ? '#10b981' : '#f43f5e';
+            
+            drawSparkline(elementId, closes, trendColor);
+        }
+    } catch (e) {
+        console.error("Trend refresh failed:", e);
+    } finally {
+        container.style.opacity = '1';
     }
 }
 
@@ -622,6 +672,16 @@ async function initDashboard() {
         fetchMarketAndInsights();
         fetchDailyPicks();
     }, 15000);
+
+    // Refresh sparklines specifically every 24 hours
+    setInterval(() => {
+        Object.keys(sparklineInstances).forEach(id => {
+            if (id.startsWith('sparkline-card-')) {
+                const ticker = id.replace('sparkline-card-', '');
+                refreshTickerSparkline(ticker, currentPeriod);
+            }
+        });
+    }, 24 * 60 * 60 * 1000);
 }
 
 async function fetchDailyPicks() {
@@ -686,6 +746,22 @@ async function fetchDailyPicks() {
                        </div>`
                     : '';
 
+                // Build news headlines if available
+                let newsHtml = '';
+                if (pick.headlines && pick.headlines.length > 0) {
+                    newsHtml = `
+                        <div class="daily-news-mini">
+                            <div class="daily-news-title">Related News</div>
+                            ${pick.headlines.slice(0, 3).map(h => `
+                                <div class="daily-news-item">
+                                    <a class="daily-news-link" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">${h.title}</a>
+                                    <div class="daily-news-source">${h.source || 'News'}${h.published ? ` · ${new Date(h.published).toLocaleDateString('en-AU', {day:'numeric', month:'short'})}` : ''}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
                 return `
                 <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -718,7 +794,9 @@ async function fetchDailyPicks() {
                         ${rationaleHtml}
                     </div>
 
-                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 0.75rem; font-weight: 500;">
+                    ${newsHtml}
+
+                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 1.25rem; font-weight: 500;">
                         Deep Dive &rarr;
                     </div>
             </div>
@@ -924,9 +1002,9 @@ function drawSparkline(elementId, dataset, color) {
                     x: { display: false }, 
                     y: { 
                         display: false,
-                        beginAtZero: false,
                         min: minVal - padding,
-                        max: maxVal + padding
+                        max: maxVal + padding,
+                        beginAtZero: false 
                     } 
                 }, 
                 animation: false 
@@ -1017,9 +1095,13 @@ function patchInsightsGrid(newMarket, newInsights) {
             container.appendChild(card);
         }
 
-        if (mkt.sparkline && mkt.sparkline.length > 0) {
+        // Sparkline update is now decoupled from the 15s poll.
+        // It will only be drawn on initial load or manual refresh.
+        const sparklineId = `sparkline-card-${mkt.ticker}`;
+        const canvas = container.querySelector(`#${sparklineId} canvas`);
+        if (!canvas && mkt.sparkline && mkt.sparkline.length > 0) {
             const color = mkt.change_pct >= 0 ? '#10b981' : '#f43f5e';
-            drawSparkline(`sparkline-card-${mkt.ticker}`, mkt.sparkline, color);
+            drawSparkline(sparklineId, mkt.sparkline, color);
         }
     });
 }
@@ -1090,34 +1172,35 @@ function buildCard(mkt, insight, index) {
 function updateCard(wrapper, mkt, insight) {
     const inner = wrapper.querySelector('.glass');
     if (!inner) return;
-    inner.innerHTML = cardInnerHtml(mkt, insight);
+
+    // Targeted updates to preserve canvas/sparklines
+    const priceEl = inner.querySelector('.card-price');
+    if (priceEl) priceEl.textContent = formatPrice(mkt.close_price, mkt.currency);
+
+    const changeEl = inner.querySelector('.card-change');
+    if (changeEl) {
+        const sign = mkt.change_pct >= 0 ? '+' : '';
+        const cClass = mkt.change_pct >= 0 ? 'positive' : 'negative';
+        changeEl.className = `${cClass} card-change`;
+        changeEl.textContent = `${sign}${mkt.change_pct.toFixed(2)}%`;
+    }
+
+    const insightEl = inner.querySelector('.insight-text');
+    if (insightEl && insight) {
+        // Only update text if it changed significantly to avoid flicker
+        const newText = formatInsight(insight.insight_text, 2);
+        if (insightEl.innerHTML.length !== newText.length) {
+            insightEl.innerHTML = newText + (insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : '');
+        }
+    }
     
     // Update data attributes for filtering/sorting
     wrapper.dataset.price = mkt.close_price || 0;
     wrapper.dataset.change = mkt.change_pct || 0;
     wrapper.dataset.company = mkt.company_name || '';
     wrapper.dataset.exchange = mkt.exchange || '';
-
-    inner.onclick = () => {
-        openModal(mkt.ticker);
-    };
 }
 
-let cardPeriods = {}; // Global state to track selected periods for each card
-
-function renderCardPeriodSelector(ticker) {
-    const current = cardPeriods[ticker] || '1d';
-    const periods = ['1d', '1w', '1mo', '3mo', '6mo', '1y'];
-    const labels = { '1d': '1D', '1w': '1W', '1mo': '1M', '3mo': '3M', '6mo': '6M', '1y': '1Y' };
-    
-    let html = '<div class="card-period-selector" onclick="event.stopPropagation()">';
-    periods.forEach(p => {
-        const active = p === current ? 'active' : '';
-        html += `<span class="card-period-btn ${active}" onclick="changeCardPeriod('${ticker}', '${p}')">${labels[p]}</span>`;
-    });
-    html += '</div>';
-    return html;
-}
 
 window.changeCardPeriod = async function(ticker, period) {
     const container = document.getElementById(`sparkline-card-${ticker}`);
@@ -1135,7 +1218,7 @@ window.changeCardPeriod = async function(ticker, period) {
 
     container.style.opacity = '0.4';
     try {
-        const response = await fetch(`/api/market/history/${ticker}?period=${period}`);
+        const response = await fetch(`/api/v1/market/history/${ticker}?period=${period}`);
         const data = await response.json();
         if (data.ohlcv && data.ohlcv.length > 0) {
             const closes = data.ohlcv.map(d => d.close).filter(c => c > 0);
@@ -1190,7 +1273,6 @@ function cardInnerHtml(mkt, insight) {
             </div>
             
             <div class="card-sparkline-box">
-                ${renderCardPeriodSelector(mkt.ticker)}
                 <div id="sparkline-card-${mkt.ticker}" class="sparkline-inner"></div>
             </div>
 
@@ -1934,15 +2016,24 @@ function renderTopNews(articles) {
     if (!articles.length) { el.innerHTML = '<p style="color:var(--text-secondary)">No news available yet.</p>'; return; }
     el.innerHTML = articles.map(a => {
         const d = a.published ? new Date(a.published) : null;
-        const time = d ? d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+        // Format: 11 May 2026, 14:30 (UTC+10)
+        const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        const timeStr = d ? d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
+        const tz = a.timezone || 'UTC';
+        
+        const fullTime = d ? `${dateStr}, ${timeStr} (${tz})` : '';
         const desc = a.description || '';
+        
+        // Remove currency symbols from news headlines (as requested)
+        const title = (a.title || '').replace(/[\$\£\€\¥]/g, '');
+        
         return `<div class="news-feed-item">
             <div class="news-feed-meta">
-                <div class="news-feed-source" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${a.source || 'News'}">${a.source || 'News'}</div>
-                <div class="news-feed-time">${time}</div>
+                <div class="news-feed-source" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: normal; line-height: 1.2;" title="${a.source || 'News'}">${a.source || 'News'}</div>
+                <div class="news-feed-time" style="font-size: 0.6rem;">${fullTime}</div>
             </div>
             <div class="news-feed-content" style="flex: 1; min-width: 0;">
-                <a class="news-feed-title" href="${a.url}" target="_blank" rel="noopener noreferrer" style="display: block;">${a.title}</a>
+                <a class="news-feed-title" href="${a.url}" target="_blank" rel="noopener noreferrer" style="display: block;">${title}</a>
                 ${desc ? `<p class="news-feed-desc">${desc}</p>` : ''}
             </div>
         </div>`;

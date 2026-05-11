@@ -76,18 +76,47 @@ flowchart TB
     class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
     class DDB_Costs cost;
     class Presentation presentation;
-```
+The engine leverages a distributed agentic architecture (Alpha-DAG) combined with a high-performance analytical warehouse.
+
+*   **Orchestration**: LangGraph (Alpha-DAG) for stateful multi-agent workflows.
+*   **AI Synthesis**: AWS Bedrock (Claude 3 Haiku) or local Ollama (Llama 3.2).
+*   **Analytical Warehouse**: dbt Core + DuckDB (Local) / AWS Athena (Cloud).
+*   **Screener Model**: Quality Minus Junk (QMJ) 5-Factor Z-Score Analysis.
+*   **Persistence**: DynamoDB (Tables: MarketData, Tickers, Insights, CostTracking).
+*   **Frontend**: Vanilla JS (Diff-Patch Renderer) + Chart.js + CSS Grid.
 
 ### 2. Tangible Milestones & Roadmap
 
-| Phase | Milestone | Features | Status |
-| :--- | :--- | :--- | :--- |
-| **1-5** | **Infrastructure & MVP** | ECS Fargate, DynamoDB, Bedrock, FinOps Budget Gate. | **Complete** |
-| **6** | **Alpha-DAG Pivot** | LangGraph Orchestration, State-Aware Discovery, Sandboxed MCPs. | **Complete** |
-| **7** | **Multi-Universe Ingestion** | S&P 500 + ASX Universes, dbt Pipeline, DuckDB Analytics. | **Complete** |
-| **8** | **Institutional QMJ Screener** | Quality-Minus-Junk Metrics, Z-Scores, Force Refresh Engine, UI Polish. | **Complete** |
-| **9** | **Sentiment Agent** | Alternative Data (Reddit/X), NLP Trend Detection. | **Planned** |
-| **10** | **Portfolio & Risk** | Portfolio Optimization, Risk Parity Analysis. | **Planned** |
+#### Phase 1: Local FinOps MVP (Completed)
+- [x] Python APScheduler + yfinance ingestion logic.
+- [x] Pydantic schemas + DynamoDB-local integration.
+- [x] Logic-driven AI Synthesis Mocking with local budget gates.
+
+#### Phase 2: Cloud Synthesis (Completed)
+- [x] AWS Bedrock (Anthropic Claude 3 Haiku) integration.
+- [x] Production IAM task roles + ECR containerization.
+- [x] Infrastructure-as-Code via CloudFormation.
+
+#### Phase 3: Alpha-DAG Orchestration (Completed)
+- [x] Transition from loops to LangGraph stateful orchestrator.
+- [x] Implementation of the "Discovery Agent" node.
+- [x] Model Context Protocol (MCP) isolation for Quant Compute.
+
+#### Phase 4: Discovery & Portfolio (Completed)
+- [x] Real-time Search & Autocomplete proxy for Yahoo Finance.
+- [x] 24-hour Sparklines + Interactive Portfolio Area Chart.
+- [x] Daily Discovery Agent: S&P 500 "Hidden Gem" analysis.
+
+#### Phase 5: Global Intelligence (Completed)
+- [x] Multi-tab navigation: Manage vs. Discover.
+- [x] Global Discovery Hub (Indices, Commodities, Movers, News).
+- [x] Pre/Post-Market Price Visibility + Cron-driven hydration.
+
+#### Phase 8: Global Quality Screener (Completed)
+- [x] Integration of dbt-DuckDB for analytical modeling.
+- [x] Implementation of 5-Factor QMJ Model (Profitability, Growth, Safety, Valuation, Momentum).
+- [x] Universal Screen (S&P 500 + ASX comparison).
+- [x] High-performance, sticky-header scrollable UI.
 
 ### 3. Advanced Engine Architecture
 

@@ -2,6 +2,21 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 39: Stabilizing the Global Quality Screener
+
+*Date: 2026-05-11*
+
+With the dbt pipeline established, our final push for Phase 8 focused on stabilization and analytical depth. We transitioned from a simple 2-factor QMJ proxy to a comprehensive **5-Factor Model**, incorporating Profitability, Growth, Safety, Valuation, and Momentum.
+
+**Engineering the Fallback:**
+We encountered a scenario where the dbt models might not have processed the latest ingested data (e.g., between scheduled runs). To solve this, we updated `WarehouseClient` with a defensive fallback layer. If a query requests Z-scores that aren't yet in the database, the client performs a high-performance **Pandas-based Z-score calculation** on the fly. This ensures the UI is never "stale" or missing metrics.
+
+**UI Scalability & The Scroll Trap:**
+As we added the ASX universe alongside the S&P 500, the screener table became massive. To preserve the TradingView-grade experience, we refactored the viewport into a **fixed-height, scrollable container** with **sticky headers**. This allows users to browse hundreds of high-quality assets while keeping the factor labels in view at all times.
+
+**Universe Unification:**
+We implemented an "All Universes" toggle, allowing for the first time a direct relative ranking of US vs. AU assets. By normalizing the Z-score calculation across the entire active dataset, the engine now surfaces the true global "Quality" outliers, fulfilling the Phase 8 objective of a robust, globalized analytical engine.
+
 ## Entry 1: Shifting gears to the Local MVP
 
 *Date: 2026-03-27*

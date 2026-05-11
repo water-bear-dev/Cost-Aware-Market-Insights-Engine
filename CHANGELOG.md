@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.9.7] - 2026-05-11
+
+### Added
+- **5-Factor QMJ Model**: Expanded fundamental scoring to include Profitability, Growth, Safety, Valuation (Earnings Yield), and Momentum.
+- **Universal Screener**: New "All Universes" toggle allowing side-by-side comparison of S&P 500 and ASX stocks.
+- **Scrollable Viewport**: Implemented fixed-height, scrollable container for the screener table with sticky headers.
+- **Dynamic Z-Score Fallback**: Added on-the-fly Z-score calculation in `WarehouseClient` to ensure metrics are always present.
+
+### Fixed
+- **Screener Overlap**: Fixed issue where universe data would mix; forced default view to S&P 500.
+- **UI Performance**: Optimized table rendering to handle large datasets without layout flickering.
+
 ## [2.9.6] - 2026-05-11
 
 ### Added

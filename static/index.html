@@ -24,12 +24,15 @@
                 <div class="logo-icon"></div>
                 <h1>Market Insights Engine</h1>
             </div>
-            <div class="health-indicator" style="display: flex; gap: 1rem; align-items: center;">
-                <button id="force-refresh-btn" class="glass-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px;">↻ Force Refresh</button>
-                <div style="display: flex; gap: 0.5rem; align-items: center;">
-                    <div class="dot pulse-animation" id="db-health-dot"></div>
-                    <span id="db-health-text">Checking System...</span>
+            <div class="header-actions">
+                <div class="health-status">
+                    <div class="dot pulse-animation" id="db-health-dot" style="background-color: var(--positive); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></div>
+                    <span id="db-health-text">System Healthy</span>
                 </div>
+                <button id="force-refresh-btn" class="refresh-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                    <span>Refresh</span>
+                </button>
             </div>
         </header>
 
@@ -110,10 +113,20 @@
                 <div class="controls-row">
                     <div class="density-controls">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-right:0.5rem">Grid Density</span>
-
                         <button class="density-btn active" data-density="standard">Standard</button>
                         <button class="density-btn" data-density="wide">Wide</button>
                         <button class="density-btn" data-density="horizontal">Horizontal</button>
+                    </div>
+                    <div class="trend-controls">
+                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-right:0.5rem">View Trend</span>
+                        <div class="trend-picker">
+                            <button class="trend-btn" data-trend="1d">1D</button>
+                            <button class="trend-btn" data-trend="1w">1W</button>
+                            <button class="trend-btn active" data-trend="1mo">1M</button>
+                            <button class="trend-btn" data-trend="3mo">3M</button>
+                            <button class="trend-btn" data-trend="6mo">6M</button>
+                            <button class="trend-btn" data-trend="1y">1Y</button>
+                        </div>
                     </div>
                     <div style="position:relative">
                         <button class="manage-watchlist-btn" id="manage-toggle-btn">
@@ -163,9 +176,9 @@
             <!-- ⚡ Commodities -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem;">
                 <h2 class="discover-section-title" style="margin: 0;">⚡ Commodities</h2>
-                <div class="glass-input" style="display: flex; gap: 0.5rem; padding: 0.25rem; border-radius: 6px;">
-                    <button id="unit-imperial" class="period-btn active" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Imperial</button>
-                    <button id="unit-metric" class="period-btn" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;">Metric</button>
+                <div class="glass-input" style="display: flex; gap: 0; padding: 2px; border-radius: 8px; width: auto;">
+                    <button id="unit-imperial" class="unit-btn active">Imperial</button>
+                    <button id="unit-metric" class="unit-btn">Metric</button>
                 </div>
             </div>
             <div id="discover-commodities" class="discover-commodity-grid"></div>
@@ -220,6 +233,7 @@
                 <div style="display: flex; gap: 1rem; align-items: center; flex: 1;">
                     <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase;">Universe:</span>
                     <select id="qmj-filter-universe" class="glass-input" style="width: auto;">
+                        <option value="all">All Universes</option>
                         <option value="sp500">S&P 500</option>
                         <option value="asx">ASX</option>
                     </select>
@@ -247,27 +261,29 @@
                 </div>
             </div>
 
-            <div class="glass" style="padding: 1rem; border-radius: 12px; overflow-x: auto;">
-                <table class="screener-table" id="qmj-table" style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th class="sortable" data-sort="ticker" style="text-align:left;">Ticker ↕</th>
-                            <th class="sortable" data-sort="company_name" style="text-align:left;">Company ↕</th>
-                            <th class="sortable" data-sort="report_date" style="text-align:left;">Report Date ↕</th>
-                            <th class="sortable" data-sort="industry" style="text-align:left;">Industry ↕</th>
-                            <th class="sortable" data-sort="market_cap" style="text-align:right;">Market Cap ↕</th>
-                            <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent);" title="Quality Minus Junk: Composite score of Profitability, Growth, and Safety">QMJ Score ↕</th>
-                            <th class="sortable" data-sort="z_prof" style="text-align:right;" title="Profitability Z-Score: Gross Profits / Total Assets">Prof (Z) ↕</th>
-                            <th class="sortable" data-sort="z_growth" style="text-align:right;" title="Growth Z-Score: YoY Growth in Gross Profit">Growth (Z) ↕</th>
-                            <th class="sortable" data-sort="z_safety" style="text-align:right;" title="Safety Z-Score: Inverse of Leverage (Total Debt / Total Equity)">Safety (Z) ↕</th>
-                            <th class="sortable" data-sort="valuation" style="text-align:right;" title="Earnings Yield (Net Income / Market Cap)">Valuation ↕</th>
-                            <th class="sortable" data-sort="momentum" style="text-align:right;" title="1-Year Price Momentum">Momentum ↕</th>
-                        </tr>
-                    </thead>
-                    <tbody id="qmj-table-body">
-                        <tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
-                    </tbody>
-                </table>
+            <div class="glass" style="padding: 0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: 600px;">
+                <div style="overflow-x: auto; overflow-y: auto; flex: 1;" class="custom-scrollbar">
+                    <table class="screener-table" id="qmj-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card); backdrop-filter: blur(10px);">
+                            <tr>
+                                <th class="sortable" data-sort="ticker" style="text-align:left; padding: 1rem;">Ticker ↕</th>
+                                <th class="sortable" data-sort="company_name" style="text-align:left; padding: 1rem;">Company ↕</th>
+                                <th class="sortable" data-sort="report_date" style="text-align:left; padding: 1rem;">Report Date ↕</th>
+                                <th class="sortable" data-sort="industry" style="text-align:left; padding: 1rem;">Industry ↕</th>
+                                <th class="sortable" data-sort="market_cap" style="text-align:right; padding: 1rem;">Market Cap ↕</th>
+                                <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent); padding: 1rem;" title="Quality Minus Junk: Composite Z-score of Profitability, Growth, Safety, Value, and Momentum. Higher is better.">QMJ Score ↕</th>
+                                <th class="sortable" data-sort="z_prof" style="text-align:right; padding: 1rem;" title="Profitability Z-score: Measured by ROE, GP/Assets, and Cash Flow.">Prof (Z) ↕</th>
+                                <th class="sortable" data-sort="z_growth" style="text-align:right; padding: 1rem;" title="Growth Z-score: Measured by 5-year growth in Profitability metrics.">Growth (Z) ↕</th>
+                                <th class="sortable" data-sort="z_safety" style="text-align:right; padding: 1rem;" title="Safety Z-score: Measured by Low Beta, Low Leverage, and Low Volatility.">Safety (Z) ↕</th>
+                                <th class="sortable" data-sort="z_value" style="text-align:right; padding: 1rem;" title="Valuation Z-score: Measured by Earnings Yield (Net Income / Market Cap).">Value (Z) ↕</th>
+                                <th class="sortable" data-sort="z_mom" style="text-align:right; padding: 1rem;" title="12-Month Momentum Z-score: Price change over the last year.">Mom (Z) ↕</th>
+                            </tr>
+                        </thead>
+                        <tbody id="qmj-table-body">
+                            <tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 

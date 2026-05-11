@@ -42,9 +42,12 @@ REGIONS = [
 ]
 
 COMMODITIES = [
-    {"name": "Gold",    "symbol": "GC=F", "icon": "🥇", "unit": "oz"},
-    {"name": "WTI Oil", "symbol": "CL=F", "icon": "🛢️", "unit": "bbl"},
-    {"name": "Silver",  "symbol": "SI=F", "icon": "🥈", "unit": "oz"},
+    {"name": "Gold",      "symbol": "GC=F", "icon": "🥇", "unit": "oz"},
+    {"name": "Silver",    "symbol": "SI=F", "icon": "🥈", "unit": "oz"},
+    {"name": "Copper",    "symbol": "HG=F", "icon": "🥉", "unit": "lb"},
+    {"name": "Platinum",  "symbol": "PL=F", "icon": "💎", "unit": "oz"},
+    {"name": "Palladium", "symbol": "PA=F", "icon": "⚙️", "unit": "oz"},
+    {"name": "WTI Oil",   "symbol": "CL=F", "icon": "🛢️", "unit": "bbl"},
 ]
 
 MOVERS_UNIVERSE = [
@@ -237,11 +240,23 @@ def _fetch_news() -> dict:
             # Truncate to ~200 chars
             if len(clean_desc) > 200:
                 clean_desc = clean_desc[:197] + "..."
+            pub_date_raw = item.findtext("pubDate", "")
+            try:
+                from email.utils import parsedate_to_datetime
+                dt = parsedate_to_datetime(pub_date_raw)
+                timestamp_iso = dt.isoformat()
+                tz_name = dt.tzname() or "UTC"
+            except:
+                timestamp_iso = None
+                tz_name = "UTC"
+
             articles.append({
                 "title":       item.findtext("title", ""),
                 "url":         item.findtext("link", ""),
                 "source":      source_el.text if source_el is not None else "",
-                "published":   item.findtext("pubDate", ""),
+                "published":   pub_date_raw,
+                "timestamp":   timestamp_iso,
+                "timezone":    tz_name,
                 "description": clean_desc,
             })
         

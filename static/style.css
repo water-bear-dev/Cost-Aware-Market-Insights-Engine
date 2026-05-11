@@ -51,7 +51,7 @@ body {
 /* =====================================================
    Layout
    ===================================================== */
-.dashboard-container { max-width: 1200px; margin: 0 auto; }
+.dashboard-container { max-width: 1400px; margin: 0 auto; }
 
 /* =====================================================
    Header
@@ -65,15 +65,84 @@ body {
     box-shadow: 0 0 15px var(--accent-glow);
 }
 .header h1 { font-weight: 700; font-size: 1.8rem; letter-spacing: -0.5px; }
-.health-indicator {
-    display: flex; align-items: center; gap: 0.5rem;
-    background: var(--glass-bg);
-    padding: 0.5rem 1rem; border-radius: 20px;
-    border: 1px solid var(--glass-border);
-    font-size: 0.85rem; font-weight: 500;
+
+/* Header Actions & Refresh Button */
+.header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
 }
-.dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-secondary); }
-.dot.healthy { background-color: var(--positive); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+
+.health-status {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    color: #94a3b8 !important;
+    white-space: nowrap !important;
+}
+
+.refresh-btn {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background: rgba(14, 165, 233, 0.1) !important;
+    border: 1px solid rgba(14, 165, 233, 0.3) !important;
+    color: #0ea5e9 !important;
+    padding: 0.4rem 0.8rem !important;
+    border-radius: 8px !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    transition: all 0.2s ease !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+}
+
+.refresh-btn:hover {
+    background: rgba(14, 165, 233, 0.2) !important;
+    border-color: #0ea5e9 !important;
+    color: #f8fafc !important;
+    transform: translateY(-1px) !important;
+}
+
+.refresh-btn svg {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: currentColor !important;
+    stroke-width: 2.5 !important;
+    display: block !important;
+}
+
+.refresh-btn span {
+    display: inline-block !important;
+}
+
+.dot {
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    flex-shrink: 0 !important;
+}
+
+.dot.pulse-animation {
+    animation: pulse 2s infinite !important;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
 
 /* =====================================================
    Glass Utility
@@ -641,6 +710,47 @@ body {
 }
 .density-btn:hover { color: var(--text-primary); border-color: rgba(255,255,255,0.2); }
 .density-btn.active { background: rgba(14, 165, 233, 0.15); border-color: var(--accent); color: var(--accent); }
+
+/* Trend Controls */
+.trend-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: 1rem;
+    padding-left: 1rem;
+    border-left: 1px solid var(--glass-border);
+}
+
+.trend-picker {
+    display: flex;
+    gap: 0.25rem;
+    background: rgba(255,255,255,0.03);
+    padding: 2px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.trend-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.35rem 0.7rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.trend-btn:hover {
+    color: var(--text-primary);
+}
+
+.trend-btn.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 2px 8px rgba(14, 165, 233, 0.4);
+}
 
 .manage-watchlist-btn {
     display: flex; align-items: center; gap: 0.5rem;
@@ -1214,4 +1324,64 @@ body {
         90% { opacity: 1; }
         100% { top: 100%; opacity: 0; }
     }
+}
+
+/* Unit Button Styles */
+.unit-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.35rem 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: all 0.2s ease;
+}
+
+.unit-btn:hover {
+    color: var(--text-primary);
+}
+
+.unit-btn.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Daily Discovery News */
+.daily-news-mini {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.daily-news-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+}
+
+.daily-news-link {
+    font-size: 0.85rem;
+    color: #7dd3fc;
+    text-decoration: none;
+    line-height: 1.4;
+    display: block;
+}
+
+.daily-news-link:hover {
+    text-decoration: underline;
+    color: var(--text-primary);
+}
+
+.daily-news-source {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
 }
