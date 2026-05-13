@@ -91,7 +91,34 @@ def init_tables():
             BillingMode='PAY_PER_REQUEST'
         )
         
+    if "QMJUniverse" not in tables:
+        logger.info("Creating QMJUniverse table")
+        dynamodb.create_table(
+            TableName="QMJUniverse",
+            KeySchema=[
+                {'AttributeName': 'ticker', 'KeyType': 'HASH'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'ticker', 'AttributeType': 'S'}
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+
+    if "TrackedAssets" not in tables:
+        logger.info("Creating TrackedAssets table")
+        dynamodb.create_table(
+            TableName="TrackedAssets",
+            KeySchema=[
+                {'AttributeName': 'ticker', 'KeyType': 'HASH'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'ticker', 'AttributeType': 'S'}
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        
     if "SystemSettings" not in tables:
+
         logger.info("Creating SystemSettings table")
         dynamodb.create_table(
             TableName="SystemSettings",

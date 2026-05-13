@@ -8,19 +8,20 @@ stats AS (
     SELECT
         reporting_year,
         reporting_quarter,
-        AVG(profitability_gpa) as avg_prof,
-        COALESCE(STDDEV_POP(profitability_gpa), 0) as std_prof,
-        AVG(leverage_ratio) as avg_lev,
-        COALESCE(STDDEV_POP(leverage_ratio), 0) as std_lev,
-        AVG(growth_yoy) as avg_growth,
-        COALESCE(STDDEV_POP(growth_yoy), 0) as std_growth,
-        AVG(earnings_yield) as avg_value,
-        COALESCE(STDDEV_POP(earnings_yield), 0) as std_value,
-        AVG(momentum) as avg_mom,
-        COALESCE(STDDEV_POP(momentum), 0) as std_mom
+        AVG(NULLIF(profitability_gpa, 'NaN')) as avg_prof,
+        COALESCE(STDDEV(NULLIF(profitability_gpa, 'NaN')), 0) as std_prof,
+        AVG(NULLIF(leverage_ratio, 'NaN')) as avg_lev,
+        COALESCE(STDDEV(NULLIF(leverage_ratio, 'NaN')), 0) as std_lev,
+        AVG(NULLIF(growth_yoy, 'NaN')) as avg_growth,
+        COALESCE(STDDEV(NULLIF(growth_yoy, 'NaN')), 0) as std_growth,
+        AVG(NULLIF(earnings_yield, 'NaN')) as avg_value,
+        COALESCE(STDDEV(NULLIF(earnings_yield, 'NaN')), 0) as std_value,
+        AVG(NULLIF(momentum, 'NaN')) as avg_mom,
+        COALESCE(STDDEV(NULLIF(momentum, 'NaN')), 0) as std_mom
     FROM metrics
     GROUP BY reporting_year, reporting_quarter
 ),
+
 
 z_scores AS (
     SELECT

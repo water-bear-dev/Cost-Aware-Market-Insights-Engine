@@ -253,12 +253,26 @@ function populateQmjFilters(data) {
     const yearSelect = document.getElementById('qmj-filter-year');
     if (!yearSelect) return;
 
-    const years = [...new Set(data.map(d => d.reporting_year))].sort((a, b) => b - a);
+    const yearCounts = data.reduce((acc, d) => {
+        acc[d.reporting_year] = (acc[d.reporting_year] || 0) + 1;
+        return acc;
+    }, {});
+
+    const years = Object.keys(yearCounts).sort((a, b) => b - a);
     yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 
-    // Set default to latest year if available
-    if (years.length > 0) yearSelect.value = years[0];
+    // Set default to year with the most data (usually the most recent full year)
+    let bestYear = years[0];
+    let maxCount = 0;
+    for (const y of years) {
+        if (yearCounts[y] > maxCount) {
+            maxCount = yearCounts[y];
+            bestYear = y;
+        }
+    }
+    if (years.length > 0) yearSelect.value = bestYear;
 }
+
 
 function initQmjTableEvents() {
     const search = document.getElementById('qmj-search');

@@ -3,8 +3,8 @@
 A fully containerized Python (FastAPI) application designed to ingest stock market data, synthesize it using AI, and surface those insights on a premium frontend dashboard—all while rigorously enforcing strict financial guardrails (FinOps) to guarantee AI generation costs never exceed a daily budget.
 
 The dashboard is structured around three core views:
-- **Manage** — A high-signal, institutional-grade terminal focused on **FAANG** assets (or custom watchlists). Features live sparklines, AI synthesis signals, and 24-hour momentum tracking.
-- **Screener** — A quantitative powerhouse ranking **600+ tickers** across the S&P 500 and ASX universes using the **Quality Minus Junk (QMJ)** factor model.
+- **Manage** — A high-signal, institutional-grade terminal focused on a **curated watchlist** (Max 30 assets). Features live sparklines, AI synthesis signals, and 24-hour momentum tracking.
+- **Screener** — A quantitative powerhouse ranking **600+ tickers** across the S&P 500 and ASX universes using the **Quality Minus Junk (QMJ)** factor model, updated quarterly.
 - **Discover** — Global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
 - **Costs / How it Works** — FinOps observability and architecture education.
 
@@ -49,17 +49,22 @@ flowchart TB
         DDB_Market[("Market Data")]
         DDB_Insights[("Insights")]
         DDB_Costs[("Cost Tracking")]
+        DDB_Tracked[("TrackedAssets\n(Max 30)")]
+        DDB_QMJ[("QMJUniverse\n(600+ Tickers)")]
 
         Fargate -.- Athena
         Fargate -.- DDB_Market
         Fargate -.- DDB_Insights
         Fargate -.- DDB_Costs
+        Fargate -.- DDB_Tracked
+        Fargate -.- DDB_QMJ
     end
 
     %% Connections
-    YFinance -- "raw data" --> DBT
+    YFinance -- "real-time prices" --> DDB_Market
+    YFinance -- "quarterly financials" --> Warehouse
     Warehouse -- "QMJ scores" --> Hunter
-    QuantMCP -- "QMJ scores" --> Hunter
+    QuantMCP -- "technical metrics" --> Hunter
     Synth -- "insights" --> Dash
     Dash -- "feedback loop" --> Gate
     Gate -- "debit budget" --> DDB_Costs
@@ -78,9 +83,10 @@ flowchart TB
     class Gate,Hunter,Synth,Bedrock intelligence;
     class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
     class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
-    class DDB_Costs cost;
+    class DDB_Costs,DDB_Tracked,DDB_QMJ cost;
     class Presentation presentation;
 ```
+
 
 ## Overview & Architecture Highlights
 

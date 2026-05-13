@@ -7,14 +7,35 @@ import json
 import httpx
 import xml.etree.ElementTree as ET
 
+"""
+Real-time Market Data Ingestion Service.
+
+This module manages high-frequency data retrieval for active portfolio tracking.
+It is optimized for low-latency updates and enforces a decoupled architecture 
+to separate active watchlist assets from the broader analytical universe.
+"""
+
 from src.config import settings
 from src.clients.dynamo import get_table
 
 logger = structlog.get_logger(__name__)
 
 def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
-    """Fetches up to max_count headlines with URLs from Google News RSS."""
+    """
+    Fetches the latest news headlines for a specific ticker.
+
+    Aggregates news from Google News RSS with a fallback to Yahoo Finance News.
+    Ensures that investment theses are grounded in real-time market catalysts.
+
+    Args:
+        ticker (str): The ticker symbol.
+        max_count (int): Maximum number of headlines to retrieve.
+
+    Returns:
+        list[dict]: A list of headline objects containing titles, URLs, and source info.
+    """
     results = []
+
     try:
         url = f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
         response = httpx.get(url, timeout=5.0)
@@ -176,8 +197,8 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
 
 
 def get_active_tickers() -> list[str]:
-    """Fetch active tickers from the DynamoDB Tickers table (paginated)."""
-    table = get_table('Tickers')
+    """Fetch active tickers from the DynamoDB TrackedAssets table (paginated)."""
+    table = get_table('TrackedAssets')
     try:
         items = []
         scan_kwargs = {}
@@ -198,6 +219,7 @@ def get_active_tickers() -> list[str]:
     except Exception as e:
         logger.error("Failed to fetch active tickers", error=str(e))
         return settings.ticker_list
+
 
 
 def force_ingest_single_ticker(ticker: str) -> bool:

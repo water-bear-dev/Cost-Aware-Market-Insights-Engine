@@ -14,7 +14,9 @@ from fastapi.responses import FileResponse
 from src.clients.dynamo import init_tables
 from src.routes import health, insights, costs, tickers, market, v2_dag, meta, discover, screener
 from src.ingestion.service import ingest_market_data
+from src.ingestion.financials import run_qmj_pipeline
 from src.synthesis.service import synthesize_insights
+
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
 from src.limiter import limiter
@@ -78,8 +80,19 @@ async def lifespan(app: FastAPI):
     )
     # Hourly news refresh (at the top of every hour)
     scheduler.add_job(refresh_discover_news, 'cron', minute=0)
+
+    # QMJ Analytical Pipeline (Quarterly: Jan 1, Apr 1, Jul 1, Oct 1 at 2 AM)
+    scheduler.add_job(
+        run_qmj_pipeline,
+        'cron',
+        month='1,4,7,10',
+        day=1,
+        hour=2,
+        minute=0
+    )
     
     # Recurring Market Data Ingestion & Synthesis (every 5 mins)
+
     from datetime import datetime, timedelta
     scheduler.add_job(ingest_market_data, 'interval', minutes=5)
     scheduler.add_job(synthesize_insights, 'interval', minutes=5, next_run_time=datetime.now(pytz.utc) + timedelta(seconds=10))

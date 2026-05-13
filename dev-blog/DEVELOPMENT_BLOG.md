@@ -2,27 +2,28 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
-## Entry 12: The Global Pivot & Auto-Healing Resilience
+## Entry 49: Institutional Scaling & Universe Decoupling (The "Bleed" Problem)
 *Date: 2026-05-13*
 
-Today marks a massive architectural expansion. We've officially transitioned from a US-centric system into a **Global Market Insights Engine**. 
+As we successfully scaled the analytical warehouse to support 600+ companies, we encountered a classic data engineering challenge: **Universe Bleed**.
 
-**Engineering Decision: The 3-Category Discovery Model**
-We realized that simply listing "Leaders" and "Gems" was too narrow. We've introduced a three-tier classification system:
-1. **S&P 500 Leader**: The US standard.
-2. **Global Opportunity**: Direct ingestion of ASX (Australia), LSE (UK), HKEX (Hong Kong), NSE (India), and TSX (Canada).
-3. **Hidden Gem**: High-quality small/mid-caps identified via momentum/quant analysis.
+**The Problem:**
+Initially, the system used a single `Tickers` table in DynamoDB to drive both the high-frequency dashboard (updated every 5 minutes) and the analytical screener. When we added 600+ tickers to this table to enable the QMJ model, the high-frequency ingestion engine attempted to fetch real-time prices and synthesize AI insights for all 613 assets every 5 minutes. This immediately threatened to:
+1.  **Exhaust the FinOps Budget**: Synthesis for 600+ assets at 5-minute intervals is prohibitively expensive.
+2.  **Hit Yahoo Finance Rate Limits**: Sequential fetching for 600 tickers causes massive latency and potential IP blocking.
+3.  **Clutter the UX**: The primary dashboard became an unmanageable list of hundreds of assets.
 
-**The "Auto-Healing" Infrastructure**
-One of our biggest UX challenges was the "Safety Net" fallback text when the AI failed or was throttled. We solved this not with more retries, but with **Autonomous Resilience**.
-- We implemented a frontend polling loop in `app.js` that monitors the state of discovery cards.
-- If it detects a "synthesis in progress" state, it triggers a **Targeted AI Refinement** call in the background.
-- This creates a self-healing UI that repairs its own data gaps without requiring the user to refresh or worry about costs.
+**The Architectural Solution: Universe Decoupling**
+We implemented a strict separation of concerns at the storage layer:
+- **`TrackedAssets` Table**: Holds the "High-Signal Watchlist" (Hard limit: 30). This table drives the 5-minute price/synthesis loop.
+- **`QMJUniverse` Table**: Holds the "Analytical Backing" (600+ assets). This table drives the Quarterly QMJ Pipeline.
 
-**FinOps Refinement: Cheap vs. Smart Refreshes**
-To keep costs under control during this global expansion, we decoupled our refresh triggers. The manual "Refresh" button now only updates cheap market data (prices/indices). The expensive AI bot is now reserved strictly for the 12-hour automated scan and the autonomous auto-healing loop. This ensures we maintain a premium research experience while strictly adhering to our daily budget.
+**The Quarterly Pipeline Integration**
+We refactored the bulk ingestion logic into a specialized service (`src/ingestion/financials.py`) and integrated it with the `dbt` transformation suite. We then scheduled this as a dedicated cron job in the `APScheduler` to run at the start of every financial quarter. This ensures the 600-company screener stays current without impacting the responsiveness of the intraday dashboard assets.
 
-## Entry 1: Shifting gears to the Local MVP
+This decoupling allows the engine to act as a **Precision Scalpel** for your active portfolio while simultaneously serving as a **Wide-Angle Lens** for global quantitative research.
+
+## Entry 12: The Global Pivot & Auto-Healing Resilience
 *Date: 2026-03-27*
 
 Initially, our roadmap established an aggressive push directly into AWS. Phase 1 included immediately writing CloudFormation templates and spinning up ECS Fargate instances alongside Amazon API Gateways using Cloud Map VPC links. While the architecture was "cost-optimized" by deferring expensive NAT gateways to Phase 5, the timeline forced us into relying on an active AWS billing account starting from commit zero.

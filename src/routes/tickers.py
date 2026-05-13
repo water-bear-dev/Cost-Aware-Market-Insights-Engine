@@ -58,9 +58,10 @@ def add_ticker(request: Request, req: TickerRequest):
     if len(active) >= 30:
         raise HTTPException(status_code=400, detail="Maximum 30 tickers allowed")
         
-    table = get_table('Tickers')
+    table = get_table('TrackedAssets')
     try:
         table.put_item(Item={'ticker': ticker})
+
         
         # Force immediate ingestion so frontend sees data instantly
         success = force_ingest_single_ticker(ticker)
@@ -81,9 +82,10 @@ def delete_ticker(request: Request, ticker: str):
     ticker = ticker.upper().strip()
     
     try:
-        # Remove from Tickers table
-        tickers_table = get_table('Tickers')
+        # Remove from TrackedAssets table
+        tickers_table = get_table('TrackedAssets')
         tickers_table.delete_item(Key={'ticker': ticker})
+
         
         # Clean up latest MarketData for this ticker
         try:

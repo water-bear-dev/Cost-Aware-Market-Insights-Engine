@@ -45,17 +45,22 @@ flowchart TB
         DDB_Market[("Market Data")]
         DDB_Insights[("Insights")]
         DDB_Costs[("Cost Tracking")]
+        DDB_Tracked[("TrackedAssets\n(Max 30)")]
+        DDB_QMJ[("QMJUniverse\n(600+ Tickers)")]
 
         Fargate -.- Athena
         Fargate -.- DDB_Market
         Fargate -.- DDB_Insights
         Fargate -.- DDB_Costs
+        Fargate -.- DDB_Tracked
+        Fargate -.- DDB_QMJ
     end
 
     %% Connections
-    YFinance -- "raw data" --> DBT
+    YFinance -- "real-time prices" --> DDB_Market
+    YFinance -- "quarterly financials" --> Warehouse
     Warehouse -- "QMJ scores" --> Hunter
-    QuantMCP -- "QMJ scores" --> Hunter
+    QuantMCP -- "technical metrics" --> Hunter
     Synth -- "insights" --> Dash
     Dash -- "feedback loop" --> Gate
     Gate -- "debit budget" --> DDB_Costs
@@ -63,6 +68,7 @@ flowchart TB
     Fargate -- "runs on" --> Intelligence
     CW -- "observability + alarms" --> Intelligence
     CW -- "observability + alarms" --> AWS
+
 
     %% Styling
     classDef intelligence fill:#6a4c93,color:#fff,stroke:#333,stroke-width:2px;
@@ -82,7 +88,7 @@ The engine leverages a distributed agentic architecture (Alpha-DAG) combined wit
 *   **AI Synthesis**: AWS Bedrock (Claude 3 Haiku) or local Ollama (Llama 3.2).
 *   **Analytical Warehouse**: dbt Core + DuckDB (Local) / AWS Athena (Cloud).
 *   **Screener Model**: Quality Minus Junk (QMJ) 5-Factor Z-Score Analysis.
-*   **Persistence**: DynamoDB (Tables: MarketData, Tickers, Insights, CostTracking).
+*   **Persistence**: DynamoDB (Tables: MarketData, TrackedAssets, QMJUniverse, Insights, CostTracking).
 *   **Frontend**: Vanilla JS (Diff-Patch Renderer) + Chart.js + CSS Grid.
 
 ### 2. Tangible Milestones & Roadmap
@@ -117,7 +123,8 @@ The engine leverages a distributed agentic architecture (Alpha-DAG) combined wit
 - [x] Implementation of 5-Factor QMJ Model (Profitability, Growth, Safety, Valuation, Momentum).
 - [x] Universal Screen (S&P 500 + ASX comparison) with sticky-header scrollable UI.
 - [x] **Institutional Pivot**: Decoupled "Broad Screening" from "Active Monitoring".
-- [x] Focused FAANG-centric dashboard for high-signal daily tracking.
+- [x] **Universe Scaling**: Expansion to 600+ companies with decoupled DynamoDB storage.
+- [x] **Automated Cadence**: Implementation of quarterly financial ingestion and dbt re-ranking.
 - [x] Python 3.9 compatibility hardening for institutional runtime environments.
 
 ### 3. Advanced Engine Architecture
@@ -129,8 +136,17 @@ The core intelligence is orchestrated via a stateful Directed Acyclic Graph (DAG
 - **Synthesis Node**: Claude 3 Haiku via Bedrock for narrative generation with temperature calibration (0.3).
 - **State Persistence**: DAG state is saved to DynamoDB for "resume-from-checkpoint" reliability.
 
-#### B. Institutional QMJ Screener
+#### B. Data Lifecycle & Universe Decoupling (The "Bleed" Fix)
+To maintain high performance and low operational costs, the system employs a decoupled data strategy:
+- **Tracked Assets (Watchlist)**: High-frequency assets (Hard limit: 30) stored in the `TrackedAssets` DynamoDB table. These tickers are updated every 5 minutes with fresh prices and AI-synthesized insights.
+- **QMJ Analytical Universe**: A massive list of 600+ tickers (S&P 500 + ASX 200) stored in the `QMJUniverse` table. This universe is used solely for quantitative ranking.
+- **Operational Cadence**:
+    - **Intraday (5m)**: Price and News ingestion for the 30 Tracked Assets.
+    - **Quarterly**: Bulk ingestion of financial statements for all 613 companies in the QMJ Universe, followed by a full `dbt run` to update Z-scores and percentiles.
+
+#### C. Institutional QMJ Screener
 The **Quality Minus Junk (QMJ)** engine implements the AQR factor strategy to rank stocks across universes.
+
 - **Three Pillars of Quality**:
     - **Profitability**: GPOA, ROE, and Gross Margin.
     - **Growth**: 5-year growth in profitability metrics.

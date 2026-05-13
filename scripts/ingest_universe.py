@@ -1,15 +1,56 @@
-import yfinance as yf
-import json
 import os
+import json
 import structlog
-import concurrent.futures
-import subprocess
-from datetime import datetime, timedelta
+import yfinance as yf
+import pandas as pd
+from datetime import datetime
 
-logger = structlog.get_logger(__name__)
+# Setup logging
+structlog.configure(
+    processors=[
+        structlog.processors.add_log_level,
+        structlog.processors.JSONRenderer(),
+    ]
+)
+logger = structlog.get_logger()
+
+# Import universes from seed_universes
+from scripts.seed_universes import SP500_TICKERS, ASX200_TICKERS
+
+def ingest_universe():
+    """Ingest financials for the full S&P 500 and ASX 200 universes."""
+    all_tickers = sorted(list(set(SP500_TICKERS + ASX200_TICKERS)))
+    logger.info("Starting bulk ingestion", total_tickers=len(all_tickers))
+    
+    os.makedirs("scratch/bronze/financials", exist_ok=True)
+    
+    # Track progress to avoid re-fetching if we crash/stop
+    already_ingested = {f.replace(".json", "") for f in os.listdir("scratch/bronze/financials") if f.endswith(".json")}
+    to_ingest = [t for t in all_tickers if t not in already_ingested]
+    
+    logger.info("Filtering already ingested", already_ingested=len(already_ingested), remaining=len(to_ingest))
+    
+    # Parallel ingestion
+    import concurrent.futures
+    
+    max_workers = 10
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(fetch_single_ticker, symbol): symbol for symbol in to_ingest}
+        for future in concurrent.futures.as_completed(futures):
+            symbol = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                logger.error("Future failed", ticker=symbol, error=str(e))
+            
+            # Check if we have enough
+            current_count = len([f for f in os.listdir("scratch/bronze/financials") if f.endswith(".json")])
+            if current_count >= 600:
+                logger.info("Reached target count", count=current_count)
+                # We can't easily break the executor, but we can stop submitting
+                break
 
 def fetch_single_ticker(symbol):
-    """Fetch and save financial data for a single ticker."""
     try:
         ticker = yf.Ticker(symbol)
         
@@ -25,7 +66,8 @@ def fetch_single_ticker(symbol):
             cash_flow = ticker.quarterly_cashflow
             
         if income_stmt.empty or balance_sheet.empty or cash_flow.empty:
-            return False
+            # logger.warning("Financial data missing for ticker", ticker=symbol)
+            return
             
         info = ticker.info
         company_name = info.get('longName') or info.get('shortName') or symbol
@@ -34,7 +76,7 @@ def fetch_single_ticker(symbol):
         sector = info.get('sector', 'Unknown')
         market_cap = info.get('marketCap', 0)
         
-        # Momentum (12-mo skipping last month)
+        # Momentum
         momentum = 0
         try:
             hist = ticker.history(period="1y")
@@ -75,84 +117,12 @@ def fetch_single_ticker(symbol):
             file_path = f"scratch/bronze/financials/{symbol}.json"
             with open(file_path, "w") as f:
                 json.dump(records, f, indent=2)
-            return True
-        return False
+            # logger.info("Saved financials", ticker=symbol, count=len(records))
 
     except Exception as e:
-        return False
+        # logger.error("Failed to fetch financials", ticker=symbol, error=str(e))
+        pass
 
-def run_qmj_pipeline():
-    """
-    Executes the full QMJ Analytical Pipeline.
-
-    This function performs a two-stage operation:
-    1. Bulk Ingestion: Concurrently fetches financials for all tickers in the 
-       'QMJUniverse' DynamoDB table.
-    2. Analytical Transformation: Triggers a 'dbt run' to recalculate Z-scores, 
-       percentiles, and composite QMJ rankings across the updated dataset.
-
-    Intended for quarterly execution as part of the system's scheduled background jobs.
-    """
-    from src.clients.dynamo import get_table
-    table = get_table('QMJUniverse')
-
-    
-    try:
-        items = []
-        scan_kwargs = {}
-        while True:
-            response = table.scan(**scan_kwargs)
-            items.extend(response.get('Items', []))
-            if 'LastEvaluatedKey' not in response:
-                break
-            scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
-        tickers = [item['ticker'] for item in items]
-    except Exception as e:
-        logger.error("Failed to fetch QMJ universe", error=str(e))
-        return
-
-    logger.info("Starting QMJ Quarterly Pipeline", ticker_count=len(tickers))
-
-    os.makedirs("scratch/bronze/financials", exist_ok=True)
-    
-    # 1. Bulk Ingestion (Parallel)
-    success_count = 0
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = {executor.submit(fetch_single_ticker, s): s for s in tickers}
-        for future in concurrent.futures.as_completed(futures):
-            if future.result():
-                success_count += 1
-                
-    logger.info("Bulk Ingestion complete", success=success_count, total=len(tickers))
-    
-    # 2. Run dbt
-    try:
-        logger.info("Running dbt transformation...")
-        dbt_dir = os.path.join(os.getcwd(), "src", "dbt_qmj")
-        # Run dbt via python module to ensure compatibility
-        result = subprocess.run(
-            ["python3", "-m", "dbt.cli.main", "run"],
-            cwd=dbt_dir,
-            capture_output=True,
-            text=True
-        )
-        if result.returncode == 0:
-            logger.info("dbt run successful")
-        else:
-            logger.error("dbt run failed", error=result.stderr)
-    except Exception as e:
-        logger.error("Failed to run dbt pipeline", error=str(e))
 
 if __name__ == "__main__":
-    run_qmj_pipeline()
-      text=True
-        )
-        if result.returncode == 0:
-            logger.info("dbt run successful")
-        else:
-            logger.error("dbt run failed", error=result.stderr)
-    except Exception as e:
-        logger.error("Failed to run dbt pipeline", error=str(e))
-
-if __name__ == "__main__":
-    run_qmj_pipeline()
+    ingest_universe()
