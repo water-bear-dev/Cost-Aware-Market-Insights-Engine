@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0] - 2026-05-13
+
+### Added
+- **Global Discovery Agent Expansion** — Transitioned from a US-centric model to a global market insights platform.
+    - Integrated **ASX (Australia)**, **LSE (UK)**, **HKEX (Hong Kong)**, **NSE (India)**, and **TSX (Canada)** into the daily discovery pipeline.
+- **Three-Category Discovery Model** — The agent now surfaces three distinct opportunities:
+    - **S&P 500 Leader** (US Mega-Cap)
+    - **Global Opportunity** (International Blue Chip)
+    - **Hidden Gem** (High-Potential Quality Small/Mid-Cap)
+- **Autonomous Auto-Healing & Resilience** — Implemented a background polling loop that automatically repairs missing AI summaries, ensuring analysis is always available.
+- **Cost-Optimized Targeted Refresh** — Re-architected the refresh system to separate cheap market data updates from expensive AI synthesis.
+- **Premium Discovery UI** — Introduced 3-column desktop layout and distinct color-coding (Amethyst, Emerald, Amber) for asset categories.
+
+### Changed
+- **Rate Limit Optimization** — Increased server-side rate limits to 5 requests/minute to accommodate the auto-healing polling loop.
+- **Refinement-Only Manual Refresh** — Manual refresh button now strictly skips the AI DAG to save tokens, deferring analysis to the auto-healing loop.
+
+### Fixed
+- **Discovery Category Leakage** — Resolved an issue where S&P 500 stocks (e.g., TSLA) were appearing in the "Hidden Gem" category.
+- **DAG Syntax Resilience** — Fixed critical indentation and syntax errors in `discovery_graph.py` that caused background task failures.
+
 ## [3.0.0] - 2026-05-13
 
 ### Added

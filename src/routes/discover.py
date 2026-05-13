@@ -58,10 +58,17 @@ MOVERS_UNIVERSE = [
     "C","WFC","BLK","AXP","SPGI","BA","CAT","GE","HON","RTX",
     "LMT","DE","T","VZ","TMUS","CHTR","CMCSA","PYPL","SQ","SHOP",
     "UBER","LYFT","ABNB","COIN","PLTR","RIVN","LCID","NIO","BABA","JD",
-    # ASX
+    # Australia (ASX)
     "CBA.AX","BHP.AX","CSL.AX","NAB.AX","ANZ.AX","WBC.AX","RIO.AX","WES.AX","MQG.AX","WOW.AX",
-    # Asia
-    "9984.T","7203.T","6758.T","0700.HK","9988.HK",
+    "FMG.AX","TLS.AX","WDS.AX","XRO.AX","REH.AX",
+    # Asia (HK, JP)
+    "9984.T","7203.T","6758.T","0700.HK","9988.HK","3690.HK","1299.HK","2318.HK","1810.HK",
+    # Europe (LSE, Euronext)
+    "VOD.L","HSBA.L","BP.L","SHEL.L","AZN.L","GSK.L","MC.PA","OR.PA","ASML.AS","SAP.DE",
+    # India (NSE)
+    "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS",
+    # Canada (TSX)
+    "RY.TO","TD.TO","SHOP.TO","CP.TO","CNQ.TO"
 ]
 
 # ─── In-memory caches ─────────────────────────────────────────────────────────
@@ -303,26 +310,51 @@ def refresh_discover_caches():
 # ─── Endpoints ────────────────────────────────────────────────────────────────
 @router.get("/discover/refresh")
 @router.post("/discover/refresh")
-@limiter.limit("2/minute")
-def trigger_global_refresh(request: Request):
+@limiter.limit("5/minute")
+async def trigger_global_refresh(request: Request):
     """Force-refresh all discover caches and trigger the Discovery Agent DAG immediately."""
     logger.info("Manual Discovery Refresh Triggered")
     
-    # Trigger everything in a background thread to return immediately
-    def _run_refresh_tasks():
+    # Try to parse tickers from body if it's a POST
+    target_tickers = []
+    if request.method == "POST":
         try:
-            # 1. Clear/Refresh local market caches
+            body = await request.json()
+            target_tickers = body.get("tickers", [])
+        except:
+            pass
+
+    # Trigger everything in a background thread to return immediately
+    def _run_refresh_tasks(tickers_to_refine):
+        try:
+            # 1. Clear/Refresh local market caches (cheap/non-AI)
             refresh_discover_caches()
             
-            # 2. Trigger the Discovery DAG
-            from src.dag.discovery_graph import discovery_dag
-            discovery_dag.invoke({"universe": [], "messages": []})
-            logger.info("Manual Discovery Refresh & DAG run completed")
+            # 2. Trigger the Discovery DAG (expensive AI)
+            # We run this if tickers are provided (targeted refresh) 
+            # OR if no tickers are provided (Full 12-hour style refresh/Reset)
+            if tickers_to_refine:
+                from src.dag.discovery_graph import discovery_dag
+                dag_input = {"universe": [], "messages": []}
+                
+                # 3-way split for Global Opportunity support
+                dag_input["sp500_universe"] = [t for t in tickers_to_refine if "." not in t][:1]
+                dag_input["international_universe"] = [t for t in tickers_to_refine if "." in t][:1]
+                used = set(dag_input["sp500_universe"] + dag_input["international_universe"])
+                dag_input["hidden_gems_universe"] = [t for t in tickers_to_refine if t not in used][:1]
+                
+                logger.info("Auto-Healing: Refining specific discovery tickers", tickers=tickers_to_refine)
+                discovery_dag.invoke(dag_input)
+            else:
+                # STRICT SKIP: Manual refresh only updates cheap market caches
+                logger.info("Manual Global Refresh: Market caches updated, Discovery DAG skipped to save tokens")
+            
+            logger.info("Manual Discovery Refresh task completed")
         except Exception as e:
             logger.error("Manual Discovery task failed", error=str(e))
             
     import threading
-    threading.Thread(target=_run_refresh_tasks, daemon=True).start()
+    threading.Thread(target=_run_refresh_tasks, args=(target_tickers,), daemon=True).start()
     
     return {"status": "refresh_triggered", "message": "Discovery Agent and Market Caches are being refreshed in the background."}
 

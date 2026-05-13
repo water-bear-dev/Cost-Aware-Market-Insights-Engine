@@ -15,9 +15,10 @@ logger = structlog.get_logger(__name__)
 
 class DiscoveryState(TypedDict):
     sp500_universe: List[str]
+    international_universe: List[str]
     hidden_gems_universe: List[str]
     metrics: Dict[str, dict]
-    research: Dict[str, dict] # Added for xvary-stock-research pattern
+    research: Dict[str, dict]
     news: Dict[str, List[str]]
     estimated_cost: float
     budget_cleared: bool
@@ -26,31 +27,39 @@ class DiscoveryState(TypedDict):
     messages: List[dict]
 
 def fetch_universe_node(state: DiscoveryState) -> dict:
+    # If universes already provided (e.g. from a targeted refresh), skip fetching new ones
+    if state.get("sp500_universe") and state.get("international_universe") and state.get("hidden_gems_universe"):
+        logger.info("Using pre-selected universe for targeted refresh")
+        return {}
+
     logger.info("Fetching expanded universe for 12-hour discovery")
     from src.routes.discover import MOVERS_UNIVERSE
     from src.ingestion.service import get_active_tickers
     import random
     
     active = set(get_active_tickers())
-    
-    # Use the movers universe (approx 75 high-interest tickers)
     all_candidates = [t for t in MOVERS_UNIVERSE if t.upper() not in {a.upper() for a in active}]
     
-    # Shuffle and pick 25 to ensure diversity every 12 hours
+    # Selection of 30 for global coverage
     random.shuffle(all_candidates)
-    selection = all_candidates[:25]
+    selection = all_candidates[:30]
     
-    # Split into groups for categorisation
-    sp500 = [t for t in selection if "." not in t][:15]
-    hidden_gems = [t for t in selection if t not in sp500][:10]
+    # Logic-based categorization
+    sp500 = [t for t in selection if "." not in t][:10]
+    intl = [t for t in selection if "." in t][:10]
+    gems = [t for t in selection if t not in sp500 and t not in intl][:10]
     
-    logger.info("Dynamic universe selected", count=len(selection), sp500=len(sp500), gems=len(hidden_gems))
-    return {"sp500_universe": sp500, "hidden_gems_universe": hidden_gems}
+    logger.info("Global dynamic universe selected", sp500=len(sp500), international=len(intl), gems=len(gems))
+    return {
+        "sp500_universe": sp500, 
+        "international_universe": intl, 
+        "hidden_gems_universe": gems
+    }
 
 def quant_analyst_node(state: DiscoveryState) -> dict:
     """Implements 'quant-analyst' skill: Technicals & Risk."""
     logger.info("Running Quant Analyst modeling")
-    all_tickers = state.get("sp500_universe", []) + state.get("hidden_gems_universe", [])
+    all_tickers = state.get("sp500_universe", []) + state.get("international_universe", []) + state.get("hidden_gems_universe", [])
     metrics = {}
     
     try:
@@ -102,7 +111,7 @@ def quant_analyst_node(state: DiscoveryState) -> dict:
 def xvary_research_node(state: DiscoveryState) -> dict:
     """Implements 'xvary-stock-research' skill: Fundamentals & Sentiment."""
     logger.info("Running xvary-stock-research deep dive")
-    all_tickers = state.get("sp500_universe", []) + state.get("hidden_gems_universe", [])
+    all_tickers = state.get("sp500_universe", []) + state.get("international_universe", []) + state.get("hidden_gems_universe", [])
     research = {}
     news_context = {}
     
@@ -158,7 +167,7 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"DATA SET 1: QUANT MODEL (Technicals/Risk):\n{metrics_str}\n\n"
         f"DATA SET 2: RESEARCH DEEP DIVE (Fundamentals/Analyst Targets):\n{research_str}\n\n"
         f"DATA SET 3: RECENT INTELLIGENCE (News):\n{news_str}\n\n"
-        f"Identify exactly 1 S&P 500 leader and exactly 1 high-potential 'Hidden Gem'.\n"
+        f"Identify exactly 1 S&P 500 leader, 1 'Global Opportunity' (non-US/International), and exactly 1 high-potential 'Hidden Gem'.\n"
         f"Evaluate 'Quality' (High ROE/Growth), 'Value' (Upside to Target), and 'Technicals' (RSI/SMA dist).\n\n"
         f"For the 'rationale', write a high-conviction investment thesis (3-4 sentences). "
         f"Explain WHY the combination of quant signals and fundamental research makes this asset a must-watch today. "
@@ -166,114 +175,52 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"Output MUST be pure JSON matching this schema:\n"
         f"[\n"
         f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
+        f"  {{\"ticker\": \"...\", \"category\": \"Global Opportunity\", \"rationale\": \"...\"}},\n"
         f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}}\n"
         f"]"
     )
-    
     try:
-        if provider == 'mock':
-            recs = [
-                {"ticker": "NVDA", "category": "S&P 500", "rationale": "Strong momentum flag despite high market cap."},
-                {"ticker": "PLTR", "category": "Hidden Gem", "rationale": "High volatility creates actionable trading bounds."}
-            ]
-        elif provider == 'ollama':
-            logger.info("Asking Ollama for recommendations", model=settings.ollama_model)
-            # ... (rest of ollama logic)
-            ollama_prompt = (
-                f"Review these stock metrics:\n{metrics_str}\n\n"
-                f"Here are some headlines for context:\n{news_str}\n\n"
-                "Pick 1 'S&P 500' stock and 1 'Hidden Gem'. "
-                "For 'rationale', write a 2-3 sentence paragraph explaining why you picked it. "
-                "Mention any news catalysts if relevant. Use plain English. No bullets."
-                "Output exactly this JSON format:\n"
-                "[\n"
-                "  {\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"},\n"
-                "  {\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}\n"
-                "]"
-            )
+        # --- AI Generation Loop with Retries ---
+        recs = []
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            if recs: break
             try:
-                with httpx.Client(timeout=120.0) as client:
-                    response = client.post(
-                        f"{settings.ollama_url}/api/generate",
-                        json={
-                            "model": settings.ollama_model,
-                            "prompt": ollama_prompt,
-                            "stream": False,
-                            "format": "json"
-                        }
-                    )
-                    response.raise_for_status()
-                    data = response.json()
-                    text = data.get("response", "")
-                    logger.info("Ollama response text", text=text)
-                    
-                    # Robust JSON extraction
-                    import re
-                    recs = []
-                    # 1. Try finding a list [...] first
-                    list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
-                    if list_match:
-                        try:
-                            recs = json.loads(list_match.group())
-                        except json.JSONDecodeError:
-                            recs = []
-                    
-                    # 2. If no list, try finding an object {...}
-                    if not recs:
-                        obj_match = re.search(r'\{.*\}', text, re.DOTALL)
-                        if obj_match:
-                            try:
-                                raw_obj = json.loads(obj_match.group())
-                                if isinstance(raw_obj, dict):
-                                    recs = []
-                                    for cat in ["S&P 500", "Hidden Gem"]:
-                                        val = raw_obj.get(cat)
-                                        if isinstance(val, dict) and 'ticker' in val:
-                                            recs.append({"ticker": val['ticker'], "category": cat, "rationale": val.get('rationale', '')})
-                                        elif isinstance(val, str):
-                                            recs.append({"ticker": val, "category": cat, "rationale": "High-interest asset surfaced by Discovery Agent."})
-                                    if not recs and 'ticker' in raw_obj:
-                                        recs = [raw_obj]
-                            except:
-                                recs = []
-            except Exception as e:
-                logger.error("Ollama connection failed", error=str(e))
-                recs = []
-        else:
-            # Bedrock path
-            try:
-                logger.info("Asking Bedrock for recommendations")
-                bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
-                body = {
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 500,
-                    "temperature": 0.4,
-                    "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
-                }
-                response = bedrock.invoke_model(
-                    modelId="anthropic.claude-3-haiku-20240307-v1:0",
-                    contentType="application/json",
-                    accept="application/json",
-                    body=json.dumps(body)
-                )
-                response_body = json.loads(response.get('body').read())
-                text = response_body.get('content')[0].get('text', '')
-                
+                if provider == 'ollama':
+                    logger.info(f"Asking Ollama for recommendations (Attempt {attempt+1})", model=settings.ollama_model)
+                    with httpx.Client(timeout=120.0) as client:
+                        response = client.post(
+                            f"{settings.ollama_url}/api/generate",
+                            json={"model": settings.ollama_model, "prompt": prompt, "stream": False, "format": "json"}
+                        )
+                        response.raise_for_status()
+                        text = response.json().get("response", "")
+                else:
+                    # Bedrock path
+                    logger.info(f"Asking Bedrock for recommendations (Attempt {attempt+1})")
+                    bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
+                    body = {
+                        "anthropic_version": "bedrock-2023-05-31",
+                        "max_tokens": 1000,
+                        "temperature": 0.4,
+                        "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+                    }
+                    resp = bedrock.invoke_model(modelId="anthropic.claude-3-haiku-20240307-v1:0", body=json.dumps(body))
+                    resp_body = json.loads(resp.get('body').read())
+                    text = resp_body.get('content')[0].get('text', '')
+
                 import re
                 list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
                 if list_match:
                     recs = json.loads(list_match.group())
-                else:
-                    logger.warning("Bedrock returned no JSON list", text=text)
-                    recs = []
             except Exception as e:
-                logger.error("Bedrock invocation failed", error=str(e))
-                recs = []
-                
-        # --- Fallback Logic ---
+                logger.error(f"AI Provider failed (Attempt {attempt+1})", provider=provider, error=str(e))
+
+        # --- AI-First Result ---
         if not recs and state.get("metrics"):
-            logger.info("Using fallback quant picks as AI failed")
+            logger.warning("AI failed after all attempts. Falling back to progress state.")
             sp500_tickers = state.get("sp500_universe", [])
+            intl_tickers = state.get("international_universe", [])
             gem_tickers = state.get("hidden_gems_universe", [])
             metrics = state.get("metrics", {})
             
@@ -282,13 +229,15 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                 if not valid: return None
                 return max(valid, key=lambda t: metrics[t].get("momentum_1mo", -1))
 
-            best_sp = get_best(sp500_tickers)
-            best_gem = get_best(gem_tickers)
+            best_sp = get_best(sp500_tickers) or "SPY"
+            best_intl = get_best(intl_tickers) or "BHP.AX"
+            best_gem = get_best(gem_tickers) or "PLTR"
             
-            if best_sp:
-                recs.append({"ticker": best_sp, "category": "S&P 500", "rationale": "surfaced based on strong 1-month momentum signals."})
-            if best_gem:
-                recs.append({"ticker": best_gem, "category": "Hidden Gem", "rationale": "surfaced as a high-momentum volatile asset."})
+            recs = [
+                {"ticker": best_sp, "category": "S&P 500", "rationale": "AI synthesis in progress..."},
+                {"ticker": best_intl, "category": "Global Opportunity", "rationale": "AI synthesis in progress..."},
+                {"ticker": best_gem, "category": "Hidden Gem", "rationale": "AI synthesis in progress..."}
+            ]
 
         log_cost("DISCOVERY", 500, 200)
         return {"recommendations": recs}

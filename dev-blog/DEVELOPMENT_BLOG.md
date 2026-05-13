@@ -2,6 +2,26 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 12: The Global Pivot & Auto-Healing Resilience
+*Date: 2026-05-13*
+
+Today marks a massive architectural expansion. We've officially transitioned from a US-centric system into a **Global Market Insights Engine**. 
+
+**Engineering Decision: The 3-Category Discovery Model**
+We realized that simply listing "Leaders" and "Gems" was too narrow. We've introduced a three-tier classification system:
+1. **S&P 500 Leader**: The US standard.
+2. **Global Opportunity**: Direct ingestion of ASX (Australia), LSE (UK), HKEX (Hong Kong), NSE (India), and TSX (Canada).
+3. **Hidden Gem**: High-quality small/mid-caps identified via momentum/quant analysis.
+
+**The "Auto-Healing" Infrastructure**
+One of our biggest UX challenges was the "Safety Net" fallback text when the AI failed or was throttled. We solved this not with more retries, but with **Autonomous Resilience**.
+- We implemented a frontend polling loop in `app.js` that monitors the state of discovery cards.
+- If it detects a "synthesis in progress" state, it triggers a **Targeted AI Refinement** call in the background.
+- This creates a self-healing UI that repairs its own data gaps without requiring the user to refresh or worry about costs.
+
+**FinOps Refinement: Cheap vs. Smart Refreshes**
+To keep costs under control during this global expansion, we decoupled our refresh triggers. The manual "Refresh" button now only updates cheap market data (prices/indices). The expensive AI bot is now reserved strictly for the 12-hour automated scan and the autonomous auto-healing loop. This ensures we maintain a premium research experience while strictly adhering to our daily budget.
+
 ## Entry 1: Shifting gears to the Local MVP
 *Date: 2026-03-27*
 

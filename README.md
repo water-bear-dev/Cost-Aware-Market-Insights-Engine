@@ -91,13 +91,13 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 ### 🚀 Key Capabilities
 
 *   **Institutional Dashboard Pivot**: Optimized for high-signal monitoring of elite assets (FAANG by default), decoupling active tracking from broad-market discovery.
-*   **Discovery Agent Revamp (Quant + Research)**: Transformed from momentum-based selection to a **high-conviction intelligence engine**.
-    *   **Quant Analyst node**: Computes real-time **RSI-14**, **SMA-200 Distance**, and **Annualized Volatility**.
-    *   **Fundamental Research node**: Injects **ROE**, **Revenue Growth**, **Valuation (P/E)**, and **Analyst Target Upside**.
-    *   **Consensus Synthesis**: AI acts as a committee of analysts to generate data-backed investment theses.
-*   **High-Frequency 12-Hour Refresh**: Dynamic universe sampling (25 assets every 12 hours) ensures the dashboard surfaces fresh market leaders and hidden gems twice daily.
-*   **Autonomous QMJ Screening**: Multi-factor Z-score analysis ranking 600+ companies across US and AU markets.
-*   **Global Market Intelligence**: Side-by-side comparison of S&P 500 and ASX assets with normalized currency and timezone logic.
+*   **Global Discovery Engine (3-Category Model)**: Transformed into a high-conviction global intelligence engine.
+    *   **S&P 500 Leader**: Surfacing elite US mega-cap opportunities.
+    *   **Global Opportunity**: Expanding into international markets (ASX, LSE, HKEX, NSE, TSX).
+    *   **Hidden Gem**: Identifying high-potential mid-cap "quality" candidates.
+*   **Autonomous Auto-Healing & Resilience**: A persistent frontend loop monitors AI synthesis states and triggers targeted refinement to ensure analysis is always available without human intervention.
+*   **Cost-Aware Targeted Refresh**: Separates cheap real-time market data refreshes (manual button) from expensive AI synthesis (autonomous healing), optimizing token spend.
+*   **Institutional Global Dashboard**: Side-by-side comparison across 5+ global exchanges with normalized currency and automated FX conversion.
 *   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality market opportunities.
 *   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure Bedrock/Claude spend never exceeds your daily threshold.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.

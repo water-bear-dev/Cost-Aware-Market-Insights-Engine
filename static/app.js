@@ -464,13 +464,13 @@ function initControls() {
             showToast("System refresh triggered...", "info");
             
             try {
-                // Trigger backend refreshes
+                // Trigger backend refreshes (Market Caches Only)
                 await Promise.all([
                     fetch('/api/v1/discover/refresh', { method: 'POST' }).catch(e => console.error("Discovery refresh failed", e)),
                     fetchDiscoverData(),
                     fetchMarketAndInsights()
                 ]);
-                showToast("Data successfully refreshed.", "success");
+                showToast("Market data refreshed.", "success");
             } catch (err) {
                 console.error("Refresh failed:", err);
                 showToast("Refresh partially failed.", "error");
@@ -799,11 +799,6 @@ async function fetchDailyPicks() {
 
             grid.innerHTML = data.map(pick => {
                 const price = parseFloat(pick.last_price || 0);
-                const change5d = parseFloat(pick.change_5d || 0) * 100;
-                const momentum1mo = parseFloat(pick.momentum_1mo || 0); // already in %
-                const isPos = change5d >= 0;
-                const sign = isPos ? '+' : '';
-                const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
 
                 // Build rationale display — handles both legacy array and new human-readable string
                 let rationaleHtml = '';
@@ -819,61 +814,16 @@ async function fetchDailyPicks() {
                     rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
                 }
 
-                const rsi = parseFloat(pick.rsi_14 || 50);
-                const smaDist = parseFloat(pick.dist_sma_200 || 0);
-
-                const statsHtml = `
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
-                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.6rem;">1M</span>
-                            <strong style="color: ${momentum1mo >= 0 ? 'var(--positive)' : 'var(--negative)'}">${momentum1mo >= 0 ? '+' : ''}${momentum1mo.toFixed(1)}%</strong>
-                        </span>
-                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.6rem;">5D</span>
-                            <strong style="color: ${changeColor}">${sign}${change5d.toFixed(1)}%</strong>
-                        </span>
-                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.6rem;">RSI</span>
-                            <strong style="color: ${rsi > 70 ? 'var(--negative)' : rsi < 30 ? 'var(--positive)' : 'var(--text-primary)'}">${rsi.toFixed(0)}</strong>
-                        </span>
-                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                            <span style="opacity: 0.6; font-size: 0.6rem;">SMA200</span>
-                            <strong style="color: ${smaDist >= 0 ? 'var(--positive)' : 'var(--negative)'}">${smaDist >= 0 ? '+' : ''}${smaDist.toFixed(1)}%</strong>
-                        </span>
-                    </div>`;
-
-                // Build news headlines if available
-                let newsHtml = '';
-                let rawNews = [];
-                try {
-                    if (pick.news) rawNews = JSON.parse(pick.news);
-                    else if (pick.headlines) rawNews = pick.headlines; // Fallback for legacy data
-                } catch(e) { console.error("News parse failed", e); }
-
-                if (rawNews && rawNews.length > 0) {
-                    newsHtml = `
-                        <div class="daily-news-mini" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
-                            <div style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Related Intelligence</div>
-                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                ${rawNews.slice(0, 2).map(h => `
-                                    <div class="daily-news-item">
-                                        <a href="${h.link || h.url || '#'}" target="_blank" rel="noopener noreferrer" style="color: var(--text-primary); text-decoration: none; font-size: 0.8rem; line-height: 1.4; display: block; font-weight: 500;" onclick="event.stopPropagation();">
-                                            ${h.title}
-                                        </a>
-                                        <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px;">
-                                            ${h.publisher || h.source || 'News'}${h.provider_publish_time || h.published ? ` · ${new Date((h.provider_publish_time * 1000) || h.published).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
+                // Color-coding for categories
+                let categoryColor = 'var(--accent)'; // default
+                if (pick.category === 'S&P 500') categoryColor = '#a78bfa'; // Amethyst
+                if (pick.category === 'Global Opportunity') categoryColor = '#10b981'; // Emerald
+                if (pick.category === 'Hidden Gem') categoryColor = '#fbbf24'; // Amber
 
                 return `
                 <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.08em; color: var(--accent); font-weight: 600;">${pick.category}</span>
+                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.08em; color: ${categoryColor}; font-weight: 700;">${pick.category}</span>
                         <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 12px;">Daily Pick</span>
                     </div>
 
@@ -896,20 +846,58 @@ async function fetchDailyPicks() {
                         </div>
                     </div>
 
-                    ${statsHtml}
-
                     <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.875rem; padding-top: 0.875rem;">
                         ${rationaleHtml}
                     </div>
 
-                    ${newsHtml}
-
                     <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 1.25rem; font-weight: 500;">
                         Deep Dive &rarr;
                     </div>
-            </div>
-            `;
+                </div>
+                `;
             }).join('');
+
+            // --- Auto-Healing Logic ---
+            const needsHealing = data.some(pick => {
+                const isSafetyNet = typeof pick.rationale === 'string' && (
+                    pick.rationale.includes('surfaced based on strong 1-month momentum signals') ||
+                    pick.rationale.includes('AI synthesis in progress') ||
+                    pick.rationale === ''
+                );
+                return isSafetyNet;
+            });
+
+            if (needsHealing && !window._isDiscoveryHealing) {
+                console.log("Discovery Agent: AI synthesis missing. Starting 30s auto-healing loop...");
+                window._isDiscoveryHealing = true;
+                
+                const tickers = data.map(p => p.actual_ticker);
+                triggerTargetedRefresh(tickers);
+
+                const healInterval = setInterval(async () => {
+                    const res = await fetch('/api/v1/daily_picks');
+                    if (res.ok) {
+                        const latestData = await res.json();
+                        const stillNeedsHealing = latestData.some(pick => {
+                            return typeof pick.rationale === 'string' && (
+                                pick.rationale.includes('surfaced based on strong 1-month momentum signals') ||
+                                pick.rationale.includes('AI synthesis in progress') ||
+                                pick.rationale === ''
+                            );
+                        });
+
+                        if (!stillNeedsHealing) {
+                            console.log("Discovery Agent: Healing complete. AI intelligence restored.");
+                            clearInterval(healInterval);
+                            window._isDiscoveryHealing = false;
+                            showToast("Discovery AI intelligence restored.", "success");
+                        } else {
+                            console.log("Discovery Agent: Still healing... retrying in 30s.");
+                            triggerTargetedRefresh(tickers);
+                        }
+                    }
+                }, 30000);
+            }
         }
     } catch (e) {
         console.error("Daily picks fetch failed", e);
@@ -2381,4 +2369,18 @@ function showToast(message, type = 'positive') {
         toast.classList.remove('visible');
         setTimeout(() => toast.remove(), 400);
     }, 4000);
+}
+
+async function triggerTargetedRefresh(tickers) {
+    if (!tickers || tickers.length === 0) return;
+    try {
+        console.log("Discovery Agent: Triggering targeted refresh for", tickers);
+        await fetch('/api/v1/discover/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tickers: tickers })
+        });
+    } catch (e) {
+        console.error("Discovery Agent: Targeted refresh failed", e);
+    }
 }
