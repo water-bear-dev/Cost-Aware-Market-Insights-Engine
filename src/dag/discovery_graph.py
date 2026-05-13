@@ -17,74 +17,119 @@ class DiscoveryState(TypedDict):
     sp500_universe: List[str]
     hidden_gems_universe: List[str]
     metrics: Dict[str, dict]
+    research: Dict[str, dict] # Added for xvary-stock-research pattern
+    news: Dict[str, List[str]]
     estimated_cost: float
     budget_cleared: bool
     recommendations: List[dict]
-    universe: List[str] # Added to match main.py invoke
-    messages: List[dict] # Added to match main.py invoke
+    universe: List[str]
+    messages: List[dict]
 
 def fetch_universe_node(state: DiscoveryState) -> dict:
-    logger.info("Fetching universe")
+    logger.info("Fetching expanded universe for 12-hour discovery")
+    from src.routes.discover import MOVERS_UNIVERSE
     from src.ingestion.service import get_active_tickers
+    import random
     
     active = set(get_active_tickers())
     
-    # Top 10 S&P 500
-    sp500_base = ["AAPL", "MSFT", "NVDA", "AMZN", "META", "GOOGL", "TSLA", "BRK-B", "LLY", "AVGO"]
+    # Use the movers universe (approx 75 high-interest tickers)
+    all_candidates = [t for t in MOVERS_UNIVERSE if t.upper() not in {a.upper() for a in active}]
     
-    # 10 Volatile/Mid-cap hidden gems
-    hidden_gems_base = ["PLTR", "SOFI", "RIVN", "UPST", "AFRM", "HOOD", "COIN", "DKNG", "ROKU", "PINS"]
+    # Shuffle and pick 25 to ensure diversity every 12 hours
+    random.shuffle(all_candidates)
+    selection = all_candidates[:25]
     
-    # Filter out tickers already being tracked
-    active = {t.upper() for t in active}
-    sp500 = [t for t in sp500_base if t.upper() not in active]
-    hidden_gems = [t for t in hidden_gems_base if t.upper() not in active]
+    # Split into groups for categorisation
+    sp500 = [t for t in selection if "." not in t][:15]
+    hidden_gems = [t for t in selection if t not in sp500][:10]
     
-    logger.info("Filtered universe", active_count=len(active), sp500_remain=len(sp500), gems_remain=len(hidden_gems))
-    
+    logger.info("Dynamic universe selected", count=len(selection), sp500=len(sp500), gems=len(hidden_gems))
     return {"sp500_universe": sp500, "hidden_gems_universe": hidden_gems}
 
-def quant_metrics_node(state: DiscoveryState) -> dict:
-    logger.info("Calculating quant metrics")
+def quant_analyst_node(state: DiscoveryState) -> dict:
+    """Implements 'quant-analyst' skill: Technicals & Risk."""
+    logger.info("Running Quant Analyst modeling")
     all_tickers = state.get("sp500_universe", []) + state.get("hidden_gems_universe", [])
     metrics = {}
     
     try:
-        # Bulk download 1mo history
-        data = yf.download(all_tickers, period="1mo", group_by="ticker", progress=False)
+        # 1-year history for technicals (RSI, Moving Averages)
+        data = yf.download(all_tickers, period="1y", group_by="ticker", progress=False)
         for t in all_tickers:
             try:
-                # Handle yfinance multi-level columns (Ticker, Attribute)
                 if isinstance(data.columns, pd.MultiIndex):
                     if t not in data.columns.levels[0]: continue
                     hist = data[t]
                 else:
-                    # Single ticker, no MultiIndex (older yf or specific edge case)
                     hist = data
                 
                 if hist.empty: continue
                 
                 closes = hist['Close'].dropna()
-                if len(closes) < 2: continue
+                if len(closes) < 20: continue
                 
-                momentum = float((closes.iloc[-1] / closes.iloc[0]) - 1)
+                # Momentum & Vol
+                momentum_1mo = float((closes.iloc[-1] / closes.iloc[-21]) - 1) if len(closes) >= 21 else 0
                 volatility = float(closes.pct_change().std() * (252 ** 0.5))
+                change_5d = float((closes.iloc[-1] / closes.iloc[-6]) - 1) if len(closes) >= 6 else momentum_1mo
                 
-                change_5d = float((closes.iloc[-1] / closes.iloc[-5]) - 1) if len(closes) >= 5 else momentum
+                # Technicals
+                sma_200 = closes.rolling(window=200).mean().iloc[-1]
+                dist_200 = (closes.iloc[-1] / sma_200) - 1 if not pd.isna(sma_200) else 0
                 
+                # Simple RSI
+                delta = closes.diff()
+                gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                rs = gain / loss
+                rsi = 100 - (100 / (1 + rs.iloc[-1])) if not pd.isna(rs.iloc[-1]) else 50
+
                 metrics[t] = {
-                    "momentum_1mo": momentum,
+                    "momentum_1mo": momentum_1mo,
                     "volatility_ann": volatility,
                     "last_price": float(closes.iloc[-1]),
-                    "change_5d": change_5d
+                    "change_5d": change_5d,
+                    "dist_sma_200": dist_200,
+                    "rsi_14": rsi
                 }
-            except Exception:
-                continue
+            except: continue
     except Exception as e:
-        logger.error("Failed fetching quant metrics", error=str(e))
+        logger.error("Quant Analyst modeling failed", error=str(e))
         
-    logger.info("Calculated metrics", count=len(metrics))
     return {"metrics": metrics}
+
+def xvary_research_node(state: DiscoveryState) -> dict:
+    """Implements 'xvary-stock-research' skill: Fundamentals & Sentiment."""
+    logger.info("Running xvary-stock-research deep dive")
+    all_tickers = state.get("sp500_universe", []) + state.get("hidden_gems_universe", [])
+    research = {}
+    news_context = {}
+    
+    for t in all_tickers:
+        try:
+            t_obj = yf.Ticker(t)
+            info = t_obj.info
+            
+            # Key quality/value factors
+            research[t] = {
+                "sector": info.get("sector"),
+                "recommendation": info.get("recommendationKey"),
+                "target_upside": (info.get("targetMeanPrice", 0) / info.get("currentPrice", 1)) - 1 if info.get("targetMeanPrice") else 0,
+                "roe": info.get("returnOnEquity"),
+                "rev_growth": info.get("revenueGrowth"),
+                "pe_trailing": info.get("trailingPE"),
+                "div_yield": info.get("dividendYield")
+            }
+            
+            # Latest news
+            headlines = [n.get('title') for n in t_obj.news[:3] if n.get('title')]
+            if headlines:
+                news_context[t] = headlines
+                
+        except: continue
+
+    return {"research": research, "news": news_context}
 
 def finops_gate_node(state: DiscoveryState) -> dict:
     # Estimate cost for passing ~20 tickers to Claude
@@ -96,18 +141,28 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     if not state.get("budget_cleared", False):
         return {"recommendations": []}
         
-    logger.info("Asking Bedrock for recommendations")
+    logger.info("Asking AI for recommendations (Research + Quant Model)", environment=settings.environment)
     metrics_str = json.dumps(state.get("metrics", {}), indent=2)
+    research_str = json.dumps(state.get("research", {}), indent=2)
+    news_str = json.dumps(state.get("news", {}), indent=2)
     
+    # Select provider based on environment explicitly if not forced
+    provider = settings.llm_provider
+    if settings.environment == "production":
+        provider = "bedrock"
+    elif settings.environment == "local" and not provider:
+        provider = "ollama"
+
     prompt = (
-        f"You are a professional market analyst writing for everyday investors. Review these quantitative metrics for 20 tickers:\n"
-        f"{metrics_str}\n\n"
-        f"Pick exactly 1 S&P 500 stock and exactly 1 Hidden Gem stock that look the most interesting today "
-        f"based on a mix of momentum, volatility, and trend strength.\n\n"
-        f"For the 'rationale', provide a deep-dive analysis (3-4 human-understandable sentences). "
-        f"Explain specifically what is happening with the price right now, mention the momentum or volatility signals in plain terms, and state why it stands out among the peer group. "
-        f"Avoid jargon like 'standard deviation' or 'annualized volatility'. "
-        f"Do NOT use bullet points. Write it as a single cohesive, high-conviction paragraph.\n\n"
+        f"You are a consensus committee of a Quantitative Analyst and a Fundamental Research Lead.\n\n"
+        f"DATA SET 1: QUANT MODEL (Technicals/Risk):\n{metrics_str}\n\n"
+        f"DATA SET 2: RESEARCH DEEP DIVE (Fundamentals/Analyst Targets):\n{research_str}\n\n"
+        f"DATA SET 3: RECENT INTELLIGENCE (News):\n{news_str}\n\n"
+        f"Identify exactly 1 S&P 500 leader and exactly 1 high-potential 'Hidden Gem'.\n"
+        f"Evaluate 'Quality' (High ROE/Growth), 'Value' (Upside to Target), and 'Technicals' (RSI/SMA dist).\n\n"
+        f"For the 'rationale', write a high-conviction investment thesis (3-4 sentences). "
+        f"Explain WHY the combination of quant signals and fundamental research makes this asset a must-watch today. "
+        f"Avoid generic praise; be specific about the data points provided.\n\n"
         f"Output MUST be pure JSON matching this schema:\n"
         f"[\n"
         f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
@@ -116,17 +171,20 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     )
     
     try:
-        if settings.llm_provider == 'mock':
+        if provider == 'mock':
             recs = [
                 {"ticker": "NVDA", "category": "S&P 500", "rationale": "Strong momentum flag despite high market cap."},
                 {"ticker": "PLTR", "category": "Hidden Gem", "rationale": "High volatility creates actionable trading bounds."}
             ]
-        elif settings.llm_provider == 'ollama':
+        elif provider == 'ollama':
             logger.info("Asking Ollama for recommendations", model=settings.ollama_model)
+            # ... (rest of ollama logic)
             ollama_prompt = (
                 f"Review these stock metrics:\n{metrics_str}\n\n"
+                f"Here are some headlines for context:\n{news_str}\n\n"
                 "Pick 1 'S&P 500' stock and 1 'Hidden Gem'. "
-                "For 'rationale', write a 2-3 sentence paragraph explaining why you picked it. Use plain English. No bullets."
+                "For 'rationale', write a 2-3 sentence paragraph explaining why you picked it. "
+                "Mention any news catalysts if relevant. Use plain English. No bullets."
                 "Output exactly this JSON format:\n"
                 "[\n"
                 "  {\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"},\n"
@@ -166,18 +224,14 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                         if obj_match:
                             try:
                                 raw_obj = json.loads(obj_match.group())
-                                # If it's a dict, convert to expected list format
                                 if isinstance(raw_obj, dict):
                                     recs = []
-                                    # Handle cases like {"S&P 500": {...}, "Hidden Gem": {...}}
                                     for cat in ["S&P 500", "Hidden Gem"]:
                                         val = raw_obj.get(cat)
                                         if isinstance(val, dict) and 'ticker' in val:
                                             recs.append({"ticker": val['ticker'], "category": cat, "rationale": val.get('rationale', '')})
                                         elif isinstance(val, str):
                                             recs.append({"ticker": val, "category": cat, "rationale": "High-interest asset surfaced by Discovery Agent."})
-                                    
-                                    # Handle cases like {"ticker": "AAPL", "category": "S&P 500", ...}
                                     if not recs and 'ticker' in raw_obj:
                                         recs = [raw_obj]
                             except:
@@ -205,7 +259,6 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                 response_body = json.loads(response.get('body').read())
                 text = response_body.get('content')[0].get('text', '')
                 
-                # Find JSON block
                 import re
                 list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
                 if list_match:
@@ -218,7 +271,6 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                 recs = []
                 
         # --- Fallback Logic ---
-        # If AI failed but we have metrics, pick the top momentum ones
         if not recs and state.get("metrics"):
             logger.info("Using fallback quant picks as AI failed")
             sp500_tickers = state.get("sp500_universe", [])
@@ -238,14 +290,8 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             if best_gem:
                 recs.append({"ticker": best_gem, "category": "Hidden Gem", "rationale": "surfaced as a high-momentum volatile asset."})
 
-        # Log cost
         log_cost("DISCOVERY", 500, 200)
-        
-        if not recs:
-            logger.warning("Discovery agent generated empty recommendations")
-            
         return {"recommendations": recs}
-
         
     except Exception as e:
         logger.error("Discovery recommendation failed", error=str(e), provider=settings.llm_provider)
@@ -258,69 +304,32 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
     insights_table = get_table('Insights')
     timestamp = datetime.utcnow().isoformat() + "Z"
     metrics = state.get("metrics", {})
+    research_data = state.get("research", {})
     
     try:
         for rec in recs:
-            # Defensive checks for malformed LLM output
             if not isinstance(rec, dict) or 'category' not in rec or 'ticker' not in rec:
-                logger.warning("Skipping malformed recommendation record", record=rec)
                 continue
 
             t = rec['ticker']
             m = metrics.get(t, {})
+            res = research_data.get(t, {})
             
-            # Fetch extra metadata for UI
-            try:
-                t_obj = yf.Ticker(t)
-                info = t_obj.info
-                exchange = info.get('exchange', '')
-                company_name = info.get('longName') or info.get('shortName', '')
-                
-                # Robust price retrieval
-                current_price = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose')
-                if not current_price and not m.get('last_price'):
-                    # Last ditch effort from fast_info
-                    try: current_price = t_obj.fast_info.get('lastPrice')
-                    except: pass
-                
-                pre_market_price = info.get('preMarketPrice')
-                pre_market_change = info.get('preMarketChangePercent')
-                post_market_price = info.get('postMarketPrice')
-                post_market_change = info.get('postMarketChangePercent')
-                try:
-                    currency = t_obj.fast_info.get('currency', 'USD')
-                except:
-                    currency = info.get('currency', 'USD')
-            except Exception:
-                exchange = ''
-                company_name = ''
-                currency = 'USD'
-                current_price = None
-                pre_market_price = None
-                pre_market_change = None
-                post_market_price = None
-                post_market_change = None
+            category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
+            ticker_id = f"_DAILY_{category_clean}_"
+            final_price = m.get('last_price', 0.0)
 
-            # Fetch news for this specific recommendation
             ticker_news = []
             try:
                 t_obj = yf.Ticker(t)
-                raw_news = t_obj.news[:3] # Get top 3 news
-                for n in raw_news:
+                for n in t_obj.news[:3]:
                     ticker_news.append({
                         "title": n.get("title"),
                         "publisher": n.get("publisher"),
                         "link": n.get("link"),
                         "provider_publish_time": n.get("providerPublishTime")
                     })
-            except Exception as news_err:
-                logger.warning("Failed to fetch news for daily pick", ticker=t, error=str(news_err))
-
-            # We use a special ticker ID for easy fetching
-            category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
-            ticker_id = f"_DAILY_{category_clean}_"
-            # Final price selection
-            final_price = current_price or m.get('last_price', 0.0)
+            except: pass
 
             item = {
                 'ticker': ticker_id,
@@ -335,17 +344,15 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                 'change_5d':  str(m.get('change_5d', 0.0)),
                 'momentum_1mo': str(round(m.get('momentum_1mo', 0.0) * 100, 2)),
                 'volatility_ann': str(round(m.get('volatility_ann', 0.0) * 100, 2)),
-                'exchange': exchange,
-                'company_name': company_name,
-                'currency': currency,
-                'pre_market_price': str(pre_market_price) if pre_market_price else None,
-                'pre_market_change': str(pre_market_change) if pre_market_change else None,
-                'post_market_price': str(post_market_price) if post_market_price else None,
-                'post_market_change': str(post_market_change) if post_market_change else None,
+                'dist_sma_200': str(round(m.get('dist_sma_200', 0.0) * 100, 2)),
+                'rsi_14': str(round(m.get('rsi_14', 50), 2)),
+                'exchange': res.get('sector', 'Unknown'), 
+                'company_name': t,
+                'currency': 'USD',
                 'news': json.dumps(ticker_news)
             }
             insights_table.put_item(Item=item)
-            logger.info("Saved daily recommendation", category=rec['category'], ticker=rec['ticker'])
+            logger.info("Saved research-backed daily pick", category=rec['category'], ticker=rec['ticker'])
     except Exception as e:
         logger.error("Failed saving daily recommendation", error=str(e))
         
@@ -355,14 +362,16 @@ def build_discovery_graph():
     workflow = StateGraph(DiscoveryState)
     
     workflow.add_node("universe", fetch_universe_node)
-    workflow.add_node("quant", quant_metrics_node)
+    workflow.add_node("quant", quant_analyst_node)
+    workflow.add_node("research", xvary_research_node)
     workflow.add_node("finops", finops_gate_node)
     workflow.add_node("bedrock", bedrock_recommend_node)
     workflow.add_node("save", save_recommendations_node)
     
     workflow.set_entry_point("universe")
     workflow.add_edge("universe", "quant")
-    workflow.add_edge("quant", "finops")
+    workflow.add_edge("quant", "research")
+    workflow.add_edge("research", "finops")
     workflow.add_edge("finops", "bedrock")
     workflow.add_edge("bedrock", "save")
     workflow.add_edge("save", END)

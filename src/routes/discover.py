@@ -301,6 +301,32 @@ def refresh_discover_caches():
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+@router.get("/discover/refresh")
+@router.post("/discover/refresh")
+@limiter.limit("2/minute")
+def trigger_global_refresh(request: Request):
+    """Force-refresh all discover caches and trigger the Discovery Agent DAG immediately."""
+    logger.info("Manual Discovery Refresh Triggered")
+    
+    # Trigger everything in a background thread to return immediately
+    def _run_refresh_tasks():
+        try:
+            # 1. Clear/Refresh local market caches
+            refresh_discover_caches()
+            
+            # 2. Trigger the Discovery DAG
+            from src.dag.discovery_graph import discovery_dag
+            discovery_dag.invoke({"universe": [], "messages": []})
+            logger.info("Manual Discovery Refresh & DAG run completed")
+        except Exception as e:
+            logger.error("Manual Discovery task failed", error=str(e))
+            
+    import threading
+    threading.Thread(target=_run_refresh_tasks, daemon=True).start()
+    
+    return {"status": "refresh_triggered", "message": "Discovery Agent and Market Caches are being refreshed in the background."}
+
+
 @router.get("/discover/indices")
 @limiter.limit("30/minute")
 def get_indices(request: Request):

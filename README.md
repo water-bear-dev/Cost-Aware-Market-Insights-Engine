@@ -91,12 +91,17 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 ### 🚀 Key Capabilities
 
 *   **Institutional Dashboard Pivot**: Optimized for high-signal monitoring of elite assets (FAANG by default), decoupling active tracking from broad-market discovery.
+*   **Discovery Agent Revamp (Quant + Research)**: Transformed from momentum-based selection to a **high-conviction intelligence engine**.
+    *   **Quant Analyst node**: Computes real-time **RSI-14**, **SMA-200 Distance**, and **Annualized Volatility**.
+    *   **Fundamental Research node**: Injects **ROE**, **Revenue Growth**, **Valuation (P/E)**, and **Analyst Target Upside**.
+    *   **Consensus Synthesis**: AI acts as a committee of analysts to generate data-backed investment theses.
+*   **High-Frequency 12-Hour Refresh**: Dynamic universe sampling (25 assets every 12 hours) ensures the dashboard surfaces fresh market leaders and hidden gems twice daily.
 *   **Autonomous QMJ Screening**: Multi-factor Z-score analysis ranking 600+ companies across US and AU markets.
 *   **Global Market Intelligence**: Side-by-side comparison of S&P 500 and ASX assets with normalized currency and timezone logic.
-*   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality hidden gems.
+*   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality market opportunities.
 *   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure Bedrock/Claude spend never exceeds your daily threshold.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
-*   **Hybrid AI Synthesis**: Seamlessly toggle between AWS Bedrock (Production) and local Ollama/Gemma (Development) models.
+*   **Hybrid AI Synthesis**: Seamlessly toggle between AWS Bedrock (Production) and local Ollama/Gemma (Development) models with environment-aware auto-switching.
 *   **Analytics Warehouse**: dbt-driven data lakehouse architecture for scalable, reproducible financial modeling.
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
@@ -218,7 +223,7 @@ The application behavior is controlled via environment variables (see `src/confi
 | `ENVIRONMENT`  | `local` or `production` | `local` |
 | `OLLAMA_URL` | Endpoint for Ollama API | `http://host.docker.internal:11434` |
 | `OLLAMA_MODEL` | Local model to invoke | `llama3.2` |
-| `DAILY_BUDGET_USD` | Hard cap on AI spend (FinOps) | `5.00` |
+| `DAILY_BUDGET_USD` | Hard cap on AI spend (Default if DB is empty) | `5.00` |
 | `TICKERS` | Comma-separated list of symbols | `AAPL,MSFT,GOOGL,AMZN,META` |
 | `DYNAMODB_ENDPOINT_URL`| Point to local DynamoDB (local only) | `None` |
 
@@ -252,7 +257,8 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
 - **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
-- **[PLANNED] Phase 9: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 9: Discovery Agent Revamp & Institutional Intelligence** - Implementing a 12-hour refresh cycle (8 AM/8 PM AEST), high-conviction AI investment theses, and direct news integration within discovery picks. Added "Add to Watchlist" functionality directly in modal views for seamless asset acquisition.
+- **[PLANNED] Phase 10: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 
 ---

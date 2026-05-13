@@ -90,6 +90,19 @@ def init_tables():
             ],
             BillingMode='PAY_PER_REQUEST'
         )
+        
+    if "SystemSettings" not in tables:
+        logger.info("Creating SystemSettings table")
+        dynamodb.create_table(
+            TableName="SystemSettings",
+            KeySchema=[
+                {'AttributeName': 'setting_key', 'KeyType': 'HASH'}
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'setting_key', 'AttributeType': 'S'}
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
 
 def get_table(table_name: str):
     return get_dynamo_resource().Table(table_name)

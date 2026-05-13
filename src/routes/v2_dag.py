@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import structlog
 from src.dag.graph import alpha_dag
 
@@ -11,7 +12,7 @@ class DagSynthesisResponse(BaseModel):
     ticker: str
     status: str
     finops_approved: bool
-    insight: str | None
+    insight: Optional[str]
     cost: float
 
 @router.post("/{ticker}/synthesize", response_model=DagSynthesisResponse)

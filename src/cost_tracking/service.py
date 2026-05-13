@@ -21,6 +21,20 @@ def get_uptime_cost() -> Decimal:
     hours = (now - midnight).total_seconds() / 3600
     return Decimal(str(hours * 0.035))
 
+def get_budget_settings() -> dict:
+    """Fetch budget settings from SystemSettings table."""
+    table = get_table('SystemSettings')
+    try:
+        resp = table.get_item(Key={'setting_key': 'budget_config'})
+        if 'Item' in resp:
+            return resp['Item']
+    except Exception:
+        pass
+    return {
+        'daily_budget_usd': Decimal(str(settings.daily_budget_usd)),
+        'budget_enabled': True
+    }
+
 def get_daily_spend() -> Decimal:
     """Calculates total spend for today from DynamoDB."""
     table = get_table('CostTracking')
@@ -40,7 +54,13 @@ def get_daily_spend() -> Decimal:
 
 def check_budget(estimated_cost: float) -> bool:
     """Returns True if the estimated request fits within the daily budget."""
-    daily_budget = Decimal(str(settings.daily_budget_usd))
+    config = get_budget_settings()
+    
+    # If budget is disabled, always allow
+    if not config.get('budget_enabled', True):
+        return True
+        
+    daily_budget = config.get('daily_budget_usd', Decimal(str(settings.daily_budget_usd)))
     current_spend = get_daily_spend()
     estimated = Decimal(str(estimated_cost))
     

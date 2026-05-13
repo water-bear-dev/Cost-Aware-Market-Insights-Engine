@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2026-05-13
+
+### Added
+- **High-Conviction Discovery Agent** — Major overhaul of the discovery pipeline, transitioning from momentum-only logic to a multi-factor research engine.
+- **Quant Analyst node** — Implemented technical modeling in the Discovery DAG:
+    - **RSI-14** (Relative Strength Index) calculation.
+    - **SMA-200 Distance** (Trend health check).
+    - **Annualized Volatility** (Risk assessment).
+- **Fundamental Research node** — Integrated deep-dive factor ingestion:
+    - **Quality**: ROE and Revenue Growth tracking.
+    - **Value**: P/E Ratios and Analyst Target Upside detection.
+- **Consensus synthesis** — Redesigned AI prompts to act as a committee of analysts, generating data-backed investment theses with technical and fundamental evidence.
+- **Dynamic Universe Sampling** — The Discovery Agent now randomly samples 25 assets from a pool of 75+ movers every 12 hours, ensuring twice-daily freshness.
+- **Enhanced Discovery UI** — Updated pick cards to display **RSI** and **SMA-200** stats directly for instant validation.
+- **Watchlist Integration** — Added "Add to Watchlist" functionality directly within the Discovery Detail Modals for seamless asset tracking.
+- **Manual Force-Refresh** — Implemented an API endpoint and dashboard button to manually trigger the Discovery Agent and clear market caches for real-time updates.
+- **Toast Notification System** — Added a sleek feedback system for dashboard actions like refreshing and watchlist management.
+
+### Fixed
+- **Environment-Aware AI** — Hardened the provider selection logic to automatically toggle between Bedrock (Prod) and Ollama (Local) based on deployment context.
+- **Discovery News Hydration** — Resolved a persistence issue where news headlines weren't appearing in detail views for daily picks.
+
+## [2.9.9] - 2026-05-12
+
+### Added
+- **Dynamic Budget Management** — Introduced a persistent configuration layer for FinOps, allowing real-time adjustments to AI spending limits.
+- **Budget Control UI** — Added a sleek, glassmorphic toggle and numeric input to the Costs tab for managing daily dollar caps.
+- **SystemSettings Persistence** — Created a new DynamoDB table to store runtime-mutable system settings.
+- **Dynamic Enforcement API** — Added `POST /api/v1/costs/settings` to synchronize frontend controls with the backend budget gate.
+
+### Changed
+- **Heuristic Budget Prioritization** — The `check_budget` service now prioritizes DynamoDB-backed settings over static environment variables.
+
 ## [2.9.8] - 2026-05-12
 
 ### Added

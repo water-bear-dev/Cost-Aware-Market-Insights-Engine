@@ -124,7 +124,7 @@ The engine leverages a distributed agentic architecture (Alpha-DAG) combined wit
 
 #### A. Alpha-DAG Intelligence (LangGraph)
 The core intelligence is orchestrated via a stateful Directed Acyclic Graph (DAG) replacing legacy background loops.
-- **FinOps Gate Node**: Heuristic check of spend vs budget ($5.00/day threshold) before any LLM invocation.
+- **FinOps Gate Node**: Real-time check of spend vs budget. Prioritizes dynamic settings from the `SystemSettings` DynamoDB table over static environment variables, allowing for instantaneous runtime budget adjustments.
 - **Discovery Hunter**: Autonomous daily search for value across global tickers.
 - **Synthesis Node**: Claude 3 Haiku via Bedrock for narrative generation with temperature calibration (0.3).
 - **State Persistence**: DAG state is saved to DynamoDB for "resume-from-checkpoint" reliability.

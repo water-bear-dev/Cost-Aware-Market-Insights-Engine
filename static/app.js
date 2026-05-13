@@ -6,9 +6,12 @@ let modalChartInstance = null;
 const sparklineInstances = {};
 let currentZoom = 1.0;
 let currentModalTicker = null;
-let currentPeriod = '1mo';
+let currentPeriod = '1d'; // Start with 1D as default for live change
 let currentModalMkt = {};
 let currentModalInsight = null;
+
+// Track starting price for the selected trend period
+const periodStartPrices = {};
 
 // Snapshot of last known data for diff-and-patch
 let lastMarketData = {};
@@ -159,7 +162,42 @@ document.addEventListener('DOMContentLoaded', () => {
     initCurrency();
     refreshExchangeRates();
     initManageFilters();
+    initBudgetControls();
+    initDiscoverEvents();
 });
+
+function initDiscoverEvents() {
+    const refreshBtn = document.getElementById('force-discovery-refresh-btn');
+    if (!refreshBtn) return;
+
+    refreshBtn.addEventListener('click', async () => {
+        const originalHtml = refreshBtn.innerHTML;
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = 'Refining...';
+        refreshBtn.classList.add('pulse-animation');
+
+        try {
+            const res = await fetch('/api/v1/discover/refresh', { method: 'POST' });
+            if (res.ok) {
+                showToast('Discovery refresh triggered. This may take 30-60 seconds.');
+                // Polling for updates
+                setTimeout(() => {
+                    fetchDiscoverData();
+                }, 5000);
+            } else {
+                showToast('Failed to trigger refresh.', 'negative');
+            }
+        } catch (e) {
+            showToast('Network error.', 'negative');
+        } finally {
+            setTimeout(() => {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = originalHtml;
+                refreshBtn.classList.remove('pulse-animation');
+            }, 3000);
+        }
+    });
+}
 
 /* =====================================================
    Tabs
@@ -399,30 +437,51 @@ function initControls() {
     const forceRefreshBtn = document.getElementById('force-refresh-btn');
     if (forceRefreshBtn) {
         forceRefreshBtn.addEventListener('click', async () => {
+            if (forceRefreshBtn.disabled) return;
+
             const now = Date.now();
-            if (forceRefreshBtn.dataset.lastRefresh && now - parseInt(forceRefreshBtn.dataset.lastRefresh) < 30000) {
-                const remaining = Math.ceil((30000 - (now - parseInt(forceRefreshBtn.dataset.lastRefresh))) / 1000);
-                forceRefreshBtn.innerHTML = `Wait ${remaining}s...`;
-                setTimeout(() => {
-                    forceRefreshBtn.innerHTML = `
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-                        Refresh
-                    `;
-                }, 2000);
+            const lastRefresh = parseInt(forceRefreshBtn.dataset.lastRefresh || "0");
+            if (now - lastRefresh < 30000) {
+                const remaining = Math.ceil((30000 - (now - lastRefresh)) / 1000);
+                showToast(`Please wait ${remaining}s before refreshing again.`, 'info');
                 return;
             }
-            forceRefreshBtn.dataset.lastRefresh = now.toString();
-            forceRefreshBtn.classList.add('loading');
-            const originalContent = forceRefreshBtn.innerHTML;
-            forceRefreshBtn.querySelector('span').textContent = 'Refreshing...';
 
+            // 1. Visual Click Feedback (0.1s change)
+            const originalHTML = forceRefreshBtn.innerHTML;
+            forceRefreshBtn.innerHTML = `<span>Updating...</span>`;
+            setTimeout(() => {
+                forceRefreshBtn.innerHTML = originalHTML;
+            }, 100);
+
+            // 2. Disable button for 30s
+            forceRefreshBtn.disabled = true;
+            forceRefreshBtn.style.opacity = '0.5';
+            forceRefreshBtn.style.cursor = 'not-allowed';
+            forceRefreshBtn.dataset.lastRefresh = now.toString();
+
+            // 3. Start refresh
+            showToast("System refresh triggered...", "info");
+            
             try {
-                await fetchDiscoverData();
-                await fetchMarketAndInsights();
-            } finally {
-                forceRefreshBtn.classList.remove('loading');
-                forceRefreshBtn.innerHTML = originalContent;
+                // Trigger backend refreshes
+                await Promise.all([
+                    fetch('/api/v1/discover/refresh', { method: 'POST' }).catch(e => console.error("Discovery refresh failed", e)),
+                    fetchDiscoverData(),
+                    fetchMarketAndInsights()
+                ]);
+                showToast("Data successfully refreshed.", "success");
+            } catch (err) {
+                console.error("Refresh failed:", err);
+                showToast("Refresh partially failed.", "error");
             }
+
+            // 4. Re-enable after 30s
+            setTimeout(() => {
+                forceRefreshBtn.disabled = false;
+                forceRefreshBtn.style.opacity = '1';
+                forceRefreshBtn.style.cursor = 'pointer';
+            }, 30000);
         });
     }
 }
@@ -439,10 +498,35 @@ async function refreshTickerSparkline(ticker, period) {
         const data = await res.json();
 
         if (data.ohlcv && data.ohlcv.length > 0) {
-            const closes = data.ohlcv.map(d => d.close).filter(v => v !== null);
-            const trendColor = closes[closes.length - 1] >= closes[0] ? '#10b981' : '#f43f5e';
+            const closes = data.ohlcv.map(d => d.close).filter(v => v !== null && v > 0);
+            if (closes.length > 0) {
+                const first = closes[0];
+                const last = closes[closes.length - 1];
+                
+                // Store the starting price for this period
+                periodStartPrices[ticker] = first;
 
-            drawSparkline(elementId, closes, trendColor);
+                const diff = last - first;
+                const changePct = (diff / first) * 100;
+                const trendColor = changePct >= 0 ? '#10b981' : '#f43f5e';
+
+                drawSparkline(elementId, closes, trendColor);
+
+                // Update percentage change label on the card
+                const card = container.closest('.insight-card');
+                if (card) {
+                    const changeEl = card.querySelector('.card-change');
+                    if (changeEl) {
+                        const sign = changePct >= 0 ? '+' : '';
+                        const pillClass = changePct >= 0 ? 'pill-green' : 'pill-red';
+                        const cClass = changePct >= 0 ? 'positive' : 'negative';
+                        
+                        // We use the same classes as updateCard/cardInnerHtml
+                        changeEl.className = `${cClass} card-change ${pillClass}`;
+                        changeEl.textContent = `${sign}${changePct.toFixed(2)}%`;
+                    }
+                }
+            }
         }
     } catch (e) {
         console.error("Trend refresh failed:", e);
@@ -735,29 +819,53 @@ async function fetchDailyPicks() {
                     rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
                 }
 
-                const statsHtml = momentum1mo !== 0
-                    ? `<div style="display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
-                        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary);">
-                            1-Month: <strong style="color: ${momentum1mo >= 0 ? '#10b981' : '#f43f5e'}">${momentum1mo >= 0 ? '+' : ''}${momentum1mo.toFixed(1)}%</strong>
+                const rsi = parseFloat(pick.rsi_14 || 50);
+                const smaDist = parseFloat(pick.dist_sma_200 || 0);
+
+                const statsHtml = `
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.6rem;">1M</span>
+                            <strong style="color: ${momentum1mo >= 0 ? 'var(--positive)' : 'var(--negative)'}">${momentum1mo >= 0 ? '+' : ''}${momentum1mo.toFixed(1)}%</strong>
                         </span>
-                        <span style="font-size: 0.7rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary);">
-                            5-Day: <strong style="color: ${changeColor}">${sign}${change5d.toFixed(2)}%</strong>
+                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.6rem;">5D</span>
+                            <strong style="color: ${changeColor}">${sign}${change5d.toFixed(1)}%</strong>
                         </span>
-                       </div>`
-                    : '';
+                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.6rem;">RSI</span>
+                            <strong style="color: ${rsi > 70 ? 'var(--negative)' : rsi < 30 ? 'var(--positive)' : 'var(--text-primary)'}">${rsi.toFixed(0)}</strong>
+                        </span>
+                        <span style="font-size: 0.65rem; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                            <span style="opacity: 0.6; font-size: 0.6rem;">SMA200</span>
+                            <strong style="color: ${smaDist >= 0 ? 'var(--positive)' : 'var(--negative)'}">${smaDist >= 0 ? '+' : ''}${smaDist.toFixed(1)}%</strong>
+                        </span>
+                    </div>`;
 
                 // Build news headlines if available
                 let newsHtml = '';
-                if (pick.headlines && pick.headlines.length > 0) {
+                let rawNews = [];
+                try {
+                    if (pick.news) rawNews = JSON.parse(pick.news);
+                    else if (pick.headlines) rawNews = pick.headlines; // Fallback for legacy data
+                } catch(e) { console.error("News parse failed", e); }
+
+                if (rawNews && rawNews.length > 0) {
                     newsHtml = `
-                        <div class="daily-news-mini">
-                            <div class="daily-news-title">Related News</div>
-                            ${pick.headlines.slice(0, 3).map(h => `
-                                <div class="daily-news-item">
-                                    <a class="daily-news-link" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">${h.title}</a>
-                                    <div class="daily-news-source">${h.source || 'News'}${h.published ? ` · ${new Date(h.published).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}</div>
-                                </div>
-                            `).join('')}
+                        <div class="daily-news-mini" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem; letter-spacing: 0.05em;">Related Intelligence</div>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${rawNews.slice(0, 2).map(h => `
+                                    <div class="daily-news-item">
+                                        <a href="${h.link || h.url || '#'}" target="_blank" rel="noopener noreferrer" style="color: var(--text-primary); text-decoration: none; font-size: 0.8rem; line-height: 1.4; display: block; font-weight: 500;" onclick="event.stopPropagation();">
+                                            ${h.title}
+                                        </a>
+                                        <div style="font-size: 0.65rem; color: var(--text-secondary); margin-top: 2px;">
+                                            ${h.publisher || h.source || 'News'}${h.provider_publish_time || h.published ? ` · ${new Date((h.provider_publish_time * 1000) || h.published).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 }
@@ -930,6 +1038,21 @@ async function fetchCosts() {
             document.getElementById('budget-spend').textContent = formatPrice(data.current_spend_usd);
             document.getElementById('budget-remaining').textContent = formatPrice(data.remaining_budget_usd);
 
+            // Update Budget Controls inputs if they are not being edited
+            const toggle = document.getElementById('budget-toggle-checkbox');
+            const amountInput = document.getElementById('budget-amount-input');
+            const totalCard = document.getElementById('budget-total-card');
+            const utilizationCard = document.getElementById('budget-utilization-card');
+
+            if (toggle) toggle.checked = data.budget_enabled;
+            if (amountInput && !amountInput.dataset.editing) {
+                amountInput.value = data.daily_budget_usd.toFixed(2);
+            }
+
+            // Hide/Show cards based on enabled status
+            if (totalCard) totalCard.style.display = data.budget_enabled ? 'block' : 'none';
+            if (utilizationCard) utilizationCard.style.display = data.budget_enabled ? 'block' : 'none';
+
             let breakdownEl = document.getElementById('budget-breakdown');
             if (!breakdownEl) {
                 const spendContainer = document.getElementById('budget-spend').parentElement;
@@ -943,11 +1066,66 @@ async function fetchCosts() {
             breakdownEl.innerHTML = `AI: ${formatPrice(data.llm_spend_usd)} | Uptime: ${formatPrice(data.infrastructure_spend_usd)}`;
 
             const pBar = document.getElementById('budget-progress');
-            pBar.style.width = `${Math.min(data.utilization_pct, 100)}%`;
-            if (data.utilization_pct > 80) pBar.classList.add('danger');
-            else pBar.classList.remove('danger');
+            if (pBar) {
+                pBar.style.width = `${Math.min(data.utilization_pct, 100)}%`;
+                if (data.utilization_pct > 80) pBar.classList.add('danger');
+                else pBar.classList.remove('danger');
+            }
         }
     } catch (e) { }
+}
+
+function initBudgetControls() {
+    const saveBtn = document.getElementById('save-budget-btn');
+    const amountInput = document.getElementById('budget-amount-input');
+    const toggle = document.getElementById('budget-toggle-checkbox');
+
+    if (!saveBtn) return;
+
+    amountInput.addEventListener('focus', () => { amountInput.dataset.editing = 'true'; });
+    amountInput.addEventListener('blur', () => { setTimeout(() => delete amountInput.dataset.editing, 2000); });
+
+    saveBtn.addEventListener('click', async () => {
+        const amount = parseFloat(amountInput.value);
+        const enabled = toggle.checked;
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+
+        try {
+            const res = await fetch('/api/v1/costs/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    daily_budget_usd: amount,
+                    budget_enabled: enabled
+                })
+            });
+
+            if (res.ok) {
+                saveBtn.textContent = '✓ Saved';
+                saveBtn.style.borderColor = 'var(--positive)';
+                saveBtn.style.color = 'var(--positive)';
+                setTimeout(() => {
+                    saveBtn.textContent = 'Save';
+                    saveBtn.style.borderColor = '';
+                    saveBtn.style.color = '';
+                    saveBtn.disabled = false;
+                }, 2000);
+                fetchCosts();
+            } else {
+                throw new Error('Save failed');
+            }
+        } catch (e) {
+            saveBtn.textContent = 'Error';
+            saveBtn.style.borderColor = 'var(--negative)';
+            setTimeout(() => {
+                saveBtn.textContent = 'Save';
+                saveBtn.style.borderColor = '';
+                saveBtn.disabled = false;
+            }, 2000);
+        }
+    });
 }
 
 async function fetchDashboardCosts() {
@@ -1179,10 +1357,21 @@ function updateCard(wrapper, mkt, insight) {
 
     const changeEl = inner.querySelector('.card-change');
     if (changeEl) {
-        const sign = mkt.change_pct >= 0 ? '+' : '';
-        const cClass = mkt.change_pct >= 0 ? 'positive' : 'negative';
-        changeEl.className = `${cClass} card-change`;
-        changeEl.textContent = `${sign}${mkt.change_pct.toFixed(2)}%`;
+        let displayPct = mkt.change_pct;
+        
+        // If we are NOT in 1D view and we have a cached start price, recalculate
+        if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+            const first = periodStartPrices[mkt.ticker];
+            const last = mkt.close_price;
+            displayPct = ((last - first) / first) * 100;
+        }
+
+        const sign = displayPct >= 0 ? '+' : '';
+        const pillClass = displayPct >= 0 ? 'pill-green' : 'pill-red';
+        const cClass = displayPct >= 0 ? 'positive' : 'negative';
+        
+        changeEl.className = `${cClass} card-change ${pillClass}`;
+        changeEl.textContent = `${sign}${displayPct.toFixed(2)}%`;
     }
 
     const insightEl = inner.querySelector('.insight-text');
@@ -1255,9 +1444,18 @@ function cardInnerHtml(mkt, insight) {
         `;
     }
 
-    const isPos = mkt.change_pct >= 0;
+    let displayPct = mkt.change_pct;
+    // If we are NOT in 1D view and we have a cached start price, recalculate
+    if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+        const first = periodStartPrices[mkt.ticker];
+        const last = mkt.close_price;
+        displayPct = ((last - first) / first) * 100;
+    }
+
+    const isPos = displayPct >= 0;
     const sign = isPos ? '+' : '';
     const changeClass = isPos ? 'pill-green' : 'pill-red';
+    const cClass = isPos ? 'positive' : 'negative';
     const signal = insight ? insight.signal : null;
     const sClass = signalClass(signal);
 
@@ -1282,7 +1480,7 @@ function cardInnerHtml(mkt, insight) {
                     <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
                 </div>
                 ${renderExtendedHours(mkt)}
-                <span class="${changeClass} card-change">${sign}${mkt.change_pct.toFixed(2)}%</span>
+                <span class="${cClass} card-change ${changeClass}">${sign}${displayPct.toFixed(2)}%</span>
             </div>
         </div>
         <div class="insight-text" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
@@ -1427,6 +1625,11 @@ function initModal() {
         currentPeriod = btn.dataset.period;
         if (currentModalTicker) loadModalChart(currentModalTicker, currentPeriod);
     });
+
+    document.getElementById('modal-watchlist-btn').addEventListener('click', async () => {
+        if (!currentModalTicker) return;
+        await handleAddFeatured(currentModalTicker, document.getElementById('modal-watchlist-btn'));
+    });
 }
 
 function openModal(ticker) {
@@ -1490,6 +1693,18 @@ function renderModalContent(mkt, insight) {
     const sigBadge = document.getElementById('modal-signal-badge');
     sigBadge.className = `signal-badge ${signal.toLowerCase()}`;
     sigBadge.textContent = signal;
+
+    // Watchlist button
+    const watchBtn = document.getElementById('modal-watchlist-btn');
+    if (lastMarketData[ticker]) {
+        watchBtn.style.display = 'none';
+    } else {
+        watchBtn.style.display = 'block';
+        watchBtn.textContent = '+ Watchlist';
+        watchBtn.disabled = false;
+        watchBtn.style.borderColor = 'rgba(255,255,255,0.1)';
+        watchBtn.style.color = 'var(--text-primary)';
+    }
 
     // Hero stats (price, change, open, high, low)
     renderHeroStats(mkt);
@@ -1591,8 +1806,23 @@ function renderKeyStats(info, mkt) {
 
 function renderModalNews(mkt) {
     const container = document.getElementById('modal-news-list');
-    const links = mkt.headline_links || [];
+    let links = mkt.headline_links || [];
     const headlines = mkt.headlines || [];
+
+    // Check for daily picks news field
+    if (mkt.news) {
+        try {
+            const parsedNews = JSON.parse(mkt.news);
+            if (parsedNews && parsedNews.length > 0) {
+                links = parsedNews.map(n => ({
+                    title: n.title,
+                    url: n.link || n.url,
+                    source: n.publisher || n.source,
+                    published: (n.provider_publish_time * 1000) || n.published
+                }));
+            }
+        } catch(e) { console.error("Modal news parse failed", e); }
+    }
 
     if (links.length > 0) {
         container.innerHTML = links.slice(0, 5).map(h => {
@@ -2128,3 +2358,27 @@ function applyManageFilters() {
     visible.forEach(c => container.appendChild(c));
 }
 
+
+function showToast(message, type = 'positive') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    // Fade in
+    setTimeout(() => toast.classList.add('visible'), 10);
+
+    // Remove after 4s
+    setTimeout(() => {
+        toast.classList.remove('visible');
+        setTimeout(() => toast.remove(), 400);
+    }, 4000);
+}

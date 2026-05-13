@@ -65,14 +65,14 @@ async def lifespan(app: FastAPI):
     scheduler.add_job(
         run_daily_discovery, 
         'cron', 
-        hour=8, 
+        hour='8,20', 
         minute=0, 
         timezone=aest_tz
     )
     scheduler.add_job(
         refresh_discover_movers,
         'cron',
-        hour=8,
+        hour='8,20',
         minute=1,
         timezone=aest_tz
     )
@@ -97,11 +97,24 @@ async def lifespan(app: FastAPI):
                 KeyConditionExpression=Key('ticker').eq('_DAILY_SP500_'),
                 Limit=1
             )
-            if not resp.get('Items'):
-                logger.info("No daily picks found. Running initial Discovery Agent cycle...")
+            items = resp.get('Items', [])
+            should_refresh = False
+            if not items:
+                logger.info("No daily picks found. Initializing...")
+                should_refresh = True
+            else:
+                # Check age
+                from datetime import datetime
+                last_ts = datetime.fromisoformat(items[0]['timestamp'].replace('Z', ''))
+                age_hours = (datetime.utcnow() - last_ts).total_seconds() / 3600
+                if age_hours > 12:
+                    logger.info("Daily picks are stale (>12h). Refreshing...", age=round(age_hours, 1))
+                    should_refresh = True
+            
+            if should_refresh:
                 run_daily_discovery()
             else:
-                logger.info("Daily picks already present in ledger.")
+                logger.info("Daily picks are fresh.")
         except Exception as e:
             logger.error("Startup Discovery check failed", error=str(e))
         # Pre-warm all Discover caches so the tab is populated on first load
