@@ -40,14 +40,20 @@ def fetch_universe_node(state: DiscoveryState) -> dict:
     active = set(get_active_tickers())
     all_candidates = [t for t in MOVERS_UNIVERSE if t.upper() not in {a.upper() for a in active}]
     
-    # Selection of 30 for global coverage
-    random.shuffle(all_candidates)
-    selection = all_candidates[:30]
+    # Selection logic: Partition into 3 distinct pools
+    sp500_candidates = [t for t in all_candidates if "." not in t]
+    intl_candidates = [t for t in all_candidates if "." in t]
     
-    # Logic-based categorization
-    sp500 = [t for t in selection if "." not in t][:10]
-    intl = [t for t in selection if "." in t][:10]
-    gems = [t for t in selection if t not in sp500 and t not in intl][:10]
+    # 1. S&P 500 (US Leaders)
+    sp500 = random.sample(sp500_candidates, min(10, len(sp500_candidates)))
+    
+    # 2. Global Opportunities (Ex-US)
+    intl = random.sample(intl_candidates, min(10, len(intl_candidates)))
+    
+    # 3. Hidden Gems (Everything else - mix of US and International)
+    used = set(sp500 + intl)
+    remaining = [t for t in all_candidates if t not in used]
+    gems = random.sample(remaining, min(10, len(remaining)))
     
     logger.info("Global dynamic universe selected", sp500=len(sp500), international=len(intl), gems=len(gems))
     return {
@@ -167,12 +173,18 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"DATA SET 1: QUANT MODEL (Technicals/Risk):\n{metrics_str}\n\n"
         f"DATA SET 2: RESEARCH DEEP DIVE (Fundamentals/Analyst Targets):\n{research_str}\n\n"
         f"DATA SET 3: RECENT INTELLIGENCE (News):\n{news_str}\n\n"
-        f"Identify exactly 1 S&P 500 leader, 1 'Global Opportunity' (non-US/International), and exactly 1 high-potential 'Hidden Gem'.\n"
-        f"Evaluate 'Quality' (High ROE/Growth), 'Value' (Upside to Target), and 'Technicals' (RSI/SMA dist).\n\n"
-        f"For the 'rationale', write a high-conviction investment thesis (3-4 sentences). "
-        f"Explain WHY the combination of quant signals and fundamental research makes this asset a must-watch today. "
-        f"Avoid generic praise; be specific about the data points provided.\n\n"
-        f"Output MUST be pure JSON matching this schema:\n"
+        f"Identify exactly 3 picks with these STRICT categories:\n"
+        f"1. Category: 'S&P 500' - Pick from: {state.get('sp500_universe', [])}\n"
+        f"2. Category: 'Global Opportunity' - Pick from: {state.get('international_universe', [])}\n"
+        f"3. Category: 'Hidden Gem' - Pick from: {state.get('hidden_gems_universe', [])}\n\n"
+        f"For each pick, provide the following information:.\n\n"
+        f"Explain exactly what the company (use the company name not the ticker) does and how it actually makes its money. Use plain English and absolutely no corporate jargon. .\n\n"
+        f"Why is this stock a 'must-watch' right now? Why do customers choose them over the competition?.\n\n"
+        f"The Health Check (The Numbers Translated): Provide a snapshot of their financials. Explain what the numbers mean in simple terms.\n\n"
+        f"The 'Why Now' Signal (The Catalysts): What recent events, trends, or data points suggest this stock is poised to move in the near future?.\n\n"
+        f"The Catch (Risks): List the top 2 realistic risks that could hurt this company (e.g., changing consumer habits, a specific new competitor). Keep the explanations simple.\n\n"
+        f"The Bottom Line: A one-sentence summary of what kind of person might want to add this stock to their watchlist.\n\n"
+        f"Output MUST be pure JSON matching this schema exactly:\n"
         f"[\n"
         f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
         f"  {{\"ticker\": \"...\", \"category\": \"Global Opportunity\", \"rationale\": \"...\"}},\n"

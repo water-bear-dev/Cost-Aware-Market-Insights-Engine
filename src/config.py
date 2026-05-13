@@ -17,14 +17,24 @@ class Settings(BaseSettings):
     tickers: str = "META,AAPL,AMZN,NFLX,GOOGL"
     
     @model_validator(mode='after')
-    def detect_provider(self) -> 'Settings':
-        # Auto-detect if not explicitly set
+    def detect_environment_networking(self) -> 'Settings':
+        # 1. Auto-detect LLM Provider
         if not self.llm_provider:
-            # Check for AWS execution environment first
             if os.environ.get("AWS_EXECUTION_ENV") or self.environment == "production":
                 self.llm_provider = "bedrock"
             else:
                 self.llm_provider = "ollama"
+        
+        # 2. Smart Networking: Fallback to localhost if running outside Docker
+        # (Checks if we are in a container; if not, maps Docker hostnames to localhost)
+        is_docker = os.path.exists('/.dockerenv')
+        if not is_docker:
+            if self.dynamodb_endpoint_url and "dynamodb-local" in self.dynamodb_endpoint_url:
+                # Map internal 8000 to external 8001 (as per docker-compose.yml)
+                self.dynamodb_endpoint_url = "http://localhost:8001"
+            if self.ollama_url and "host.docker.internal" in self.ollama_url:
+                self.ollama_url = "http://localhost:11434"
+                
         return self
     
     @property
