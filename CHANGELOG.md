@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.1] - 2026-05-13
+
+### Added
+- **Institutional QMJ Screener UI** — Rebuilt the screener as a high-density, glassmorphic grid designed for institutional-grade data analysis.
+    - **Sticky Headers & Scrolling**: Implemented a fixed-height scrollable viewport with sticky headers for 600+ records.
+    - **Z-Score Heatmapping**: Integrated semantic "pills" that color-code assets based on quality metrics (Profitability, Safety, etc.).
+- **High-Performance Filtering & Pagination** — Added client-side state management for fast interactions:
+    - **Local Pagination**: Selectable 25, 50, or 100 rows per page.
+    - **Multi-Factor Search**: Real-time filtering by Ticker, Industry, and Company Name.
+- **Improved UI Error Reporting** — The dashboard now displays specific error messages (e.g., specific fetch failures) instead of generic strings.
+
+### Changed
+- **Standardized API Routing** — Unified the screener endpoints under the `/api/v1` namespace (moving to `/api/v1/screener/qmj`) for architectural consistency.
+
+### Fixed
+- **Critical Pipeline Crash** — Resolved an `IndentationError` in `src/ingestion/financials.py` that caused background ingestion and API startup to fail.
+- **JS ReferenceError** — Added the missing `debounce` utility function to `app.js`, fixing a crash during search interactions.
+- **Network Resilience** — Fixed a routing mismatch between the FastAPI backend and frontend fetch calls that caused "Network Error" alerts.
+
 ## [3.1.0] - 2026-05-13
 
 ### Added

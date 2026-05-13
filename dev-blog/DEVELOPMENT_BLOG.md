@@ -2,8 +2,27 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
-## Entry 49: Institutional Scaling & Universe Decoupling (The "Bleed" Problem)
-*Date: 2026-05-13*
+## Entry 50: The Institutional Grid & The "Network Error" Debug (2026-05-13)
+
+With the analytical universe decoupled and stable, our focus shifted to the UX. A 600-company quantitative screener cannot live in a standard list; it needs the density and scannability of a Bloomberg terminal.
+
+**The Institutional UI Pivot**
+We rebuilt the QMJ Screener from the ground up as a "Glassmorphic Grid." Key design pillars included:
+1.  **Optical Scannability**: Numeric values are right-aligned in monospace for digit-to-digit comparison.
+2.  **Semantic Heatmapping**: Instead of raw numbers, we use "Z-Score Pills." Colors (Amethyst to Ruby) provide an instant visual quality grade before a single digit is read.
+3.  **Sticky Contextualization**: Implemented a `sticky` header architecture within a `max-vh-60` container. This ensures that while scrolling through 600 records, the column labels (Quality, Safety, Value) never disappear.
+
+**The "Network Error" Mystery**
+During the rollout, we encountered a silent backend failure. The dashboard reported a generic "Network error," but the server appeared to be running. Our investigation revealed a two-pronged failure:
+1.  **The Silent Crash**: A single `IndentationError` in a background ingestion script (`financials.py`) was causing the FastAPI instance to fail during the module import phase. Because it happened during import, the server never even started listening on the port.
+2.  **Routing Ambiguity**: We had a discrepancy where some routers used the `/api/v1` prefix in their definitions, while others had it added in `main.py`. We standardized this across the board: every router now defines its local namespace (e.g., `/screener`), and the global `/api/v1` prefix is enforced at the application level.
+
+**JS Resilience & Debouncing**
+Finally, we fixed a `ReferenceError` where a missing `debounce` utility was breaking the search field. By consolidating our utility functions and improving our error `catch` blocks to display `e.message`, we've made the frontend much better at explaining *why* a failure occurred, rather than just alerting a generic error.
+
+This entry marks the completion of our transition from a "Market Watcher" to a "Quantitative Research Tool."
+
+## Entry 49: Institutional Scaling & Universe Decoupling (The "Bleed" Problem) (2026-05-13)
 
 As we successfully scaled the analytical warehouse to support 600+ companies, we encountered a classic data engineering challenge: **Universe Bleed**.
 
@@ -23,8 +42,7 @@ We refactored the bulk ingestion logic into a specialized service (`src/ingestio
 
 This decoupling allows the engine to act as a **Precision Scalpel** for your active portfolio while simultaneously serving as a **Wide-Angle Lens** for global quantitative research.
 
-## Entry 12: The Global Pivot & Auto-Healing Resilience
-*Date: 2026-03-27*
+## Entry 1: The Global Pivot & Auto-Healing Resilience (2026-03-27)
 
 Initially, our roadmap established an aggressive push directly into AWS. Phase 1 included immediately writing CloudFormation templates and spinning up ECS Fargate instances alongside Amazon API Gateways using Cloud Map VPC links. While the architecture was "cost-optimized" by deferring expensive NAT gateways to Phase 5, the timeline forced us into relying on an active AWS billing account starting from commit zero.
 
@@ -33,8 +51,7 @@ Initially, our roadmap established an aggressive push directly into AWS. Phase 1
 By building a local `docker-compose.yml` framework alongside `amazon/dynamodb-local`, we constructed our core backend Python logic—the automated `APScheduler` loop, `yfinance` data extraction algorithms, `pydantic` schemas, and crucial `boto3` wrappers—without locking a single credential.
 
 
-## Entry 2: Enforcing FinOps Guardrails 
-*Date: 2026-03-27*
+## Entry 2: Enforcing FinOps Guardrails  (2026-03-27)
 
 With the structural base implemented, we tackled the primary function of the engine: Cost-Aware AI interaction. Generative models like AWS Bedrock's Claude 3 Haiku charge per token. A runaway system parsing heavy market headlines continuously could easily spike a massive bill. 
 
@@ -43,8 +60,7 @@ We constructed `src/cost_tracking/service.py` which tracks daily spend exactly h
 For Phase 1, we implemented the entire algorithm locally, logging simulated "local-mock" Bedrock expenditures into the database. Now, when Phase 2 moves us into live Bedrock execution, our wallet is perfectly protected. 
 
 
-## Entry 3: Surfacing Analytics via the Dashboard
-*Date: 2026-03-27*
+## Entry 3: Surfacing Analytics via the Dashboard (2026-03-27)
 
 Building an API is fantastic, but visualizing data makes it real. We requested the system natively serve a single-page application from the root endpoint (`/`). 
 
@@ -56,8 +72,7 @@ It gracefully renders out exactly how much our mock AI is costing the system aga
 Phase 2! The foundational algorithms and cost-gate algorithms are stable. The next goal is executing AWS CloudFormation to secure an ECS perimeter and wiring in Anthropic's Claude to read the real Yahoo Finance news feeds on our live UI.
 
 
-## Entry 4: Aggregating Live Market News
-*Date: 2026-03-27*
+## Entry 4: Aggregating Live Market News (2026-03-27)
 
 While `yfinance` provides excellent ticker pricing data, we wanted the Insights Engine to synthesize the latest, most relevant market news from a variety of sources. 
 
@@ -66,8 +81,7 @@ We updated `src/ingestion/service.py` to ping the Google News RSS feed for each 
 This unified headline is then packaged into the DynamoDB `MarketData` item and injected directly into our Phase 1 mock-synthesis response, displaying live news straight on the frontend dashboard without spending a dime on paid news APIs.
 
 
-## Entry 5: Bridging the Cloud MVP via Bedrock and CloudFormation
-*Date: 2026-03-27*
+## Entry 5: Bridging the Cloud MVP via Bedrock and CloudFormation (2026-03-27)
 
 Phase 2 officially pulls the Insights Engine into AWS! Since our foundational local FinOps budget gates were successfully tested in Phase 1, we aggressively updated `src/synthesis/service.py` to implement the `boto3` Bedrock Runtime client. The Python service now automatically packs our aggregated Yahoo Finance / Google News context into an Anthropic Messages API payload, invoking `anthropic.claude-3-haiku-20240307-v1:0` to synthesize stunning, concise market updates. 
 
@@ -83,8 +97,7 @@ Deployment isn't always linear. We hit several real-world AWS hurdles that we qu
 6. **Casing & IAM Hygiene:** Minor bugs like a casing mismatch in Pydantic settings (`AWS_DEFAULT_REGION` vs `aws_default_region`) and missing `ListTables` permissions were caught in the logs and resolved via IAM policy updates.
 
 
-## Entry 6: Entering Milestone 3 - FinOps & Observability
-*Date: 2026-04-13*
+## Entry 6: Entering Milestone 3 - FinOps & Observability (2026-04-13)
 
 Today we executed the highly anticipated Cost Control & FinOps phase of the engine. While Phase 1 successfully gated local spend via DynamoDB mock ledgers, Milestone 3 operationalizes the engine tightly within the AWS ecosystem.
 
@@ -95,8 +108,7 @@ In `infra/cloudformation.yml`, we integrated these FinOps metrics by deploying t
 Lastly, to visualize this raw spend, we built `GET /api/v1/costs/dashboard` inside `src/routes/costs.py`, which performs a rolling 7-day query map against the `CostTracking` table to compute 30-day projected run-rates to feed directly into our UI later transparently.
 
 
-## Entry 7: Completing Milestones 3 & 4 (Production Networking & Advanced FinOps Dashboard)
-*Date: 2026-04-13*
+## Entry 7: Completing Milestones 3 & 4 (Production Networking & Advanced FinOps Dashboard) (2026-04-13)
 
 With the underlying business logic stable, we shifted focus to the interface and the infrastructure. First, we wired the `/api/v1/costs/dashboard` endpoint into our frontend UI by adding a "7-Day Run Rate Analysis" grid to `static/index.html`. Using vanilla JavaScript in `static/app.js`, we established a polling loop to render the 7-day trailing average and the projected 30-day run rate. This provides a transparent, long-term view of our AI spend directly under our daily budget utilization graphs.
 
@@ -108,8 +120,7 @@ Then, we tackled **Milestone 4: Production Security Hardening**. Previously, our
 Our Cost-Aware Market Insights Engine is now a robust, fully-containerized, and enterprise-grade microservice!
 
 
-## Entry 8: Frontend Splitting, TradingView UX, and Dynamic Trackers
-*Date: 2026-04-13*
+## Entry 8: Frontend Splitting, TradingView UX, and Dynamic Trackers (2026-04-13)
 
 As the system grew, it became apparent that the FinOps data (costs, utilization, AWS billing logic) needed a separate psychological space from the actual AI Market Insights outputs. To address this, we executed a massive frontend overhaul guided by the principles of the `@Web Wizard` skills suite. 
 
@@ -123,8 +134,7 @@ Previously, the engine relied on a hard-coded environment variable (`settings.ti
 To make the market data more actionable, we built a `GET /api/v1/market` endpoint and stitched this inside `app.js` alongside our insight queries. Cards now display current price, percentage change (stylized with positive/negative pills), and up to three aggregated Google News headlines for context—acting highly similar to TradingView's ticker cards. Finally, a `Chart.js` canvas aggregates the live asset prices to formulate a comparative portfolio visualization across the active tracked fleet.
 
 
-## Entry 9: Cloud Orchestration Finalization & The Last Mile
-*Date: 2026-04-13*
+## Entry 9: Cloud Orchestration Finalization & The Last Mile (2026-04-13)
 
 With our new tabbed UI and dynamic ticker management system fully operational locally, the final challenge was ensuring our AWS Cloud environment mirrored this complexity without manual intervention. 
 
@@ -146,8 +156,7 @@ The result is a Production-ready, Cost-Aware Market Insights Engine that provide
 Initially, our background synthesis loop was set to 15 minutes to maximize cost safety. However, to enhance the "live" user experience without exceeding our $5.00 daily budget, we calibrated the engine to a **5-minute cadence**. This provides a 3x increase in responsiveness, ensuring that breaking news is synthesized and reflected on the dashboard while maintaining a predictable, sub-penny cost per update.
 
 
-## Entry 10: The Architectural Harvest
-*Date: 2026-04-13*
+## Entry 10: The Architectural Harvest (2026-04-13)
 
 As we wrap up the production launch, it's worth noting how the architecture adapted during the "heat of battle" in the cloud:
 
@@ -156,8 +165,7 @@ As we wrap up the production launch, it's worth noting how the architecture adap
 3. **The UX Filter**: Swapping the "FinOps Dashboard" (our internal pride and joy) to the secondary tab in favor of "AI Insights" was the final lesson in user-centric design—making the tool's value proposition visible at the very first frame.
 
 
-## Entry 11: The Bedrock Blindspot — A CloudWatch Confession
-*Date: 2026-04-13*
+## Entry 11: The Bedrock Blindspot — A CloudWatch Confession (2026-04-13)
 
 After the production launch, the UI kept showing **"Awaiting AI Synthesis"** despite the deployment being confirmed healthy. A CloudWatch log pull revealed the culprit immediately:
 
@@ -184,8 +192,7 @@ This is the kind of "invisible wall" that only shows up in production logs — i
 After deploying the CloudFormation fix, we ran `check_iam.py` (a boto3 verification script) directly against the live AWS account and confirmed all 13 permissions are active on role `market-insights-stack-EcsTaskRole-wV7qUFUhzNOJ`. The new ECS task (`c2b954b5967142fcb3cf896d22bc6d95`) is running with the corrected policy — Bedrock synthesis will fire on the next 5-minute cron cycle.
 
 
-## Entry 12: Bloomberg on a Budget — The v2 UI Overhaul
-*Date: 2026-04-13*
+## Entry 12: Bloomberg on a Budget — The v2 UI Overhaul (2026-04-13)
 
 With the Bedrock IAM fix confirmed, we turned our attention to what the market insights engine *feels* like to use. The v1 UI was functional, but the v2 goal was ambitious: **Bloomberg Terminal-grade interactivity on a sub-$5/day AI budget**.
 
@@ -201,8 +208,7 @@ With the Bedrock IAM fix confirmed, we turned our attention to what the market i
 **Stack Note:** All of this was achieved without adding any new npm packages or backend frameworks. The entire upgrade runs on the existing Fargate pod — zero infrastructure cost delta.
 
 
-## Entry 13: The Dedup Blindspot — Ensuring Full-Portfolio AI Coverage
-*Date: 2026-04-13*
+## Entry 13: The Dedup Blindspot — Ensuring Full-Portfolio AI Coverage (2026-04-13)
 
 After the v2.0.0 UI rollout, we noticed a subtle but important gap: **only one ticker was getting AI synthesis** even though the batch trigger was firing. The root cause was a logic error in `triggerBatchSynthesis()`:
 
@@ -228,8 +234,7 @@ This means on every page load, any ticker that hasn't yet received genuine Claud
 We also added **800ms staggered delays** between batch requests (`setTimeout(() => fetch(...), delay * 800)`) to avoid simultaneously invoking Bedrock for 8–10 tickers at once, which risked throttling errors and disrupted the per-request budget gate logic.
 
 
-## Entry 14: Centralized Control and Better Density
-*Date: 2026-04-13*
+## Entry 14: Centralized Control and Better Density (2026-04-13)
 
 Shortly after the v2 rollout, we received crucial user feedback pointing out a few friction points in the UX:
 1. **Accidental Deletions:** Having a delete 'X' directly on every ticker card made it too easy to accidentally wipe a ticker from the dashboard.
@@ -242,8 +247,7 @@ To fix these without bloating the `app.js`, we implemented "UI V3" (v2.1.0):
 - **Refined Aesthetics:** News links were bumped to a high-contrast `#7dd3fc` with a subtle underline to make their clickability obvious. 
 
 
-## Entry 15: True Chart Zooming and the Invisible Ticker Problem
-*Date: 2026-04-14*
+## Entry 15: True Chart Zooming and the Invisible Ticker Problem (2026-04-14)
 
 During final production validation, we encountered two significant state desync issues and a major scalability risk as we opened up the dashboard.
 
@@ -259,8 +263,7 @@ Opening the deployment exposed raw proxy polling. Given the tight Anthropic Haik
     - Synchronous interactions to `/api/v1/tickers` (Add/Delete/Synthesize) are throttled heavily to 5/minute, enforcing strict application limits and shielding our downstream endpoints.
 
 
-## Entry 16: System Self-Healing and Dark Mode Restoration
-*Date: 2026-04-14*
+## Entry 16: System Self-Healing and Dark Mode Restoration (2026-04-14)
 
 During testing following our recent rate-limiting upgrade, we uncovered two critical issues affecting user experience and data fluidity.
 
@@ -273,8 +276,7 @@ Previously, we established a `pending_data` visual state for tickers that failed
 - In `static/app.js`, we integrated a self-healing automation loop named `triggerBatchIngestion`. When the frontend UI receives tickers flagged with `pending_data`, the interface naturally updates the static text to an animated spinner. Behind the scenes, `triggerBatchIngestion` executes staggered background polling (buffered 2-seconds apart) to seamlessly force upstream metadata loads.
 
 
-## Entry 17: Normalized Financial Visualization & the Cache Trap
-*Date: 2026-04-14*
+## Entry 17: Normalized Financial Visualization & the Cache Trap (2026-04-14)
 
 Our Auto-Recovery "pending" logic worked beautifully on a minor scale, but as users imported massively diverse portfolios, we hit two distinct architectural hurdles.
 
@@ -287,8 +289,7 @@ The Portfolio Summary card previously rendered an aesthetic Pie/Bar component. T
 - Every ticker represents exactly `0%` on day one, and curves beautifully along a unifying Time-Series multi-line grid graph.
 
 
-## Entry 18: Pure Absolute Pricing & Persistent Recovery
-*Date: 2026-04-14*
+## Entry 18: Pure Absolute Pricing & Persistent Recovery (2026-04-14)
 
 Sometimes "mathematically perfect" UI decisions (like percentage normalization) aren't what the user actually needs for their workflow. We pivoted the portfolio chart away from percentages back to absolute USD values. 
 
@@ -301,8 +302,7 @@ The "pending" states were stickier than expected because our previous "one-shot"
 - **Frontend Fix:** We removed the binary "tried once" lock. Tickers now retry every 15 seconds until they succeed, but we added an "active ingestion" guard to prevent parallel hammering of the same ticker within the same cycle.
 
 
-## Entry 19: The Pivot to Simplicity & Robust Fallbacks
-*Date: 2026-04-14*
+## Entry 19: The Pivot to Simplicity & Robust Fallbacks (2026-04-14)
 
 Complexity for complexity's sake often backfires. Our multi-line time-series experiment, while mathematically sound, introduced mapping bugs (the date/time mismatch) and didn't provide the immediate "at-a-glance" value the user wanted.
 
@@ -314,8 +314,7 @@ The primary cause of the persistent "Pending" banners was a reliance on `ticker.
 - **The Solution:** We implemented a prioritized fallback. If history fails, we ping `ticker.fast_info` then `ticker.info` for the `regularMarketPrice`. 
 
 
-## Entry 20: The Invisible Data Problem — DynamoDB Pagination and the Startup Throttle
-*Date: 2026-04-15*
+## Entry 20: The Invisible Data Problem — DynamoDB Pagination and the Startup Throttle (2026-04-15)
 
 After the v2.3.x stabilization pass, a persistent and deceptive bug remained: on every page refresh, only the **first 2–3 tickers** showed live prices. The rest (META, IBM, AMD) were permanently stuck in `pending_data` spinner state despite Bedrock being healthy and insights existing for them.
 
@@ -337,8 +336,7 @@ GET /api/v1/insights → All 5 tickers have real Claude insights ✅ (+ ghost AA
 `GET /api/v1/insights` returned results for any ticker that ever had an insight written. The fix: only query insights for tickers that currently exist in the Tickers table.
 
 
-## Entry 21: The Bloomberg Polish — Bulleted Insights & Terminal UX
-*Date: 2026-04-17*
+## Entry 21: The Bloomberg Polish — Bulleted Insights & Terminal UX (2026-04-17)
 
 While the engine was functionally "concluded" as a production microservice, the gap between a "tool" and a "terminal" lies in the density and readability of its data. We executed a specialized polish phase aimed at achieving **Bloomberg-grade visual hierarchy**.
 
@@ -347,8 +345,7 @@ While the engine was functionally "concluded" as a production microservice, the 
 3. **Analyst Depth & Target Prices:** Surfaced the **Mean Target Price** and hardened the analyst summary parsing.
 
 
-## Entry 22: From "Equity Analyst" to "Investment Assistant"
-*Date: 2026-04-26*
+## Entry 22: From "Equity Analyst" to "Investment Assistant" (2026-04-26)
 
 While the v2.5 phase achieved Bloomberg-level density, user feedback indicated that the language was drifting into "Institutional Jargon." We executed a "friendly polish" to pivot the engine's persona from a cold analyst to a helpful assistant.
 
@@ -358,8 +355,7 @@ While the v2.5 phase achieved Bloomberg-level density, user feedback indicated t
 4. **Friendly UI Labels:** Updated headers to "Quick Stats", "What Experts Say", and "Latest AI Take".
 
 
-## Entry 23: Ticker Autocomplete and the "Clean Exit" Strategy
-*Date: 2026-05-04*
+## Entry 23: Ticker Autocomplete and the "Clean Exit" Strategy (2026-05-04)
 
 As the engine reached a stable production state, we identified two final friction points: the manual entry of stock tickers and the complexity of stopping an AWS deployment.
 
@@ -368,8 +364,7 @@ As the engine reached a stable production state, we identified two final frictio
 3. **Cache Busting:** Implemented a manual versioning system (`?v=6`) for all primary static assets.
 
 
-## Entry 24: Distributed Evolution - The Alpha-DAG and MCP
-*Date: 2026-05-06*
+## Entry 24: Distributed Evolution - The Alpha-DAG and MCP (2026-05-06)
 
 We hit a massive architectural milestone today. We replaced our monolithic architecture with **Phase 2: Alpha-DAG**.
 
@@ -378,8 +373,7 @@ We hit a massive architectural milestone today. We replaced our monolithic archi
 3. **Shadow Deployment:** Exposed a new V2 endpoint for shadow testing.
 
 
-## Entry 25: Fine-Tuning the Discovery Agent — Filtering and FinOps
-*Date: 2026-05-06*
+## Entry 25: Fine-Tuning the Discovery Agent — Filtering and FinOps (2026-05-06)
 
 With the Alpha-DAG architecture in place, we turned our focus to the "Daily Discovery Agent." 
 
@@ -388,15 +382,13 @@ With the Alpha-DAG architecture in place, we turned our focus to the "Daily Disc
 3. **Infrastructure-Aware FinOps:** Updated cost tracking to include fixed infrastructure costs ($0.035/hour).
 
 
-## Entry 26: The Colima Networking Incident
-*Date: 2026-05-06*
+## Entry 26: The Colima Networking Incident (2026-05-06)
 
 **Problem:** Local dashboard was unreachable due to Colima's isolated VM networking.
 **Fix:** Restarted Colima with the `--network-address` flag to provision a bridged interface.
 
 
-## Entry 27: Breaking the AWS Tether — Local AI via Ollama
-*Date: 2026-05-06*
+## Entry 27: Breaking the AWS Tether — Local AI via Ollama (2026-05-06)
 
 We integrated **Ollama** directly into the engine's synthesis layer.
 
@@ -405,8 +397,7 @@ We integrated **Ollama** directly into the engine's synthesis layer.
 3. **Parsing Parity:** Maintained consistent output structures across all providers.
 
 
-## Entry 28: Global Scale and Interactive Visuals
-*Date: 2026-05-07*
+## Entry 28: Global Scale and Interactive Visuals (2026-05-07)
 
 1. **Multi-Currency Infrastructure:** Implemented support for USD, EUR, GBP, AUD, and JPY.
 2. **Interactive Portfolio Storytelling:** Updated charts to support "Jump-to-Modal" actions.
@@ -414,102 +405,88 @@ We integrated **Ollama** directly into the engine's synthesis layer.
 4. **Educational Infrastructure:** Expanded the "How it Works" section.
 
 
-## Entry 29: Closing the Discovery Gap - Structured Rationale and Live Hydration
-*Date: 2026-05-07*
+## Entry 29: Closing the Discovery Gap - Structured Rationale and Live Hydration (2026-05-07)
 
 1. **The Structured Rationale Pivot:** Enforced a 2-point structure for discovery picks.
 2. **Asynchronous Hero Stat Hydration:** Updated discovery modals to fetch live quotes on-demand.
 
 
-## Entry 30: TradingView-Grade Scannability & Multi-LLM Clarity
-*Date: 2026-05-07*
+## Entry 30: TradingView-Grade Scannability & Multi-LLM Clarity (2026-05-07)
 
 1. **Metadata Integration:** Surfaced Exchange and Company Name on dashboard cards.
 2. **Dynamic Currency Pricing:** Implemented the `/meta/rates` service using Yahoo Finance FX API.
 3. **Right-Aligned Pricing:** Optimized spatial layout for rapid scanning.
 
 
-## Entry 31: The "Intraday Momentum" Upgrade
-*Date: 2026-05-07*
+## Entry 31: The "Intraday Momentum" Upgrade (2026-05-07)
 
 1. **The 24-Hour Pulse:** Integrated 24-hour sparklines into every ticker card.
 2. **Breaking the 10-Ticker Ceiling:** Expanded capacity to support **30 tracked tickers**.
 3. **Visualization Polish:** Added static data labels to the portfolio bar chart.
 
 
-## Entry 32: Deep System Stabilization and Global Market Parity
-*Date: 2026-05-07*
+## Entry 32: Deep System Stabilization and Global Market Parity (2026-05-07)
 
 1. **yfinance Multi-Index Patch:** Refactored discovery logic to handle library updates.
 2. **Dynamic Currency Normalization:** Moved beyond hardcoded USD logic for AU and EU markets.
 3. **Frontend Syntax Protection:** Resolved fatal JS errors and hardened backend routes.
 
 
-## Entry 33: Designing the "Discover" Experience
-*Date: 2026-05-07*
+## Entry 33: Designing the "Discover" Experience (2026-05-07)
 
 Restructured the navigation into **Manage** (tracked assets) and **Discover** (global market intelligence hub).
 
 
-## Entry 34: Stability, Redundancy, and the NaN Problem
-*Date: 2026-05-07*
+## Entry 34: Stability, Redundancy, and the NaN Problem (2026-05-07)
 
 1. **NaN Serialization Trap:** Implemented a global `clean_float` utility to prevent JSON errors.
 2. **Chart Restoration:** Fixed field-naming mismatches in the new area chart.
 
 
-## Entry 35: AI Transparency and the "Smart Narrative" Pivot
-*Date: 2026-05-07*
+## Entry 35: AI Transparency and the "Smart Narrative" Pivot (2026-05-07)
 
 Overhauled the discovery rationale into a 3-bullet **Smart Narrative** format grounded in quantitative metrics like momentum and volatility.
 
 
-## Entry 36: Achieving 24-Hour Market Transparency
-*Date: 2026-05-07*
+## Entry 36: Achieving 24-Hour Market Transparency (2026-05-07)
 
 Implemented an explicit "Price Stack" (Close, Pre, and Post market prices) and enforced strict chronological news sorting.
 
 
-## Entry 37: The Localization Battle & JSON Normalization
-*Date: 2026-05-08*
+## Entry 37: The Localization Battle & JSON Normalization (2026-05-08)
 
 1. **Exchange-Aware Formatting:** Overrode currency symbols based on asset exchange (¥, A$, HK$, etc.).
 2. **Defensive Parsing:** Implemented flexible JSON extraction for local Ollama models.
 3. **Pacific Rim Support:** Expanded currency bridge to HKD, CAD, SGD, and NZD.
 
 
-## Entry 38: The Analytical Leap — Global QMJ Screener & Data Lakehouse
-*Date: 2026-05-11*
+## Entry 38: The Analytical Leap — Global QMJ Screener & Data Lakehouse (2026-05-11)
 
 1. **Quantitative Rigor (QMJ):** Implemented the Quality Minus Junk scoring algorithm.
 2. **Open Data Lakehouse:** Adopted dbt Core with DuckDB (Local) and AWS Athena (Cloud).
 3. **Screener Integration:** Introduced a dedicated Screener tab with a high-density table view.
 
 
-## Entry 39: Stabilizing the Global Quality Screener
-*Date: 2026-05-11*
+## Entry 39: Stabilizing the Global Quality Screener (2026-05-11)
 
 Transitioned to a **5-Factor Model** and implemented a fixed-height, scrollable screener table with sticky headers.
 
 
-## Entry 40: The Institutional Pivot — Dashboard Streamlining
-*Date: 2026-05-12*
+## Entry 40: The Institutional Pivot — Dashboard Streamlining (2026-05-12)
 
 1. **Dashboard Streamlining**: Reverted default tracked list to **FAANG** assets.
 2. **Screener Isolation**: Maintained the 600-ticker analytical warehouse in DuckDB/dbt.
 3. **System Stability**: Resolved Python 3.9 compatibility issues.
 
 
-## Entry 41: Resilience Hardening & The "Permissive" Screener
-*Date: 2026-05-12*
+## Entry 41: Resilience Hardening & The "Permissive" Screener (2026-05-12)
 
 1. **Permissive Factor Ranking**: Refactored logic to treat missing factors as neutral.
 2. **Quarterly Fallbacks**: Upgraded ingestion to pivot to quarterly reports if yearly data is missing.
 3. **Mathematical Safety**: Implemented outlier capping in the DuckDB engine.
 
 
-## Entry 42: Dynamic FinOps Budget Controls
-*Date: 2026-05-12*
+## Entry 42: Dynamic FinOps Budget Controls (2026-05-12)
 
 Operationalized the FinOps budget system by moving from static environment variables to a **persistent runtime configuration** layer.
 
@@ -518,8 +495,7 @@ Operationalized the FinOps budget system by moving from static environment varia
 3. **Interactive Budget UI**: Injected a glassmorphic control panel into the Costs view, featuring a sleek budget toggle and numeric dollar limit input with real-time backend synchronization.
 4. **Dynamic Enforcement**: Refactored the `check_budget` service to prioritize these dynamic database settings, enabling instantaneous global control over AI spending pipelines.
 
-## Entry 43: Discovery Agent Revamp — High-Conviction Intelligence
-*Date: 2026-05-13*
+## Entry 43: Discovery Agent Revamp — High-Conviction Intelligence (2026-05-13)
 
 Elevated the Daily Discovery Agent from a simple ticker picker to a high-utility investment tool.
 
@@ -528,8 +504,7 @@ Elevated the Daily Discovery Agent from a simple ticker picker to a high-utility
 3. **Intelligence Integration**: Bridged the gap between raw news and AI picks by embedding live news feeds directly into the discovery cards and modals, providing immediate context for the agent's selections.
 4. **Frictionless Acquisition**: Integrated an "Add to Watchlist" button directly into the ticker detail modal, allowing users to move from "Discovering" to "Tracking" in a single interaction.
 
-## Entry 44: Discovery Agent Stabilization — Environment-Aware AI & Intelligence Injection
-*Date: 2026-05-13*
+## Entry 44: Discovery Agent Stabilization — Environment-Aware AI & Intelligence Injection (2026-05-13)
 
 Hardened the Discovery Agent's reliability and intelligence to ensure it remains the "brain" of the engine regardless of deployment context.
 
@@ -538,8 +513,7 @@ Hardened the Discovery Agent's reliability and intelligence to ensure it remains
 3. **Robust UI Rendering**: Fixed a critical rendering issue where news headlines weren't appearing in the ticker detail modal for discovery picks. Updated the frontend to handle the JSON-formatted news objects stored in the discovery ledger.
 4. **Intelligent Freshness**: Added a "Stale Check" on startup. If the discovery picks are older than 12 hours, the engine force-triggers a refresh immediately, preventing the dashboard from displaying outdated "Hidden Gems" after a long period of inactivity.
 
-## Entry 45: The Intelligence Pivot — Quant + Research Consensus
-*Date: 2026-05-13*
+## Entry 45: The Intelligence Pivot — Quant + Research Consensus (2026-05-13)
 
 Transformed the Discovery Agent from a momentum-based picker into a high-conviction research engine by integrating specialized multi-modal nodes into the Alpha-DAG.
 
@@ -549,8 +523,7 @@ Transformed the Discovery Agent from a momentum-based picker into a high-convict
 4. **High-Frequency Refresh & Sampling**: Shifted to a **12-hour refresh cycle** (8 AM / 8 PM AEST) with dynamic universe sampling from 75+ global movers. The dashboard now feels "alive" twice a day with fresh, data-backed institutional-grade insights.
 5. **UI Integration**: Surfaced the new technical metrics directly on discovery cards and integrated "Add to Watchlist" functionality into the research modals, closing the loop between discovery and tracking.
 
-## Entry 46: User Empowerment — Force-Refresh & Interactive Feedback
-*Date: 2026-05-13*
+## Entry 46: User Empowerment — Force-Refresh & Interactive Feedback (2026-05-13)
 
 Finalized the modernization of the Discovery tab by giving users direct control over the intelligence pipeline and improving the overall interactive experience.
 
@@ -559,8 +532,7 @@ Finalized the modernization of the Discovery tab by giving users direct control 
 3.  **Real-Time Feedback (Toast System)**: Implemented a sleek toast notification system. Users now receive immediate, non-intrusive confirmation when a refresh is triggered or when an asset is added to their watchlist.
 4.  **Operational Polish**: Hardened the refresh logic with a 2-run-per-minute rate limit to prevent API abuse while ensuring the frontend remains responsive with "Refining..." loading states during heavy DAG execution.
 
-## Entry 47: Stabilization and the Python 3.9 Compatibility Barrier
-*Date: 2026-05-13*
+## Entry 47: Stabilization and the Python 3.9 Compatibility Barrier (2026-05-13)
 
 During the rollout of the Force-Refresh feature, we encountered a series of critical "silent failures" that highlighted the challenges of maintaining a local development environment that mirrors a production Python 3.9 stack.
 
@@ -569,8 +541,7 @@ During the rollout of the Force-Refresh feature, we encountered a series of crit
 3.  **Local vs Docker Networking**: We resolved a connection desync where the application was attempting to reach `http://dynamodb-local:8000` while running natively on the host Mac. We standardized the `.env` to use `localhost:8001` for native runs (mapping to the Docker database port), while maintaining service-name support for containerized runs.
 4.  **Non-blocking Background Refreshes**: We refactored the manual refresh route to move both the cache invalidation and the DAG execution into a background thread. This prevents "504 Gateway Timeouts" and keeps the UI snappy while the system performs heavy data ingestion.
 
-## Entry 48: UX Refinement — Tactile Feedback and Cooldowns
-*Date: 2026-05-13*
+## Entry 48: UX Refinement — Tactile Feedback and Cooldowns (2026-05-13)
 
 With the backend stabilized, we polished the UI to feel more like a professional terminal.
 

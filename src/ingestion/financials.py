@@ -145,14 +145,3 @@ def run_qmj_pipeline():
 
 if __name__ == "__main__":
     run_qmj_pipeline()
-      text=True
-        )
-        if result.returncode == 0:
-            logger.info("dbt run successful")
-        else:
-            logger.error("dbt run failed", error=result.stderr)
-    except Exception as e:
-        logger.error("Failed to run dbt pipeline", error=str(e))
-
-if __name__ == "__main__":
-    run_qmj_pipeline()

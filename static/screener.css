@@ -1,0 +1,202 @@
+/* =====================================================
+   Screener Table & Pagination
+   ===================================================== */
+.screener-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.screener-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #1e293b;
+    padding: 1rem 0.75rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.screener-table thead th:hover {
+    background: #2d3a4f;
+    color: var(--text-primary);
+}
+
+.screener-table thead th.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+}
+
+.screener-table th.numeric,
+.screener-table td.numeric {
+    text-align: right;
+}
+
+.screener-table td {
+    padding: 0.85rem 0.75rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.screener-table tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.highlight-col {
+    background: rgba(14, 165, 233, 0.03);
+}
+
+.screener-ticker {
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.screener-company {
+    font-weight: 500;
+    color: var(--text-primary);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.z-pill {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 45px;
+    text-align: center;
+}
+
+/* Z-Score Heatmap */
+.z-extreme-pos { background: rgba(16, 185, 129, 0.3); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+.z-pos { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.z-neutral { background: rgba(148, 163, 184, 0.1); color: var(--text-secondary); }
+.z-neg { background: rgba(244, 63, 94, 0.15); color: #f43f5e; }
+.z-extreme-neg { background: rgba(244, 63, 94, 0.3); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+/* Table Footer & Pagination */
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(15, 23, 42, 0.4);
+    border-radius: 0 0 16px 16px;
+}
+
+.footer-info {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.footer-controls {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.page-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.size-btn {
+    background: transparent;
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.size-btn:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.size-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.pagination-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.page-num {
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.page-num:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.page-num.active {
+    color: var(--accent);
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.page-ellipsis {
+    color: var(--text-secondary);
+    padding: 0 0.25rem;
+}

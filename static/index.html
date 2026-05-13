@@ -11,7 +11,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <link rel="stylesheet" href="/static/style.css?v=7">
+    <link rel="stylesheet" href="/static/screener.css?v=1">
 </head>
+
 <body>
 
     <div class="background-glob"></div>
@@ -246,7 +248,7 @@
                         <option value="asx">ASX</option>
                     </select>
                     
-                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-left: 1rem;">Period Filter:</span>
+                    <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-left: 1rem;">Period:</span>
                     <select id="qmj-filter-year" class="glass-input" style="width: auto;"></select>
                     <select id="qmj-filter-quarter" class="glass-input" style="width: auto;">
                         <option value="">All Quarters</option>
@@ -257,43 +259,69 @@
                     </select>
                 </div>
                 <div style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="text" id="qmj-search" class="glass-input" placeholder="Search Ticker/Industry..." style="flex: 1; min-width: 200px;" />
                     <select id="screener-currency" class="glass-input" style="width: auto;">
                         <option value="USD">USD ($)</option>
                         <option value="AUD">AUD (A$)</option>
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
                         <option value="JPY">JPY (¥)</option>
-                        <option value="HKD">HKD (HK$)</option>
                     </select>
-                    <input type="text" id="qmj-search" class="glass-input" placeholder="Filter by Ticker/Industry..." style="flex: 1; min-width: 200px;" />
                 </div>
             </div>
 
-            <div class="glass" style="padding: 0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: 600px;">
-                <div style="overflow-x: auto; overflow-y: auto; flex: 1;" class="custom-scrollbar">
+            <div class="glass" style="padding: 0; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05);">
+                <div style="overflow-x: auto; flex: 1;" class="custom-scrollbar">
                     <table class="screener-table" id="qmj-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                        <thead style="position: sticky; top: 0; z-index: 10; background: var(--bg-card); backdrop-filter: blur(10px);">
+                        <thead>
                             <tr>
-                                <th class="sortable" data-sort="ticker" style="text-align:left; padding: 1rem;">Ticker ↕</th>
-                                <th class="sortable" data-sort="company_name" style="text-align:left; padding: 1rem;">Company ↕</th>
-                                <th class="sortable" data-sort="report_date" style="text-align:left; padding: 1rem;">Report Date ↕</th>
-                                <th class="sortable" data-sort="industry" style="text-align:left; padding: 1rem;">Industry ↕</th>
-                                <th class="sortable" data-sort="market_cap" style="text-align:right; padding: 1rem;">Market Cap ↕</th>
-                                <th class="sortable" data-sort="qmj_score" style="text-align:right; color: var(--accent); padding: 1rem;" title="Quality Minus Junk: Composite Z-score of Profitability, Growth, Safety, Value, and Momentum. Higher is better.">QMJ Score ↕</th>
-                                <th class="sortable" data-sort="z_prof" style="text-align:right; padding: 1rem;" title="Profitability Z-score: Measured by ROE, GP/Assets, and Cash Flow.">Prof (Z) ↕</th>
-                                <th class="sortable" data-sort="z_growth" style="text-align:right; padding: 1rem;" title="Growth Z-score: Measured by 5-year growth in Profitability metrics.">Growth (Z) ↕</th>
-                                <th class="sortable" data-sort="z_safety" style="text-align:right; padding: 1rem;" title="Safety Z-score: Measured by Low Beta, Low Leverage, and Low Volatility.">Safety (Z) ↕</th>
-                                <th class="sortable" data-sort="z_value" style="text-align:right; padding: 1rem;" title="Valuation Z-score: Measured by Earnings Yield (Net Income / Market Cap).">Value (Z) ↕</th>
-                                <th class="sortable" data-sort="z_mom" style="text-align:right; padding: 1rem;" title="12-Month Momentum Z-score: Price change over the last year.">Mom (Z) ↕</th>
+                                <th class="sortable" data-sort="ticker">Ticker ↕</th>
+                                <th class="sortable" data-sort="company_name">Company ↕</th>
+                                <th class="sortable" data-sort="report_date">Reported ↕</th>
+                                <th class="sortable" data-sort="industry">Industry ↕</th>
+                                <th class="sortable numeric" data-sort="market_cap">Market Cap ↕</th>
+                                <th class="sortable numeric highlight-col" data-sort="qmj_score" title="Quality Minus Junk: Composite Z-score. Higher is better.">QMJ Score ↕</th>
+                                <th class="sortable numeric" data-sort="z_prof" title="Profitability Z-score (GP/Assets).">Prof ↕</th>
+                                <th class="sortable numeric" data-sort="z_growth" title="Growth Z-score (YoY Profitability).">Growth ↕</th>
+                                <th class="sortable numeric" data-sort="z_safety" title="Safety Z-score (Low Leverage).">Safety ↕</th>
+                                <th class="sortable numeric" data-sort="z_value" title="Value Z-score (Earnings Yield).">Value ↕</th>
+                                <th class="sortable numeric" data-sort="z_mom" title="12M Momentum Z-score.">Mom ↕</th>
                             </tr>
                         </thead>
                         <tbody id="qmj-table-body">
-                            <tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading screener data...</td></tr>
+                            <tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">
+                                <div class="pulse-animation" style="font-size: 1.1rem;">Initializing Quantitative Warehouse...</div>
+                            </td></tr>
                         </tbody>
                     </table>
                 </div>
+                
+                <!-- Pagination Footer -->
+                <div class="table-footer glass">
+                    <div class="footer-info">
+                        <span id="qmj-pagination-info">Showing 0-0 of 0 companies</span>
+                    </div>
+                    <div class="footer-controls">
+                        <div class="page-size-selector">
+                            <span class="dim-label">Rows per page:</span>
+                            <button class="size-btn" data-size="25">25</button>
+                            <button class="size-btn active" data-size="50">50</button>
+                            <button class="size-btn" data-size="100">100</button>
+                        </div>
+                        <div class="pagination-buttons">
+                            <button id="qmj-prev-page" class="nav-btn" disabled>
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                            </button>
+                            <div id="qmj-page-numbers" class="page-numbers"></div>
+                            <button id="qmj-next-page" class="nav-btn">
+                                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
+
 
         <!-- FinOps Section -->
         <section id="finops-view" class="tab-content">

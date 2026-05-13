@@ -170,7 +170,7 @@ app.include_router(market.router, prefix="/api/v1")
 app.include_router(v2_dag.router, prefix="/api/v2/tickers")
 app.include_router(meta.router, prefix="/api/v1")
 app.include_router(discover.router, prefix="/api/v1")
-app.include_router(screener.router)
+app.include_router(screener.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn

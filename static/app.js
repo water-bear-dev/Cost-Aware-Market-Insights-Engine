@@ -124,6 +124,18 @@ function formatLargePrice(value, tickerCurrency = 'USD') {
     return formatPrice(value, tickerCurrency);
 }
 
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
 function renderExtendedHours(mkt) {
     // Standardize field names across different API objects
     const pre = mkt.pre_market_price || mkt.preMarketPrice;
@@ -216,11 +228,14 @@ function initTabs() {
 }
 
 /* =====================================================
-   Screener (QMJ)
+   QMJ Screener — Redesigned Institutional Grid
    ===================================================== */
 let allQmjData = [];
+let filteredQmjData = [];
 let qmjSortKey = 'qmj_score';
 let qmjSortDir = 'desc';
+let qmjCurrentPage = 1;
+let qmjPageSize = 50;
 
 async function fetchQMJScreener() {
     const tbody = document.getElementById('qmj-table-body');
@@ -229,7 +244,6 @@ async function fetchQMJScreener() {
     const universe = document.getElementById('qmj-filter-universe')?.value || 'all';
 
     try {
-        allQmjData = []; // Clear old data to prevent mixing
         const res = await fetch(`/api/v1/screener/qmj?universe=${universe}`);
         if (res.ok) {
             const data = await res.json();
@@ -237,21 +251,22 @@ async function fetchQMJScreener() {
                 allQmjData = data.data;
                 populateQmjFilters(allQmjData);
                 initQmjTableEvents();
-                renderQMJScreener();
+                applyQmjFilters();
             } else {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>';
             }
         } else {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--negative);">Failed to load screener data.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--negative);">Failed to load screener data.</td></tr>';
         }
     } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 3rem; color: var(--negative);">Network error.</td></tr>';
+        console.error("Screener fetch failed:", e);
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--negative);">Network error: ${e.message}</td></tr>`;
     }
 }
 
 function populateQmjFilters(data) {
     const yearSelect = document.getElementById('qmj-filter-year');
-    if (!yearSelect) return;
+    if (!yearSelect || yearSelect.options.length > 0) return;
 
     const yearCounts = data.reduce((acc, d) => {
         acc[d.reporting_year] = (acc[d.reporting_year] || 0) + 1;
@@ -261,7 +276,6 @@ function populateQmjFilters(data) {
     const years = Object.keys(yearCounts).sort((a, b) => b - a);
     yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
 
-    // Set default to year with the most data (usually the most recent full year)
     let bestYear = years[0];
     let maxCount = 0;
     for (const y of years) {
@@ -273,23 +287,44 @@ function populateQmjFilters(data) {
     if (years.length > 0) yearSelect.value = bestYear;
 }
 
-
 function initQmjTableEvents() {
     const search = document.getElementById('qmj-search');
     const year = document.getElementById('qmj-filter-year');
     const quarter = document.getElementById('qmj-filter-quarter');
     const universe = document.getElementById('qmj-filter-universe');
+    const currency = document.getElementById('screener-currency');
 
-    if (search && !search.hasListener) {
-        search.addEventListener('input', renderQMJScreener);
-        year.addEventListener('change', renderQMJScreener);
-        quarter.addEventListener('change', renderQMJScreener);
-        universe.addEventListener('change', fetchQMJScreener);
-        search.hasListener = true;
+    if (search && !search.dataset.hooked) {
+        search.addEventListener('input', debounce(() => { qmjCurrentPage = 1; applyQmjFilters(); }, 300));
+        year.addEventListener('change', () => { qmjCurrentPage = 1; applyQmjFilters(); });
+        quarter.addEventListener('change', () => { qmjCurrentPage = 1; applyQmjFilters(); });
+        universe.addEventListener('change', () => { qmjCurrentPage = 1; fetchQMJScreener(); });
+        if (currency) currency.addEventListener('change', renderQMJScreener);
+        search.dataset.hooked = "true";
+
+        // Pagination nav
+        document.getElementById('qmj-prev-page')?.addEventListener('click', () => {
+            if (qmjCurrentPage > 1) { qmjCurrentPage--; renderQMJScreener(); }
+        });
+        document.getElementById('qmj-next-page')?.addEventListener('click', () => {
+            const max = Math.ceil(filteredQmjData.length / qmjPageSize);
+            if (qmjCurrentPage < max) { qmjCurrentPage++; renderQMJScreener(); }
+        });
+
+        // Page size buttons
+        document.querySelectorAll('.size-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                qmjPageSize = parseInt(btn.dataset.size);
+                qmjCurrentPage = 1;
+                renderQMJScreener();
+            });
+        });
     }
 
     document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
-        if (!th.hasListener) {
+        if (!th.dataset.hooked) {
             th.addEventListener('click', () => {
                 const key = th.dataset.sort;
                 if (qmjSortKey === key) {
@@ -298,20 +333,19 @@ function initQmjTableEvents() {
                     qmjSortKey = key;
                     qmjSortDir = 'desc';
                 }
-                renderQMJScreener();
+                applyQmjFilters();
             });
-            th.hasListener = true;
+            th.dataset.hooked = "true";
         }
     });
 }
 
-function renderQMJScreener() {
-    const tbody = document.getElementById('qmj-table-body');
+function applyQmjFilters() {
     const query = document.getElementById('qmj-search')?.value.toLowerCase().trim() || '';
     const year = document.getElementById('qmj-filter-year')?.value || '';
     const quarter = document.getElementById('qmj-filter-quarter')?.value || '';
 
-    let filtered = allQmjData.filter(d => {
+    filteredQmjData = allQmjData.filter(d => {
         const matchQuery = !query ||
             d.ticker.toLowerCase().includes(query) ||
             d.company_name.toLowerCase().includes(query) ||
@@ -322,63 +356,104 @@ function renderQMJScreener() {
     });
 
     // Sort
-    filtered.sort((a, b) => {
+    filteredQmjData.sort((a, b) => {
         let valA = a[qmjSortKey];
         let valB = b[qmjSortKey];
-
         if (typeof valA === 'string') {
             return qmjSortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
         }
-        return qmjSortDir === 'asc' ? valA - valB : valB - valA;
+        return qmjSortDir === 'asc' ? (valA || 0) - (valB || 0) : (valB || 0) - (valA || 0);
     });
 
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 2rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
-        return;
+    renderQMJScreener();
+}
+
+function renderQMJScreener() {
+    const tbody = document.getElementById('qmj-table-body');
+    const paginationInfo = document.getElementById('qmj-pagination-info');
+    if (!tbody) return;
+
+    const total = filteredQmjData.length;
+    const totalPages = Math.ceil(total / qmjPageSize) || 1;
+    if (qmjCurrentPage > totalPages) qmjCurrentPage = totalPages;
+
+    const startIdx = (qmjCurrentPage - 1) * qmjPageSize;
+    const endIdx = Math.min(startIdx + qmjPageSize, total);
+    const pageData = filteredQmjData.slice(startIdx, endIdx);
+
+    paginationInfo.innerText = total > 0 ? `Showing ${startIdx + 1}-${endIdx} of ${total} companies` : 'Showing 0-0 of 0 companies';
+
+    if (total === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
+    } else {
+        tbody.innerHTML = pageData.map(row => {
+            return `
+                <tr onclick="openTickerModal('${row.ticker}')" style="cursor:pointer;">
+                    <td><span class="screener-ticker">${row.ticker}</span></td>
+                    <td><div class="screener-company" title="${row.company_name}">${row.company_name}</div></td>
+                    <td style="font-size:0.75rem; color:var(--text-secondary);">${row.report_date}</td>
+                    <td style="font-size:0.75rem;">${row.industry}</td>
+                    <td class="numeric" style="font-family: monospace;">${formatLargePrice(row.market_cap, 'USD')}</td>
+                    <td class="numeric highlight-col">${renderZPill(row.qmj_score, true)}</td>
+                    <td class="numeric">${renderZPill(row.z_prof)}</td>
+                    <td class="numeric">${renderZPill(row.z_growth)}</td>
+                    <td class="numeric">${renderZPill(row.z_safety)}</td>
+                    <td class="numeric">${renderZPill(row.z_value)}</td>
+                    <td class="numeric">${renderZPill(row.z_mom)}</td>
+                </tr>
+            `;
+        }).join('');
     }
 
-    tbody.innerHTML = filtered.map(row => `
-        <tr>
-            <td>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span style="font-weight: 700; color: var(--text-primary);">${row.ticker}</span>
-                    <span style="font-size: 0.65rem; color: var(--accent); background: rgba(255,255,255,0.05); padding: 0.1rem 0.3rem; border-radius: 4px;">${row.exchange}</span>
-                </div>
-            </td>
-            <td>
-                <div style="font-size: 0.85rem; color: var(--text-secondary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${row.company_name}</div>
-            </td>
-            <td style="font-size: 0.8rem; color: var(--text-secondary);">${new Date(row.report_date).toLocaleDateString()}</td>
-            <td>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); opacity: 0.8;">${row.industry}</div>
-                <div style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase;">${row.sector}</div>
-            </td>
-            <td style="text-align: right; font-size: 0.85rem; color: var(--text-secondary);">${formatLargePrice(row.market_cap)}</td>
-            <td style="text-align: right;">
-                <div style="font-weight: 700; color: var(--accent); font-size: 1.1rem;">${row.qmj_score ? row.qmj_score.toFixed(2) : '—'}</div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Composite Z</div>
-            </td>
-            <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_prof !== null && row.z_prof !== undefined ? row.z_prof.toFixed(2) : '—'}</div>
-            </td>
-            <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_growth !== null && row.z_growth !== undefined ? row.z_growth.toFixed(2) : '—'}</div>
-            </td>
-            <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_safety !== null && row.z_safety !== undefined ? row.z_safety.toFixed(2) : '—'}</div>
-            </td>
-            <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_value !== null && row.z_value !== undefined ? row.z_value.toFixed(2) : '—'}</div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Z-Value</div>
-            </td>
-            <td style="text-align: right;">
-                <div style="font-size: 0.9rem; color: var(--text-primary);">${row.z_mom !== null && row.z_mom !== undefined ? row.z_mom.toFixed(2) : '—'}</div>
-                <div style="font-size: 0.6rem; color: var(--text-secondary); text-transform: uppercase;">Z-Momentum</div>
-            </td>
-        </tr>
-    `).join('');
+    renderQmjPagination(totalPages);
+    updateSortUI();
+}
 
-    // Update sort headers UI
+function renderZPill(val, isLarge = false) {
+    if (val === null || val === undefined) return '<span class="dim-label">-</span>';
+    let cls = 'z-neutral';
+    if (val >= 1.5) cls = 'z-extreme-pos';
+    else if (val >= 0.5) cls = 'z-pos';
+    else if (val <= -1.5) cls = 'z-extreme-neg';
+    else if (val <= -0.5) cls = 'z-neg';
+    return `<span class="z-pill ${cls}" ${isLarge ? 'style="font-size:0.85rem; padding: 0.3rem 0.6rem;"' : ''}>${val.toFixed(2)}</span>`;
+}
+
+function renderQmjPagination(totalPages) {
+    const pageNumbers = document.getElementById('qmj-page-numbers');
+    if (!pageNumbers) return;
+
+    const prevBtn = document.getElementById('qmj-prev-page');
+    const nextBtn = document.getElementById('qmj-next-page');
+    if (prevBtn) prevBtn.disabled = qmjCurrentPage === 1;
+    if (nextBtn) nextBtn.disabled = qmjCurrentPage === totalPages || totalPages === 0;
+
+    let html = '';
+    const maxVisible = 5;
+    if (totalPages <= maxVisible + 2) {
+        for (let i = 1; i <= totalPages; i++) html += `<div class="page-num ${i === qmjCurrentPage ? 'active' : ''}" onclick="goToQmjPage(${i})">${i}</div>`;
+    } else {
+        html += `<div class="page-num ${1 === qmjCurrentPage ? 'active' : ''}" onclick="goToQmjPage(1)">1</div>`;
+        if (qmjCurrentPage > 3) html += '<span class="page-ellipsis">...</span>';
+        let start = Math.max(2, qmjCurrentPage - 1);
+        let end = Math.min(totalPages - 1, qmjCurrentPage + 1);
+        if (qmjCurrentPage <= 3) end = 4;
+        if (qmjCurrentPage >= totalPages - 2) start = totalPages - 3;
+        for (let i = start; i <= end; i++) html += `<div class="page-num ${i === qmjCurrentPage ? 'active' : ''}" onclick="goToQmjPage(${i})">${i}</div>`;
+        if (qmjCurrentPage < totalPages - 2) html += '<span class="page-ellipsis">...</span>';
+        html += `<div class="page-num ${totalPages === qmjCurrentPage ? 'active' : ''}" onclick="goToQmjPage(${totalPages})">${totalPages}</div>`;
+    }
+    pageNumbers.innerHTML = html;
+}
+
+window.goToQmjPage = function (n) {
+    qmjCurrentPage = n;
+    renderQMJScreener();
+    const table = document.querySelector('#qmj-table');
+    if (table) table.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+function updateSortUI() {
     document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
         th.classList.remove('active');
         if (th.dataset.sort === qmjSortKey) {
@@ -389,6 +464,7 @@ function renderQMJScreener() {
         }
     });
 }
+
 
 /* =====================================================
    Control Bars (Manage & Density)
@@ -476,7 +552,7 @@ function initControls() {
 
             // 3. Start refresh
             showToast("System refresh triggered...", "info");
-            
+
             try {
                 // Trigger backend refreshes (Market Caches Only)
                 await Promise.all([
@@ -516,7 +592,7 @@ async function refreshTickerSparkline(ticker, period) {
             if (closes.length > 0) {
                 const first = closes[0];
                 const last = closes[closes.length - 1];
-                
+
                 // Store the starting price for this period
                 periodStartPrices[ticker] = first;
 
@@ -534,7 +610,7 @@ async function refreshTickerSparkline(ticker, period) {
                         const sign = changePct >= 0 ? '+' : '';
                         const pillClass = changePct >= 0 ? 'pill-green' : 'pill-red';
                         const cClass = changePct >= 0 ? 'positive' : 'negative';
-                        
+
                         // We use the same classes as updateCard/cardInnerHtml
                         changeEl.className = `${cClass} card-change ${pillClass}`;
                         changeEl.textContent = `${sign}${changePct.toFixed(2)}%`;
@@ -884,7 +960,7 @@ async function fetchDailyPicks() {
             if (needsHealing && !window._isDiscoveryHealing) {
                 console.log("Discovery Agent: AI synthesis missing. Starting 30s auto-healing loop...");
                 window._isDiscoveryHealing = true;
-                
+
                 const tickers = data.map(p => p.actual_ticker);
                 triggerTargetedRefresh(tickers);
 
@@ -1360,7 +1436,7 @@ function updateCard(wrapper, mkt, insight) {
     const changeEl = inner.querySelector('.card-change');
     if (changeEl) {
         let displayPct = mkt.change_pct;
-        
+
         // If we are NOT in 1D view and we have a cached start price, recalculate
         if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
             const first = periodStartPrices[mkt.ticker];
@@ -1371,7 +1447,7 @@ function updateCard(wrapper, mkt, insight) {
         const sign = displayPct >= 0 ? '+' : '';
         const pillClass = displayPct >= 0 ? 'pill-green' : 'pill-red';
         const cClass = displayPct >= 0 ? 'positive' : 'negative';
-        
+
         changeEl.className = `${cClass} card-change ${pillClass}`;
         changeEl.textContent = `${sign}${displayPct.toFixed(2)}%`;
     }
@@ -1823,7 +1899,7 @@ function renderModalNews(mkt) {
                     published: (n.provider_publish_time * 1000) || n.published
                 }));
             }
-        } catch(e) { console.error("Modal news parse failed", e); }
+        } catch (e) { console.error("Modal news parse failed", e); }
     }
 
     if (links.length > 0) {
@@ -2028,7 +2104,9 @@ function renderAnalystBar(summary) {
         </div>
     `).join('');
 }
+
 function formatInsight(text, limit = null) {
+
     if (!text) return '';
 
     // Handle array input (sometimes returned by discovery agent)

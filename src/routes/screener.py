@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from src.clients.warehouse_client import warehouse_client
 
-router = APIRouter(prefix="/api/v1/screener", tags=["screener"])
+router = APIRouter(prefix="/screener", tags=["screener"])
 
 @router.get("/qmj")
 def get_qmj_screener(universe: str = None):
