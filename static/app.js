@@ -953,14 +953,38 @@ async function fetchDailyPicks() {
                     rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; opacity: 0.5; margin: 0; padding: 1rem 0;">Analysis synthesis in progress...</p>`;
                 }
 
+
+                // 4. Handle News (Catalysts)
+                let catalystsHtml = '';
+                if (pick.news) {
+                    try {
+                        const news = typeof pick.news === 'string' ? JSON.parse(pick.news) : pick.news;
+                        if (news && news.length > 0) {
+                            catalystsHtml = `
+                                <div class="discovery-catalysts">
+                                    <div class="catalyst-label">Recent News</div>
+                                    <div class="catalyst-list">
+                                        ${news.map(n => `
+                                            <div class="catalyst-item">
+                                                <span class="catalyst-publisher">${n.publisher || 'NEWS'}</span>
+                                                <a href="${n.link}" target="_blank" class="catalyst-link" onclick="event.stopPropagation()">${n.title}</a>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } catch (e) { console.warn("Failed to parse news for Discovery pick", e); }
+                }
+
                 return `
-                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 480px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
+                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 560px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.1em; color: ${categoryColor}; font-weight: 800;">${pick.category}</span>
                         <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start;">
                             <span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.05em; opacity: 0.8;">${formatExchange(pick.exchange)}</span>
                             <h3 class="metric-value text-gradient-purple" style="font-size: 2.2rem; line-height: 1; letter-spacing: -1.5px; margin: 0; font-weight: 900;">${pick.actual_ticker}</h3>
@@ -973,19 +997,23 @@ async function fetchDailyPicks() {
                                 <span style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px;">${formatPrice(price, pick.currency || 'USD')}</span>
                             </div>
                             ${renderExtendedHours(pick)}
-                            <button class="glass-btn primary" style="padding: 0.4rem 1rem; font-size: 0.65rem; border-radius: 8px; margin-top: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
-                                    onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
-                                + Track
-                            </button>
                         </div>
                     </div>
 
-                    <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.5rem; flex-grow: 1;">
+                    <div style="flex: 1;">
                         ${rationaleHtml}
                     </div>
 
-                    <div style="font-size:0.7rem; color:var(--accent); text-align: right; margin-top: 1.8rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;">
-                        DETAILED REPORT &rarr;
+                    ${catalystsHtml}
+
+                    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+                        <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6;">
+                            VIEW REPORT &rarr;
+                        </div>
+                        <button class="glass-btn primary" style="padding: 0.4rem 1rem; font-size: 0.65rem; border-radius: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
+                                onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
+                            + Track Ticker
+                        </button>
                     </div>
                 </div>
                 `;
@@ -1791,7 +1819,6 @@ async function openDailyPickModal(ticker) {
         b.classList.toggle('active', b.dataset.period === '1mo');
     });
 
-    currentModalMkt = { ticker: ticker, status: 'pending_data' };
     const pick = dailyPicksData[ticker];
 
     // Parse rationale to object if stored as JSON string
@@ -1799,6 +1826,12 @@ async function openDailyPickModal(ticker) {
     if (typeof pickRationale === 'string') {
         try { pickRationale = JSON.parse(pickRationale); } catch(e) { /* keep as string */ }
     }
+
+    currentModalMkt = {
+        ticker: ticker,
+        status: 'pending_data',
+        news: pick ? pick.news : null
+    };
 
     currentModalInsight = {
         insight_text: pickRationale || 'Fetching full analysis...',
@@ -2573,24 +2606,42 @@ function renderMovers(tableId, movers, isGainer) {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
     if (!movers.length) {
-        tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-secondary);text-align:center;padding:1rem;">No data yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--text-secondary);text-align:center;padding:1rem;">No data yet</td></tr>';
         return;
     }
+
+    const getRegionFlag = (ticker) => {
+        if (ticker.endsWith('.AX')) return '🇦🇺 AUS';
+        if (ticker.endsWith('.T')) return '🇯🇵 JPN';
+        if (ticker.endsWith('.HK')) return '🇭🇰 HKG';
+        if (ticker.endsWith('.L')) return '🇬🇧 GBR';
+        if (ticker.endsWith('.PA')) return '🇫🇷 FRA';
+        if (ticker.endsWith('.AS')) return '🇳🇱 NLD';
+        if (ticker.endsWith('.DE')) return '🇩🇪 DEU';
+        if (ticker.endsWith('.NS')) return '🇮🇳 IND';
+        if (ticker.endsWith('.TO')) return '🇨🇦 CAN';
+        return '🇺🇸 USA';
+    };
+
     tbody.innerHTML = movers.map((m, i) => {
         const sign = m.change_pct >= 0 ? '+' : '';
         const color = m.change_pct >= 0 ? '#10b981' : '#f43f5e';
-        // Truncate long company names
-        const name = (m.company_name || m.ticker).length > 22
-            ? (m.company_name || m.ticker).substring(0, 20) + '…'
-            : (m.company_name || m.ticker);
+        const region = getRegionFlag(m.ticker);
+        
+        // Remove truncation, allow wrapping in CSS
+        const name = m.company_name || m.ticker;
+
         return `<tr>
-            <td><strong>${m.ticker}</strong></td>
-            <td style="color:var(--text-secondary);font-size:0.8rem;">${name}</td>
-            <td style="text-align:right;">
-                <div>${formatPrice(m.price, m.currency || 'USD')}</div>
+            <td style="vertical-align: top;"><strong>${m.ticker}</strong></td>
+            <td style="vertical-align: top;">
+                <div class="movers-company-name">${name}</div>
+            </td>
+            <td style="vertical-align: top; color:var(--text-secondary); font-size: 0.7rem; font-weight: 600;">${region}</td>
+            <td style="text-align:right; vertical-align: top;">
+                <div style="font-weight: 500;">${formatPrice(m.price, m.currency || 'USD')}</div>
                 ${renderExtendedHours(m)}
             </td>
-            <td style="text-align:right;color:${color};font-weight:700;">${sign}${m.change_pct.toFixed(2)}%</td>
+            <td style="text-align:right; color:${color}; font-weight: 700; vertical-align: top;">${sign}${m.change_pct.toFixed(2)}%</td>
         </tr>`;
     }).join('');
 }

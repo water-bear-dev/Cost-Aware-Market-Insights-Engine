@@ -340,12 +340,19 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
 
                 ticker_news = []
                 for n in t_obj.news[:3]:
-                    ticker_news.append({
-                        "title": n.get("title"),
-                        "publisher": n.get("publisher"),
-                        "link": n.get("link"),
-                        "provider_publish_time": n.get("providerPublishTime")
-                    })
+                    # Support for new nested structure in recent yfinance versions
+                    content = n.get("content") or {}
+                    title = content.get("title") or n.get("title")
+                    publisher = (content.get("provider") or {}).get("displayName") or n.get("publisher")
+                    link = (content.get("clickThroughUrl") or {}).get("url") or n.get("link")
+                    
+                    if title:
+                        ticker_news.append({
+                            "title": title,
+                            "publisher": publisher or "Market News",
+                            "link": link or "#",
+                            "provider_publish_time": content.get("pubDate") or n.get("providerPublishTime")
+                        })
 
                 raw_rationale = rec.get('rationale', '')
 

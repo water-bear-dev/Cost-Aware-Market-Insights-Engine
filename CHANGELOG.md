@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.7] - 2026-05-14
+
+### Added
+- **Parallel Movers Enrichment** — Implemented `ThreadPoolExecutor` in the backend to fetch company metadata for 60+ tickers simultaneously. This reduces Top Movers load time by ~90% (from 30s+ down to ~3s).
+- **Stale-While-Revalidate Caching** — The Movers API now returns cached data instantly while refreshing the list in a background thread if the data is older than 15 minutes.
+
+### Changed
+- **Rate Limit Increase** — Raised the Movers API rate limit from 10/min to 20/min to support the faster, more frequent UI refreshes enabled by the new caching model.
+
+
+## [3.1.6] - 2026-05-14
+
+### Added
+- **Recent News Catalysts** — Integrated a live news ticker into Discovery cards, surfacing 3 real-time headlines per pick directly from Yahoo Finance.
+- **Regional Movers Filter** — Implemented a glassmorphic selector on the Discovery tab to toggle between "All", "US", and "International" market movers.
+- **Global Debug Flag** — Introduced a centralized `APP_DEBUG` flag and `debugLog()` helper to sanitize the browser console and optimize main-thread performance.
+
+### Changed
+- **Unified Discovery Rationale Rendering** — Standardized the discovery card template to use a flexible 1-column layout that prioritizes the high-conviction "Why" and "Numbers" thesis above the news feed.
+- **News Labeling** — Updated "Recent Catalyst" labeling to "Recent News" across the UI for better end-user clarity.
+
+### Fixed
+- **Yahoo Finance News Regression** — Resolved a critical news-retrieval failure caused by a breaking change in Yahoo Finance's internal data structure (nested `content` objects). Implemented a hardened, recursive extraction logic with defensive fallbacks to eliminate `null` headlines.
+- **Movers API Categorization** — Fixed a backend logic error in `discover.py` that prevented movers from being correctly partitioned by region.
+
+
 ## [3.1.4] - 2026-05-14
 
 ### Added

@@ -129,13 +129,27 @@ Scores are calculated via `dbt` and `DuckDB` (local) or `Athena` (production), c
 **Total QMJ Score** = `(Profitability Percentile + Safety Percentile) / 2`
 
 
-## System Requirements
+## System Requirements & Prerequisites
 
-- **Docker & Docker Compose**: The easiest way to spin up the local DynamoDB ledger alongside the application.
-- **AWS Account**: Required for production deployment and invoking the **Amazon Bedrock (Anthropic Claude 3 Haiku)** models.
-- **AWS CLI (`aws`)**: Must be configured with `aws configure` locally before running deployment scripts.
-- **Python 3.9+**: The core engine maintains strict compatibility with Python 3.9 environments, essential for localized institutional deployments.
-- **Model Subscriptions**: Ensure that you have requested access to `Anthropic Claude 3 Haiku` inside the AWS Bedrock console in your target region before going live.
+To ensure the engine runs successfully in a local or cloud environment, verify the following prerequisites:
+
+### 1. Core Runtime
+- **Python 3.10+**: The application leverages modern typing features and async patterns.
+- **Docker & Docker Compose**: Essential for orchestrating the local DynamoDB ledger and the FastAPI container.
+- **Node.js (Optional)**: Only required if you intend to run standalone frontend build tools.
+
+### 2. AWS Infrastructure (Production)
+- **AWS Account**: Required for DynamoDB (Insights/Market) and Bedrock.
+- **AWS CLI (`aws`)**: Configured with valid credentials (`aws configure`) and appropriate IAM permissions for DynamoDB, S3, and Bedrock.
+- **Bedrock Model Access**: **CRITICAL.** You must manually request access to the `Anthropic Claude 3 Haiku` model in the AWS Bedrock console (e.g., in `us-east-1` or `us-west-2`). Access is typically granted within minutes but is not enabled by default.
+
+### 3. Local Intelligence (Development)
+- **Ollama**: Required if running without AWS Bedrock.
+- **Llama 3.2**: The default recommended model for the Discovery Agent logic. Ensure you have run `ollama pull llama3.2` before starting the app.
+
+### 4. Financial Data Access
+- **Network Access**: The application requires outbound HTTPS access to `query1.finance.yahoo.com` for real-time ingestion. No API keys are required for `yfinance`.
+
 
 ## Environment & LLM Support
 

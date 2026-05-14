@@ -2,6 +2,46 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 55: From 30s to Instant — High-Performance Movers with SWR (2026-05-14)
+
+The "Top Movers" section was a victim of its own success. As we expanded to 600+ tickers and added regional filtering (All/US/International), the loading times ballooned to over 30 seconds. This wasn't just a "bad user experience"—it was a technical bottleneck caused by sequential network dependency.
+
+**The Bottleneck: The Sequential Tax**
+
+To show a single "Mover" card, the system needed the ticker, the price, and the company name. While the price data is fetched in bulk via `yf.download`, the **enrichment** (fetching the company name and pre/post-market stats) was happening one-by-one. 60 tickers x 0.5s per network call = 30 seconds of blocking.
+
+**The Fix: Parallel Processing & SWR Caching**
+
+We implemented two enterprise-grade patterns to kill the loading spinner:
+1.  **ThreadPoolExecutor:** Instead of checking one ticker at a time, we now spawn 10 concurrent threads. This parallelizes the network latency, effectively cutting the enrichment time by 90%.
+2.  **Stale-While-Revalidate (SWR):** This is the ultimate UI performance pattern. When you request the Movers, the server says: *"Here is the data from 10 minutes ago (instant)*. *Oh, and since it's a bit old, I'll go ahead and fetch a fresh copy in the background right now so it's ready for next time."*
+
+**The Result: Perception of Zero Latency**
+
+For the user, the Movers now load instantly 99% of the time. The only person who ever sees a loading spinner is the very first person to open the app after a server restart. This is a massive leap forward in the dashboard's "institutional" feel.
+
+
+## Entry 54: The "Ghost News" Investigation — Debugging Nested Data Regressions (2026-05-14)
+
+A great UI is only as good as the data powering it. After successfully implementing the new **Recent News** section for Discovery cards, we immediately hit a wall: every card displayed "NEWS: null". The system was identifying that news existed, but it couldn't read the headlines.
+
+**The Investigation: Tearing Down the Fetch**
+
+We ran a focused diagnostic script on `XOM` (ExxonMobil) to inspect the raw JSON coming from the `yfinance` library. The discovery was immediate: Yahoo Finance had silently moved their news metadata into a deeply nested **`content`** object. Our legacy code was looking at the top level for a `title` key that no longer lived there.
+
+**The Solution: Recursive Defensive Extraction**
+
+Instead of a simple `.get()`, we implemented a hardened "digging" logic in `src/dag/discovery_graph.py`:
+1.  Attempt to find a `content` object first.
+2.  If `content` exists (even if partially empty), use it to extract the `title`, `displayName` (publisher), and `clickThroughUrl`.
+3.  Add `or {}` fallbacks at every level to prevent `AttributeError` crashes if Yahoo returns a null field.
+4.  If the top-level still has the data (legacy support), use that as a second-tier fallback.
+
+**The Result: Data Resilience**
+
+By isolating the fetch logic in the DAG and hardening the extraction, we restored the high-density news feed without needing to change the frontend again. We also took the opportunity to rename the section from "Recent Catalyst" to "Recent News" to simplify the cognitive load for the user. Discovery isn't just about finding stocks anymore—it's about connecting the "Why" (AI) with the "What" (Live News).
+
+
 ## Entry 53: Design Parity — Bringing the Gold Card's Sparkline to the Watchlist (2026-05-14)
 
 One of the most impactful visual improvements often isn't about new features—it's about visual consistency. The Gold commodity card in the Discover tab had long enjoyed a premium aesthetic: a full-width sparkline strip anchored to the bottom of the card, with a gradient colour wash beneath the line that fades to transparent, giving the card a sense of depth and motion. The watchlist cards (META, AAPL, etc.) had sparklines too, but they lived as a small 40px inline row sandwiched awkwardly between the price header and the AI analysis text. The visual treatment was inconsistent, and the sparkline felt disconnected from the card's identity.

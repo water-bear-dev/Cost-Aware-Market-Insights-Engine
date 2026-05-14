@@ -202,40 +202,40 @@ def _fetch_movers() -> dict:
         us_gain,  us_lose  = get_category_movers(movers_us)
         int_gain, int_lose = get_category_movers(movers_int)
 
-        # Enrichment helper
-        memo = {}
-        def enrich(list_of_movers):
-            for m in list_of_movers:
-                sym = m["ticker"]
-                if sym in memo:
-                    m.update(memo[sym])
-                    continue
+        # Enrichment helper using Parallel Processing
+        def enrich_single(m):
+            sym = m["ticker"]
+            try:
+                # 1. Quick check for name cache
+                if sym in _ticker_name_cache:
+                    m["company_name"] = _ticker_name_cache[sym]
                 
-                try:
-                    # Use cache for name first
-                    m["company_name"] = _ticker_name_cache.get(sym, sym)
-                    t = yf.Ticker(sym)
-                    info = t.info
-                    m["company_name"] = info.get("shortName") or info.get("longName") or sym
-                    m["pre_market_price"] = info.get("preMarketPrice")
-                    m["pre_market_change"] = info.get("preMarketChangePercent")
-                    m["post_market_price"] = info.get("postMarketPrice")
-                    m["post_market_change"] = info.get("postMarketChangePercent")
-                    m["currency"] = info.get("currency", "USD")
-                    _ticker_name_cache[sym] = m["company_name"]
-                    memo[sym] = {
-                        "company_name": m["company_name"],
-                        "pre_market_price": m["pre_market_price"],
-                        "pre_market_change": m["pre_market_change"],
-                        "post_market_price": m["post_market_price"],
-                        "post_market_change": m["post_market_change"],
-                        "currency": m["currency"]
-                    }
-                except:
-                    m["company_name"] = _ticker_name_cache.get(sym, sym)
+                # 2. Fetch full info
+                t = yf.Ticker(sym)
+                info = t.info
+                m["company_name"] = info.get("shortName") or info.get("longName") or sym
+                m["pre_market_price"] = info.get("preMarketPrice")
+                m["pre_market_change"] = info.get("preMarketChangePercent")
+                m["post_market_price"] = info.get("postMarketPrice")
+                m["post_market_change"] = info.get("postMarketChangePercent")
+                m["currency"] = info.get("currency", "USD")
+                _ticker_name_cache[sym] = m["company_name"]
+            except:
+                m["company_name"] = _ticker_name_cache.get(sym, sym)
+            return m
 
-        # Enrich all unique movers across all categories
-        enrich(all_gain + all_lose + us_gain + us_lose + int_gain + int_lose)
+        # Parallelize the network-heavy enrichment calls
+        from concurrent.futures import ThreadPoolExecutor
+        all_to_enrich = all_gain + all_lose + us_gain + us_lose + int_gain + int_lose
+        
+        # Filter unique tickers to avoid duplicate calls
+        unique_tickers = {}
+        for m in all_to_enrich:
+            if m["ticker"] not in unique_tickers:
+                unique_tickers[m["ticker"]] = m
+
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(enrich_single, unique_tickers.values())
 
         return {
             "all": {"gainers": all_gain, "losers": all_lose},
@@ -403,15 +403,44 @@ def get_indices(request: Request):
 
 
 @router.get("/discover/movers")
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")
 def get_movers(request: Request):
-    """Returns today's top 10 gainers and losers. Refreshed daily at 8AM AEST; force-refreshes if cache empty."""
+    """
+    Returns today's top 10 gainers and losers. 
+    Uses Stale-While-Revalidate pattern: 
+    - Serves cached data instantly if available.
+    - If data is older than 15 mins (900s), triggers a background refresh.
+    """
     global _movers_cache
-    empty = not _movers_cache["data"] or not _movers_cache["data"].get("gainers")
-    if empty:
-        logger.info("Discover: fetching movers (cache empty)")
+    
+    current_time = time.time()
+    ttl = 900  # 15 minutes
+    
+    # 1. If cache is completely empty, we must fetch synchronously once
+    if not _movers_cache["data"]:
+        logger.info("Discover: First-time movers fetch (synchronous)")
         _movers_cache["data"] = _fetch_movers()
-        _movers_cache["last_fetch"] = time.time()
+        _movers_cache["last_fetch"] = current_time
+        return _movers_cache["data"]
+
+    # 2. If cache is expired (>15 mins), trigger background refresh but return stale data
+    if current_time - _movers_cache["last_fetch"] > ttl:
+        logger.info("Discover: Movers cache expired, triggering background refresh")
+        
+        def _bg_refresh():
+            try:
+                new_data = _fetch_movers()
+                if new_data and new_data.get("all", {}).get("gainers"):
+                    _movers_cache["data"] = new_data
+                    _movers_cache["last_fetch"] = time.time()
+                    logger.info("Discover: Movers cache background refresh complete")
+            except Exception as e:
+                logger.error("Background movers refresh failed", error=str(e))
+
+        import threading
+        threading.Thread(target=_bg_refresh, daemon=True).start()
+
+    # 3. Always return whatever we have in cache (fast path)
     return _movers_cache["data"]
 
 
