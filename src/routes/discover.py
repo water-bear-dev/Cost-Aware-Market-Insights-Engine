@@ -157,12 +157,13 @@ def _get_company_name(sym: str) -> str:
 
 
 def _fetch_movers() -> dict:
-    """Scan the movers universe and return top 10 gainers and losers."""
+    """Scan the movers universe and return top 10 gainers and losers for All, US, and Internationals."""
     try:
         import pandas as pd
         data = yf.download(MOVERS_UNIVERSE, period="2d", interval="1d",
                            progress=False, group_by="ticker", auto_adjust=True)
-        movers = []
+        
+        raw_movers = []
         for sym in MOVERS_UNIVERSE:
             try:
                 if isinstance(data.columns, pd.MultiIndex):
@@ -181,24 +182,38 @@ def _fetch_movers() -> dict:
                 prev  = clean_float(prices.iloc[-2])
                 curr  = clean_float(prices.iloc[-1])
                 change_pct = round(((curr - prev) / prev * 100) if prev else 0, 2)
-                movers.append({"ticker": sym, "price": round(curr, 2), "change_pct": change_pct})
+                raw_movers.append({"ticker": sym, "price": round(curr, 2), "change_pct": change_pct})
             except Exception:
                 pass
 
-        movers.sort(key=lambda x: x["change_pct"], reverse=True)
-        top_gainers = movers[:10]
-        top_losers  = list(reversed(movers[-10:]))
+        def get_category_movers(subset):
+            subset.sort(key=lambda x: x["change_pct"], reverse=True)
+            gainers = subset[:10]
+            losers  = list(reversed(subset[-10:]))
+            return gainers, losers
 
-        # Enrich with company names and extended hours data
-        all_movers = top_gainers + top_losers
-        try:
-            for m in all_movers:
+        # Categorize
+        movers_all = raw_movers
+        movers_us  = [m for m in raw_movers if "." not in m["ticker"]]
+        movers_int = [m for m in raw_movers if "." in m["ticker"]]
+
+        # Get top 10s for each
+        all_gain, all_lose = get_category_movers(movers_all)
+        us_gain,  us_lose  = get_category_movers(movers_us)
+        int_gain, int_lose = get_category_movers(movers_int)
+
+        # Enrichment helper
+        memo = {}
+        def enrich(list_of_movers):
+            for m in list_of_movers:
                 sym = m["ticker"]
-                # Use cache for company name if possible, but still fetch info for live pre/post data
-                if sym in _ticker_name_cache:
-                    m["company_name"] = _ticker_name_cache[sym]
+                if sym in memo:
+                    m.update(memo[sym])
+                    continue
                 
                 try:
+                    # Use cache for name first
+                    m["company_name"] = _ticker_name_cache.get(sym, sym)
                     t = yf.Ticker(sym)
                     info = t.info
                     m["company_name"] = info.get("shortName") or info.get("longName") or sym
@@ -208,19 +223,35 @@ def _fetch_movers() -> dict:
                     m["post_market_change"] = info.get("postMarketChangePercent")
                     m["currency"] = info.get("currency", "USD")
                     _ticker_name_cache[sym] = m["company_name"]
+                    memo[sym] = {
+                        "company_name": m["company_name"],
+                        "pre_market_price": m["pre_market_price"],
+                        "pre_market_change": m["pre_market_change"],
+                        "post_market_price": m["post_market_price"],
+                        "post_market_change": m["post_market_change"],
+                        "currency": m["currency"]
+                    }
                 except:
                     m["company_name"] = _ticker_name_cache.get(sym, sym)
-        except Exception as e:
-            logger.warning("Movers enrichment failed", error=str(e))
+
+        # Enrich all unique movers across all categories
+        enrich(all_gain + all_lose + us_gain + us_lose + int_gain + int_lose)
 
         return {
-            "gainers": top_gainers,
-            "losers":  top_losers,
-            "as_of":   time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "all": {"gainers": all_gain, "losers": all_lose},
+            "us":  {"gainers": us_gain,  "losers": us_lose},
+            "international": {"gainers": int_gain, "losers": int_lose},
+            "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
     except Exception as e:
         logger.error("Failed to fetch movers", error=str(e))
-        return {"gainers": [], "losers": [], "as_of": None}
+        return {
+            "all": {"gainers": [], "losers": []},
+            "us":  {"gainers": [], "losers": []},
+            "international": {"gainers": [], "losers": []},
+            "as_of": None
+        }
+
 
 
 def _clean_html(raw: str) -> str:

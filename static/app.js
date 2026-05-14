@@ -1,7 +1,16 @@
 /* =====================================================
    State
    ===================================================== */
+const APP_DEBUG = false; // Set to true to see detailed AI synthesis and data logs
+
+function debugLog(msg, ...args) {
+    if (APP_DEBUG) {
+        console.log(msg, ...args);
+    }
+}
+
 let portfolioChartInstance = null;
+
 let modalChartInstance = null;
 const sparklineInstances = {};
 let currentZoom = 1.0;
@@ -39,7 +48,7 @@ async function refreshExchangeRates() {
         if (resp.ok) {
             const rates = await resp.json();
             EXCHANGE_RATES = rates;
-            console.log('Exchange rates updated:', EXCHANGE_RATES);
+            debugLog('Exchange rates updated:', EXCHANGE_RATES);
             // Re-render if necessary, but usually the first dashboard load happens after this or concurrently
         }
     } catch (e) {
@@ -899,7 +908,7 @@ async function fetchDailyPicks() {
                 let rationale = pick.rationale;
 
                 // Debugging: Log the rationale structure to see what's actually arriving
-                console.log(`[Discovery] Rationale for ${pick.actual_ticker}:`, rationale);
+                debugLog(`[Discovery] Rationale for ${pick.actual_ticker}:`, rationale);
 
                 // 1. Force Parsing if string
                 if (typeof rationale === 'string' && (rationale.startsWith('{') || rationale.startsWith('['))) {
@@ -993,7 +1002,7 @@ async function fetchDailyPicks() {
             });
 
             if (needsHealing && !window._isDiscoveryHealing) {
-                console.log("Discovery Agent: AI synthesis missing. Starting 30s auto-healing loop...");
+                debugLog("Discovery Agent: AI synthesis missing. Starting 30s auto-healing loop...");
                 window._isDiscoveryHealing = true;
 
                 const tickers = data.map(p => p.actual_ticker);
@@ -1012,12 +1021,12 @@ async function fetchDailyPicks() {
                         });
 
                         if (!stillNeedsHealing) {
-                            console.log("Discovery Agent: Healing complete. AI intelligence restored.");
+                            debugLog("Discovery Agent: Healing complete. AI intelligence restored.");
                             clearInterval(healInterval);
                             window._isDiscoveryHealing = false;
                             showToast("Discovery AI intelligence restored.", "success");
                         } else {
-                            console.log("Discovery Agent: Still healing... retrying in 30s.");
+                            debugLog("Discovery Agent: Still healing... retrying in 30s.");
                             triggerTargetedRefresh(tickers);
                         }
                     }
@@ -2289,15 +2298,42 @@ async function fetchDiscoverIndices() {
     } catch (e) { console.error('Discover indices failed', e); }
 }
 
+let currentMoversFilter = 'all';
+let lastMoversData = null;
+
+function initMoversFilterSelector() {
+    const selector = document.getElementById('movers-filter-selector');
+    if (!selector || selector.dataset.hooked) return;
+    selector.addEventListener('click', (e) => {
+        const btn = e.target.closest('.discover-period-btn');
+        if (!btn) return;
+        selector.querySelectorAll('.discover-period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentMoversFilter = btn.dataset.filter;
+        applyMoversFilter();
+    });
+    selector.dataset.hooked = 'true';
+}
+
+function applyMoversFilter() {
+    if (!lastMoversData) return;
+    const data = lastMoversData[currentMoversFilter] || { gainers: [], losers: [] };
+    renderMovers('gainers-table', data.gainers || [], true);
+    renderMovers('losers-table', data.losers || [], false);
+}
+
 async function fetchDiscoverMovers() {
+    initMoversFilterSelector();
     try {
         const res = await fetch('/api/v1/discover/movers');
         if (!res.ok) return;
         const data = await res.json();
-        renderMovers('gainers-table', data.gainers || [], true);
-        renderMovers('losers-table', data.losers || [], false);
+        lastMoversData = data;
+        applyMoversFilter();
+
         if (data.as_of) {
             const d = new Date(data.as_of);
+
             document.getElementById('movers-as-of').textContent =
                 `· as of ${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         }
@@ -2703,7 +2739,7 @@ function showToast(message, type = 'positive') {
 async function triggerTargetedRefresh(tickers) {
     if (!tickers || tickers.length === 0) return;
     try {
-        console.log("Discovery Agent: Triggering targeted refresh for", tickers);
+        debugLog("Discovery Agent: Triggering targeted refresh for", tickers);
         await fetch('/api/v1/discover/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
