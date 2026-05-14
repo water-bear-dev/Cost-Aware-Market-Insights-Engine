@@ -258,7 +258,7 @@ def get_batch_history(
     }
     interval = interval_map.get(yf_period, "1d")
 
-    result: dict = {}
+    result: dict = {"timestamps": [], "data": {}}
     try:
         import pandas as pd
         data = yf.download(
@@ -270,21 +270,24 @@ def get_batch_history(
             auto_adjust=True
         )
 
+        if not data.empty:
+            result["timestamps"] = [dt.isoformat() for dt in data.index]
+
         for sym in symbol_list:
             try:
                 if isinstance(data.columns, pd.MultiIndex):
                     if sym not in data.columns.get_level_values(0):
-                        result[sym] = []
+                        result["data"][sym] = []
                         continue
-                    closes = data[sym]["Close"].dropna()
+                    closes = data[sym]["Close"].tolist()
                 else:
                     # Single-ticker download returns flat columns
-                    closes = data["Close"].dropna() if "Close" in data.columns else pd.Series([], dtype=float)
+                    closes = data["Close"].tolist() if "Close" in data.columns else []
 
-                result[sym] = [clean_float(v) for v in closes.tolist()]
+                result["data"][sym] = [clean_float(v) for v in closes]
             except Exception as e:
                 logger.warning("batch-history: symbol failed", symbol=sym, error=str(e))
-                result[sym] = []
+                result["data"][sym] = []
 
     except Exception as e:
         logger.error("batch-history: download failed", error=str(e))

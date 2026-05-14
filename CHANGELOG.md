@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.8] - 2026-05-14
+
+### Added
+- **Multi-Period Portfolio Analytics** — Integrated a glassmorphic timeframe selector (1D, 1W, 1M, 3M, 6M, 1Y) to the "Tracked Assets" section.
+- **Dynamic Performance Labels** — Added a real-time percentage change indicator that synchronizes with the selected chart period, featuring semantic color-coding and trend symbols (↑/↓).
+- **History Aggregation Engine** — Refactored the frontend chart logic to automatically aggregate historical data from multiple global tickers into a single, unified portfolio value line.
+- **Loading State UI** — Implemented an "Aggregating History..." loader overlay for the portfolio chart to provide visual feedback during asynchronous data fetches.
+
+### Changed
+- **Timeframe-Aware Background Refresh** — Optimized the 15-second "heartbeat" to respect the user's selected timeframe. Background updates now only refresh the 1D sparkline data, preventing the chart from resetting while viewing historical trends.
+- **Asynchronous Chart Lifecycle** — Converted the portfolio visualization engine to be fully asynchronous, enabling non-blocking fetches of trailing market data.
+
+### Fixed
+- **State Drift Regression** — Resolved a bug where background market updates would force the portfolio timeframe back to "1D" every 15 seconds.
+- **JS Syntax Protection** — Fixed a `SyntaxError` caused by duplicate variable declarations (`statEl`) in the chart update routine.
+
 ## [3.1.7] - 2026-05-14
 
 ### Added

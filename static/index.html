@@ -78,7 +78,22 @@
                         </div>
                     </div>
                 </div>
-                <div class="chart-container" style="position: relative; height: 280px; width: 100%; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem; margin-bottom: 1rem;">
+                    <div class="period-selector" id="portfolio-period-selector" style="margin: 0;">
+                        <button class="period-btn active" data-period="1d">1D</button>
+                        <button class="period-btn" data-period="1w">1W</button>
+                        <button class="period-btn" data-period="1m">1M</button>
+                        <button class="period-btn" data-period="3m">3M</button>
+                        <button class="period-btn" data-period="6m">6M</button>
+                        <button class="period-btn" data-period="1y">1Y</button>
+                    </div>
+                    <div id="portfolio-change-stat" style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 0.5rem;"></div>
+                </div>
+                <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                    <div id="portfolio-loader" class="glass-loader" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10; background: rgba(15,23,42,0.4); backdrop-filter: blur(4px); align-items:center; justify-content:center; flex-direction: column; gap: 1rem; border-radius: 1rem;">
+                        <div class="dot-spinner"></div>
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Aggregating History...</span>
+                    </div>
                     <canvas id="portfolioChart"></canvas>
                 </div>
             </div>
@@ -301,12 +316,48 @@
                                 <th class="sortable" data-sort="report_date">Reported ↕</th>
                                 <th class="sortable" data-sort="industry">Industry ↕</th>
                                 <th class="sortable numeric" data-sort="market_cap">Market Cap ↕</th>
-                                <th class="sortable numeric highlight-col" data-sort="qmj_score" title="Quality Minus Junk: Composite Z-score. Higher is better.">QMJ Score ↕</th>
-                                <th class="sortable numeric" data-sort="z_prof" title="Profitability Z-score (GP/Assets).">Prof ↕</th>
-                                <th class="sortable numeric" data-sort="z_growth" title="Growth Z-score (YoY Profitability).">Growth ↕</th>
-                                <th class="sortable numeric" data-sort="z_safety" title="Safety Z-score (Low Leverage).">Safety ↕</th>
-                                <th class="sortable numeric" data-sort="z_value" title="Value Z-score (Earnings Yield).">Value ↕</th>
-                                <th class="sortable numeric" data-sort="z_mom" title="12M Momentum Z-score.">Mom ↕</th>
+                                <th class="sortable numeric highlight-col" data-sort="qmj_score">
+                                    <div class="th-content">
+                                        <span>QMJ Score</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('QMJ Score')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
+                                <th class="sortable numeric" data-sort="z_prof">
+                                    <div class="th-content">
+                                        <span>Prof</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('Profitability')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
+                                <th class="sortable numeric" data-sort="z_growth">
+                                    <div class="th-content">
+                                        <span>Growth</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('Growth')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
+                                <th class="sortable numeric" data-sort="z_safety">
+                                    <div class="th-content">
+                                        <span>Safety</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('Safety')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
+                                <th class="sortable numeric" data-sort="z_value">
+                                    <div class="th-content">
+                                        <span>Value</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('Value')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
+                                <th class="sortable numeric" data-sort="z_mom">
+                                    <div class="th-content">
+                                        <span>Mom</span>
+                                        <span class="info-icon" onclick="event.stopPropagation(); openDefinitionModal('Momentum')">ⓘ</span>
+                                        <span class="sort-indicator">↕</span>
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody id="qmj-table-body">
@@ -722,6 +773,20 @@
                     <div id="modal-news-list" class="modal-news-articles"></div>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    <!-- Definition Modal -->
+    <div id="definition-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal-panel glass" style="max-width: 500px; min-height: auto; padding: 2.5rem;">
+            <div class="modal-header" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                <h3 id="definition-title" class="text-gradient" style="font-size: 1.5rem; font-weight: 700;">Metric Definition</h3>
+                <button onclick="closeDefinitionModal()" class="zoom-btn" style="font-size: 1.2rem;">✕</button>
+            </div>
+            <div id="definition-content" style="color: #e2e8f0; line-height: 1.8; font-size: 1rem;"></div>
+            <div style="margin-top: 2rem; display: flex; justify-content: flex-end;">
+                <button onclick="closeDefinitionModal()" class="glass-btn primary" style="padding: 0.5rem 1.5rem;">Got it</button>
             </div>
         </div>
     </div>

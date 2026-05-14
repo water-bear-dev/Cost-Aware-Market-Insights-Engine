@@ -2,6 +2,33 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 56: The "Portfolio Pulse" — Orchestrating Multi-Period Portfolio Analytics (2026-05-14)
+
+One of the most requested features for the "Tracked Assets" dashboard was the ability to see how the total portfolio has performed over time, not just in the last 24 hours. While we had sparklines for individual stocks, the **Unified Portfolio Chart** was stuck in a "Daily" snapshot mode. Today, we broke that barrier.
+
+**The Architectural Switch: Sparklines vs. Batch History**
+
+The core technical challenge was data sourcing. For a **1D** view, we use the "cheap" sparkline data already carried in our primary `/api/v1/market` payload. This is fast and requires no extra network calls. 
+
+However, for a **1M** or **1Y** view, sparklines aren't enough. We needed to bridge the frontend to our specialized `/api/v1/market/batch-history` endpoint. We refactored `updatePortfolioChart()` to act as a "Smart Switch":
+1.  **1D Mode:** Instantly aggregates local sparkline points (15-min intervals).
+2.  **Historical Mode:** Triggers an `async` fetch for trailing daily closures across the entire watchlist, normalizes them into the user's selected currency (USD, AUD, etc.), and sums them into a single time-series line.
+
+**The "State Drift" Problem: Fighting the Heartbeat**
+
+The dashboard features a 15-second background "heartbeat" that refreshes prices. Initially, this heartbeat was too aggressive—it would fetch the latest market data and then call the chart update function, which would default back to the **1D** view. 
+
+If a user was looking at their **6-Month** performance, the chart would "flicker" and reset to **1-Day** every 15 seconds. This is a classic "State Drift" issue in vanilla JS apps without a formal state machine. 
+
+**The Fix: Timeframe-Aware Refresh**
+We implemented two layers of protection:
+1.  **Selection Locking:** The background interval now explicitly checks the `currentPortfolioPeriod`. If it's anything other than `1d`, it skips the automatic chart update.
+2.  **Visual Feedback:** We added a glassmorphic loader overlay. When you switch to **1Y**, the chart blurs and shows "Aggregating History...". This gives the user immediate feedback that an expensive network operation is in progress, rather than leaving them with a stale chart.
+
+**The Result: Institutional Trend Analysis**
+
+The "Tracked Assets" section now feels like a professional portfolio manager. You can instantly see your total P&L (Perf %) change as you toggle through periods. The app intelligently handles the math—converting HKD, GBP, and USD assets into a single unified currency line—allowing you to see the "Pulse" of your wealth across global markets.
+
 ## Entry 55: From 30s to Instant — High-Performance Movers with SWR (2026-05-14)
 
 The "Top Movers" section was a victim of its own success. As we expanded to 600+ tickers and added regional filtering (All/US/International), the loading times ballooned to over 30 seconds. This wasn't just a "bad user experience"—it was a technical bottleneck caused by sequential network dependency.

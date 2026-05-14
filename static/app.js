@@ -10,6 +10,7 @@ function debugLog(msg, ...args) {
 }
 
 let portfolioChartInstance = null;
+let currentPortfolioPeriod = '1d';
 
 let modalChartInstance = null;
 const sparklineInstances = {};
@@ -185,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initManageFilters();
     initBudgetControls();
     initDiscoverEvents();
+    initDefinitionModal();
 });
 
 function initDiscoverEvents() {
@@ -396,11 +398,12 @@ function renderQMJScreener() {
         tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
     } else {
         tbody.innerHTML = pageData.map(row => {
+            const reportDate = row.report_date ? row.report_date.split(' ')[0] : '—';
             return `
                 <tr onclick="openTickerModal('${row.ticker}')" style="cursor:pointer;">
-                    <td><span class="screener-ticker">${row.ticker}</span></td>
+                    <td><a href="https://finance.yahoo.com/quote/${row.ticker}" target="_blank" class="screener-ticker" onclick="event.stopPropagation()">${row.ticker}</a></td>
                     <td><div class="screener-company" title="${row.company_name}">${row.company_name}</div></td>
-                    <td style="font-size:0.75rem; color:var(--text-secondary);">${row.report_date}</td>
+                    <td style="font-size:0.75rem; color:var(--text-secondary);">${reportDate}</td>
                     <td style="font-size:0.75rem;">${row.industry}</td>
                     <td class="numeric" style="font-family: monospace;">${formatLargePrice(row.market_cap, 'USD')}</td>
                     <td class="numeric highlight-col">${renderZPill(row.qmj_score, true)}</td>
@@ -465,12 +468,61 @@ window.goToQmjPage = function (n) {
 function updateSortUI() {
     document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
         th.classList.remove('active');
+        const indicator = th.querySelector('.sort-indicator');
+        
         if (th.dataset.sort === qmjSortKey) {
             th.classList.add('active');
-            th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, qmjSortDir === 'asc' ? '↑' : '↓');
+            const symbol = qmjSortDir === 'asc' ? '↑' : '↓';
+            if (indicator) {
+                indicator.textContent = symbol;
+            } else {
+                th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, symbol);
+            }
         } else {
-            th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, '↕');
+            if (indicator) {
+                indicator.textContent = '↕';
+            } else {
+                th.innerHTML = th.innerHTML.replace(/[↕↑↓]/g, '↕');
+            }
         }
+    });
+}
+
+const COLUMN_DEFINITIONS = {
+    'QMJ Score': '<strong>Quality Minus Junk</strong>: A composite z-score that ranks companies based on Profitability, Growth, Safety, and Momentum. Higher scores indicate higher quality assets relative to their peers.',
+    'Profitability': '<strong>Profitability (GP/A)</strong>: Measured as Gross Profits divided by Total Assets. This is a clean measure of economic performance that is less prone to accounting manipulation.',
+    'Growth': '<strong>Growth</strong>: Measured as the year-over-year growth in profitability. High growth scores indicate companies that are consistently improving their economic efficiency.',
+    'Safety': '<strong>Safety</strong>: A composite of low leverage and low volatility. Quality companies typically maintain manageable debt levels and exhibit stable price behavior.',
+    'Value': '<strong>Value (Earnings Yield)</strong>: Measured as EBIT divided by Enterprise Value. Identifies companies that are undervalued relative to their operating earnings.',
+    'Momentum': '<strong>12M Momentum</strong>: The price return over the past 12 months, skipping the most recent month to avoid short-term reversals. Quality stocks often exhibit persistent price trends.'
+};
+
+window.openDefinitionModal = function(term) {
+    const modal = document.getElementById('definition-modal');
+    const title = document.getElementById('definition-title');
+    const content = document.getElementById('definition-content');
+    
+    if (modal && title && content) {
+        title.innerText = term;
+        content.innerHTML = COLUMN_DEFINITIONS[term] || 'No definition available.';
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.closeDefinitionModal = function() {
+    const modal = document.getElementById('definition-modal');
+    if (modal) {
+        modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+};
+
+function initDefinitionModal() {
+    const backdrop = document.getElementById('definition-modal');
+    if (!backdrop) return;
+    backdrop.addEventListener('click', e => {
+        if (e.target === backdrop) closeDefinitionModal();
     });
 }
 
@@ -839,6 +891,7 @@ function setupTickerForm() {
    Dashboard Init & Polling
    ===================================================== */
 async function initDashboard() {
+    initPortfolioPeriodSelector();
     await fetchHealth();
     fetchCosts();
     fetchDashboardCosts();
@@ -977,8 +1030,12 @@ async function fetchDailyPicks() {
                     } catch (e) { console.warn("Failed to parse news for Discovery pick", e); }
                 }
 
+                const isNeg = (pick.change_pct || 0) < 0;
+                const sign = (pick.change_pct || 0) >= 0 ? '+' : '';
+                const changeColor = (pick.change_pct || 0) >= 0 ? 'var(--positive)' : 'var(--negative)';
+
                 return `
-                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 560px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
+                <div class="metric-card glass glow-hover discovery-pick-card ${isNeg ? 'trend-negative' : ''}" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 560px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.1em; color: ${categoryColor}; font-weight: 800;">${pick.category}</span>
                         <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
@@ -995,6 +1052,7 @@ async function fetchDailyPicks() {
                             <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 8px;">
                                 <span style="font-size: 0.6rem; color: var(--accent); font-weight: 800; opacity: 0.8; letter-spacing: 0.1em;">LAST CLOSE</span>
                                 <span style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px;">${formatPrice(price, pick.currency || 'USD')}</span>
+                                ${pick.change_pct !== undefined ? `<span style="font-size: 0.9rem; font-weight: 700; color: ${changeColor}; margin-top: 2px;">${sign}${pick.change_pct.toFixed(2)}%</span>` : ''}
                             </div>
                             ${renderExtendedHours(pick)}
                         </div>
@@ -1318,9 +1376,10 @@ function drawSparkline(elementId, dataset, color) {
         // Build gradient fill for premium background look (matches Gold commodity card)
         const gradCanvas = container.querySelector('canvas');
         const gradCtx = gradCanvas.getContext('2d');
+        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
         const gradient = gradCtx.createLinearGradient(0, 0, 0, 90);
-        gradient.addColorStop(0, color + '55');
-        gradient.addColorStop(1, color + '00');
+        gradient.addColorStop(0, `rgba(${rgb}, 0.3)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`);
 
         sparklineInstances[elementId] = new Chart(gradCtx, {
             type: 'line',
@@ -1382,7 +1441,11 @@ async function fetchMarketAndInsights() {
         const newInsights = {};
         insightsArr.forEach(i => { newInsights[i.ticker] = i; });
 
-        updatePortfolioChart(marketArr);
+        // Only auto-update portfolio chart if we are in 1D view (real-time).
+        // Historical views (1W, 1M, etc) are updated via manual selector clicks.
+        if (currentPortfolioPeriod === '1d') {
+            await updatePortfolioChart(marketArr);
+        }
         patchInsightsGrid(newMarket, newInsights);
 
         lastMarketData = newMarket;
@@ -1487,7 +1550,8 @@ function buildCard(mkt, insight, index) {
     wrapper.dataset.exchange = mkt.exchange || '';
     wrapper.dataset.price = mkt.close_price || 0;
     wrapper.dataset.change = mkt.change_pct || 0;
-    wrapper.className = 'insight-card';
+    const isNeg = (mkt.change_pct || 0) < 0;
+    wrapper.className = 'insight-card' + (isNeg ? ' trend-negative' : '');
     wrapper.style.animationDelay = `${index * 0.05}s`;
 
     const inner = document.createElement('div');
@@ -1546,6 +1610,10 @@ function updateCard(wrapper, mkt, insight) {
     wrapper.dataset.change = mkt.change_pct || 0;
     wrapper.dataset.company = mkt.company_name || '';
     wrapper.dataset.exchange = mkt.exchange || '';
+
+    // Update trend class
+    if (mkt.change_pct < 0) wrapper.classList.add('trend-negative');
+    else wrapper.classList.remove('trend-negative');
 }
 
 
@@ -1672,38 +1740,99 @@ async function deleteTickerLogic(ticker) {
 /* =====================================================
    Portfolio Chart
    ===================================================== */
-function updatePortfolioChart(marketData) {
+async function updatePortfolioChart(marketData) {
     if (!marketData || marketData.length === 0) return;
     const active = [...marketData].filter(m => m.status === 'active');
-    if (active.length === 0) return;
+    
+    const loader = document.getElementById('portfolio-loader');
+    const statEl = document.getElementById('portfolio-change-stat');
 
-    // Build combined 24h area chart from sparkline data
-    // Each ticker's sparkline has N price points; sum them all up (converted to selected currency)
-    const sparklines = active.map(d => {
-        const pts = d.sparkline || [];
-        const { rate } = EXCHANGE_RATES[currentCurrency];
-        const tickerUsdRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
-        // sparkline values are in ticker's native currency → convert to USD → to display currency
-        return pts.map(v => (parseFloat(v) / tickerUsdRate) * rate);
-    }).filter(s => s.length > 0);
+    if (active.length === 0) {
+        if (statEl) statEl.innerHTML = '';
+        return;
+    }
 
-    if (sparklines.length === 0) return;
+    if (loader) loader.style.display = 'flex';
 
-    const len = Math.max(...sparklines.map(s => s.length));
-    const combined = Array.from({ length: len }, (_, i) =>
-        sparklines.reduce((sum, s) => sum + (s[i] || s[s.length - 1] || 0), 0)
-    );
+    let combined = [];
+    let labels = [];
 
-    // X labels: approximate 15-min intervals going back from now
-    const nowMs = Date.now();
-    const labels = combined.map((_, i) => {
-        const msAgo = (len - 1 - i) * 15 * 60 * 1000;
-        return new Date(nowMs - msAgo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    });
+    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
 
-    const { symbol } = EXCHANGE_RATES[currentCurrency];
+    if (currentPortfolioPeriod === '1d') {
+        const sparklines = active.map(d => {
+            const pts = d.sparkline || [];
+            const tickerUsdRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
+            return pts.map(v => (parseFloat(v) / tickerUsdRate) * rate);
+        }).filter(s => s.length > 0);
+
+        if (sparklines.length === 0) {
+            if (loader) loader.style.display = 'none';
+            return;
+        }
+
+        const len = Math.max(...sparklines.map(s => s.length));
+        combined = Array.from({ length: len }, (_, i) =>
+            sparklines.reduce((sum, s) => sum + (s[i] || s[s.length - 1] || 0), 0)
+        );
+
+        const nowMs = Date.now();
+        labels = combined.map((_, i) => {
+            const msAgo = (len - 1 - i) * 15 * 60 * 1000;
+            return new Date(nowMs - msAgo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        });
+    } else {
+        const tickers = active.map(m => m.ticker).join(',');
+        try {
+            const resp = await fetch(`/api/v1/market/batch-history?symbols=${tickers}&period=${currentPortfolioPeriod}`);
+            if (!resp.ok) throw new Error("Batch fetch failed");
+            const batch = await resp.json();
+            
+            if (!batch.timestamps || batch.timestamps.length === 0) return;
+
+            labels = batch.timestamps.map(t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+            
+            combined = Array.from({ length: batch.timestamps.length }, (_, i) => {
+                let total = 0;
+                active.forEach(m => {
+                    const series = (batch.data && batch.data[m.ticker]) ? batch.data[m.ticker] : [];
+                    const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i-1] || 0);
+                    const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
+                    total += (val / tickerUsdRate) * rate;
+                });
+                return total;
+            });
+        } catch (e) {
+            console.error("Portfolio history fetch failed", e);
+            if (loader) loader.style.display = 'none';
+            return;
+        }
+    }
+
+    if (combined.length === 0) {
+        if (loader) loader.style.display = 'none';
+        return;
+    }
+
+    // Calculate Change Metrics
+    const startVal = combined[0];
+    const endVal = combined[combined.length - 1];
+    const diff = endVal - startVal;
+    const changePct = startVal !== 0 ? (diff / startVal) * 100 : 0;
+    const isPos = changePct >= 0;
+
+    if (statEl) {
+        const color = isPos ? 'var(--positive)' : 'var(--negative)';
+        const sign = isPos ? '+' : '';
+        statEl.style.color = color;
+        statEl.innerHTML = `
+            <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 400; margin-right: 0.25rem;">${currentPortfolioPeriod.toUpperCase()} Perf:</span>
+            ${sign}${changePct.toFixed(2)}%
+            <span style="font-size: 0.9rem; margin-left: 0.2rem;">(${isPos ? '↑' : '↓'})</span>
+        `;
+    }
+
     const ctx = document.getElementById('portfolioChart').getContext('2d');
-    const isPos = combined[combined.length - 1] >= combined[0];
     const lineColor = isPos ? 'rgba(16,185,129,1)' : 'rgba(244,63,94,1)';
     const fillColor = isPos ? 'rgba(16,185,129,0.08)' : 'rgba(244,63,94,0.08)';
 
@@ -1712,9 +1841,9 @@ function updatePortfolioChart(marketData) {
         portfolioChartInstance.data.datasets[0].data = combined;
         portfolioChartInstance.data.datasets[0].borderColor = lineColor;
         portfolioChartInstance.data.datasets[0].backgroundColor = fillColor;
-        portfolioChartInstance.options.scales.y.ticks.callback = v => `${symbol}${v.toFixed(0)}`;
-        portfolioChartInstance.options.plugins.tooltip.callbacks.label = c => ` Combined: ${symbol}${c.parsed.y.toFixed(2)}`;
-        portfolioChartInstance.update('none');
+        portfolioChartInstance.options.scales.y.ticks.callback = v => `${symbol}${v.toLocaleString()}`;
+        portfolioChartInstance.options.plugins.tooltip.callbacks.label = c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        portfolioChartInstance.update();
     } else {
         portfolioChartInstance = new Chart(ctx, {
             type: 'line',
@@ -1737,29 +1866,32 @@ function updatePortfolioChart(marketData) {
                 interaction: { mode: 'index', intersect: false },
                 plugins: {
                     legend: { display: false },
-                    datalabels: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15,23,42,0.9)',
-                        titleColor: '#94a3b8',
-                        bodyColor: '#f8fafc',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        borderWidth: 1,
-                        callbacks: { label: c => ` Combined: ${symbol}${c.parsed.y.toFixed(2)}` }
+                        callbacks: {
+                            label: c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                        }
                     }
                 },
                 scales: {
-                    x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 }, maxRotation: 0 }
+                    },
                     y: {
-                        beginAtZero: false,
-                        ticks: { color: '#94a3b8', callback: v => `${symbol}${v.toFixed(0)}` },
-                        grid: { color: 'rgba(255,255,255,0.04)' }
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: {
+                            color: 'rgba(255,255,255,0.3)',
+                            font: { size: 10 },
+                            callback: v => `${symbol}${v.toLocaleString()}`
+                        }
                     }
                 }
-            },
-            plugins: [ChartDataLabels]
+            }
         });
     }
+    if (loader) loader.style.display = 'none';
 }
+
 
 /* =====================================================
    Modal
@@ -1770,7 +1902,12 @@ function initModal() {
 
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    document.addEventListener('keydown', e => { 
+        if (e.key === 'Escape') {
+            closeModal();
+            closeDefinitionModal();
+        }
+    });
 
     document.getElementById('period-selector').addEventListener('click', e => {
         const btn = e.target.closest('.period-btn');
@@ -1798,6 +1935,13 @@ function openModal(ticker) {
     const insight = lastInsightsData[ticker] || null;
     currentModalMkt = mkt;
     currentModalInsight = insight;
+
+    const isPos = (mkt.change_pct || 0) >= 0;
+    const modalPanel = document.querySelector('.modal-panel');
+    if (modalPanel) {
+        if (!isPos) modalPanel.classList.add('trend-negative');
+        else modalPanel.classList.remove('trend-negative');
+    }
 
     renderModalContent(mkt, insight);
 
@@ -1916,7 +2060,18 @@ function renderHeroStats(mkt) {
     const isPos = (mkt.change_pct || 0) >= 0;
     const sign = isPos ? '+' : '';
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
-    document.getElementById('modal-hero-stats').innerHTML = `
+    const statsBox = document.getElementById('modal-hero-stats');
+    const modalPanel = document.querySelector('.modal-panel');
+    
+    if (!isPos) {
+        statsBox.classList.add('trend-negative');
+        if (modalPanel) modalPanel.classList.add('trend-negative');
+    } else {
+        statsBox.classList.remove('trend-negative');
+        if (modalPanel) modalPanel.classList.remove('trend-negative');
+    }
+
+    statsBox.innerHTML = `
         <div class="hero-stat main">
             <div class="hero-stat-label">CLOSE PRICE</div>
             <div class="hero-stat-value main">${formatPrice(mkt.close_price, mkt.currency)}</div>
@@ -2060,8 +2215,11 @@ async function loadModalChart(ticker, period) {
             document.getElementById('modal-ticker-name').textContent = data.info.name;
         }
 
-        // Color based on trend
-        const trendColor = closes[closes.length - 1] >= closes[0] ? '#10b981' : '#f43f5e';
+        // Color based on trend - use current day change if available, else period trend
+        const dayChangeVal = (currentModalMkt && typeof currentModalMkt.change_pct === 'number') ? currentModalMkt.change_pct : (closes[closes.length - 1] - closes[0]);
+        const isUp = dayChangeVal >= 0;
+        const trendColor = isUp ? '#10b981' : '#f43f5e';
+        const rgb = isUp ? '16, 185, 129' : '244, 63, 94';
 
         // Update hero stats if this is a pending discovery pick
         if (currentModalMkt && currentModalMkt.status === 'pending_data') {
@@ -2096,9 +2254,9 @@ async function loadModalChart(ticker, period) {
 
         if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
         const ctx = document.getElementById('modal-history-chart').getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-        gradient.addColorStop(0, trendColor + '33');
-        gradient.addColorStop(1, trendColor + '00');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+        gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`);
 
         modalChartInstance = new Chart(ctx, {
             type: 'line',
@@ -2452,9 +2610,10 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         const padding = range === 0 ? 1 : range * 0.05;
 
         // Gradient fill for premium look
+        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
         const gradient = ctx.createLinearGradient(0, 0, 0, 52);
-        gradient.addColorStop(0, color + '40');
-        gradient.addColorStop(1, color + '00');
+        gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`);
 
         discoverSparklineInstances[symbol] = new Chart(ctx, {
             type: 'line',
@@ -2799,4 +2958,26 @@ async function triggerTargetedRefresh(tickers) {
     } catch (e) {
         console.error("Discovery Agent: Targeted refresh failed", e);
     }
+}
+function initPortfolioPeriodSelector() {
+    const selector = document.getElementById('portfolio-period-selector');
+    if (!selector) return;
+
+    selector.addEventListener('click', async e => {
+        const btn = e.target.closest('.period-btn');
+        if (!btn) return;
+        
+        // Don't re-fetch if already active
+        if (btn.classList.contains('active')) return;
+
+        document.querySelectorAll('#portfolio-period-selector .period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPortfolioPeriod = btn.dataset.period;
+        
+        // Trigger a fresh calculation/fetch for the portfolio chart
+        const marketArr = Object.values(lastMarketData);
+        if (marketArr.length > 0) {
+            await updatePortfolioChart(marketArr);
+        }
+    });
 }

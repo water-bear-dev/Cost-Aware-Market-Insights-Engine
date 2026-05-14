@@ -1201,6 +1201,22 @@ body {
     border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+/* Trend-based backgrounds */
+.insight-card.trend-negative .glass {
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.1), rgba(0, 0, 0, 0.4)) !important;
+    border-color: rgba(244, 63, 94, 0.3) !important;
+    box-shadow: 0 8px 32px rgba(244, 63, 94, 0.1);
+}
+
+.modal-hero-stats.trend-negative {
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.12), rgba(15, 23, 42, 0.5)) !important;
+    border-color: rgba(244, 63, 94, 0.4) !important;
+}
+
+.insight-card.trend-positive .glass {
+    /* Optional: add a subtle green tint if desired, but default glass is fine */
+}
+
 .signal-pill.sell {
     background: rgba(244, 63, 94, 0.2);
     color: var(--negative);
