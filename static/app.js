@@ -20,7 +20,7 @@ let dailyPicksData = {};
 let lastDiscoverCommodities = [];
 
 let currentCurrency = 'USD';
-let currentCommodityUnit = 'Imperial';
+let currentCommodityUnit = 'Metric';
 let EXCHANGE_RATES = {
     'USD': { rate: 1.0, symbol: '$' },
     'EUR': { rate: 0.92, symbol: '€' },
@@ -873,7 +873,7 @@ async function fetchDailyPicks() {
                     grid.innerHTML = `
                         <div class="metric-card glass" style="grid-column: 1 / -1; display: flex; align-items: center; gap: 1rem; padding: 2rem;">
                             <div class="node-pulse" style="position:relative; width:20px; height:20px; border-radius:50%; border:2px solid var(--accent); animation:nodePulse 2s infinite;"></div>
-                            <span style="color: var(--text-secondary); font-size: 0.9rem;">The Daily Discovery Agent is currently hunting for hidden gems... check back in 30s.</span>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">The Daily Discovery Agent is currently hunting for global opportunities and hidden gems... check back in 30s.</span>
                         </div>
                     `;
                     container.style.display = 'block';
@@ -1278,9 +1278,16 @@ function drawSparkline(elementId, dataset, color) {
         const range = maxVal - minVal;
         const padding = range === 0 ? 1 : range * 0.1;
 
-        sparklineInstances[elementId] = new Chart(ctx, {
+        // Build gradient fill for premium background look (matches Gold commodity card)
+        const gradCanvas = container.querySelector('canvas');
+        const gradCtx = gradCanvas.getContext('2d');
+        const gradient = gradCtx.createLinearGradient(0, 0, 0, 90);
+        gradient.addColorStop(0, color + '55');
+        gradient.addColorStop(1, color + '00');
+
+        sparklineInstances[elementId] = new Chart(gradCtx, {
             type: 'line',
-            data: { labels: dataset.map((_, i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4 }] },
+            data: { labels: dataset.map((_, i) => i), datasets: [{ data: dataset, borderColor: color, borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true, backgroundColor: gradient }] },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -1490,7 +1497,8 @@ function updateCard(wrapper, mkt, insight) {
     const insightEl = inner.querySelector('.insight-text');
     if (insightEl && insight) {
         // Only update text if it changed significantly to avoid flicker
-        const newText = formatInsight(insight.insight_text, 2);
+        // For dashboard cards, only show 'WhatsHappening'
+        const newText = formatInsight(insight.insight_text, null, ['WhatsHappening']);
         if (insightEl.innerHTML.length !== newText.length) {
             insightEl.innerHTML = newText + (insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : '');
         }
@@ -1582,10 +1590,6 @@ function cardInnerHtml(mkt, insight) {
                 </div>
                 ${mkt.company_name ? `<span class="card-company-name">${mkt.company_name}</span>` : ''}
             </div>
-            
-            <div class="card-sparkline-box">
-                <div id="sparkline-card-${mkt.ticker}" class="sparkline-inner"></div>
-            </div>
 
             <div class="card-price-box">
                 <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
@@ -1596,8 +1600,9 @@ function cardInnerHtml(mkt, insight) {
                 <span class="${cClass} card-change ${changeClass}">${sign}${displayPct.toFixed(2)}%</span>
             </div>
         </div>
+        <div id="sparkline-card-${mkt.ticker}" class="card-sparkline-bg"></div>
         <div class="insight-text" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
-            ${insight ? formatInsight(insight.insight_text, 2) : 'Awaiting AI synthesis — click to view history.'}
+            ${insight ? formatInsight(insight.insight_text, null, ['WhatsHappening']) : 'Awaiting AI synthesis — click to view history.'}
             ${insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : ''}
         </div>
         ${buildNewsHtml(mkt)}
@@ -2147,17 +2152,36 @@ function renderAnalystBar(summary) {
     `).join('');
 }
 
-function formatInsight(text, limit = null) {
+function formatInsight(text, limit = null, showOnly = null) {
     if (!text) return '';
 
-    // Handle structured Discovery Rationale (JSON Object)
-    if (typeof text === 'object' && !Array.isArray(text)) {
-        return Object.entries(text).map(([key, value]) => {
-            const label = key.toUpperCase();
+    // Handle JSON strings (parsing if needed)
+    let rationale = text;
+    if (typeof text === 'string' && text.trim().startsWith('{')) {
+        try { rationale = JSON.parse(text); } catch(e) { /* fallback to string */ }
+    }
+
+    // Handle structured Rationale (Object)
+    if (typeof rationale === 'object' && !Array.isArray(rationale)) {
+        let entries = Object.entries(rationale);
+        
+        // Filter if requested
+        if (showOnly) {
+            entries = entries.filter(([key]) => showOnly.includes(key));
+        }
+        
+        // Limit if requested
+        if (limit) {
+            entries = entries.slice(0, limit);
+        }
+
+        return entries.map(([key, value]) => {
+            // Clean up key name for display (e.g., "WhatsHappening" -> "WHAT'S HAPPENING")
+            const label = key.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
             return `
-            <div style="display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <div style="min-width: 140px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); font-weight: 800; padding-top: 4px; opacity: 0.9;">${label}</div>
-                <p style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.7; margin: 0; font-weight: 400; flex: 1;">${value}</p>
+            <div style="display: flex; gap: 1rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                <div style="min-width: 110px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 700; opacity: 0.8;">${label}</div>
+                <p style="font-size: 0.9rem; color: var(--text-primary); line-height: 1.5; margin: 0; flex: 1;">${value}</p>
             </div>`;
         }).join('');
     }
@@ -2210,8 +2234,32 @@ function formatInsight(text, limit = null) {
    ===================================================== */
 let _discoverRefreshTimer = null;
 let _discoverNewsTimer = null;
+let currentDiscoverPeriod = '1d';
+
+// All symbols we need sparklines for (indices + commodities)
+const DISCOVER_INDEX_SYMBOLS  = ['^AXJO','^GSPC','^IXIC','^STOXX50E','^FTSE','^N225','^HSI'];
+const DISCOVER_COMMODITY_SYMBOLS = ['GC=F','SI=F','HG=F','PL=F','PA=F','CL=F'];
+const ALL_DISCOVER_SYMBOLS = [...DISCOVER_INDEX_SYMBOLS, ...DISCOVER_COMMODITY_SYMBOLS];
+
+// Sparkline chart instances keyed by symbol
+const discoverSparklineInstances = {};
+
+function initDiscoverPeriodSelector() {
+    const selector = document.getElementById('discover-period-selector');
+    if (!selector || selector.dataset.hooked) return;
+    selector.addEventListener('click', (e) => {
+        const btn = e.target.closest('.discover-period-btn');
+        if (!btn) return;
+        selector.querySelectorAll('.discover-period-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentDiscoverPeriod = btn.dataset.period;
+        fetchDiscoverSparklines(currentDiscoverPeriod);
+    });
+    selector.dataset.hooked = 'true';
+}
 
 async function fetchDiscoverData() {
+    initDiscoverPeriodSelector();
     fetchDiscoverIndices();
     fetchDiscoverMovers();
     fetchDiscoverNews();
@@ -2236,6 +2284,8 @@ async function fetchDiscoverIndices() {
         renderMarketIndices(data.regions || []);
         lastDiscoverCommodities = data.commodities || [];
         renderCommodities(lastDiscoverCommodities);
+        // Kick off sparklines after cards are rendered
+        fetchDiscoverSparklines(currentDiscoverPeriod);
     } catch (e) { console.error('Discover indices failed', e); }
 }
 
@@ -2268,29 +2318,155 @@ async function fetchDiscoverNews() {
     } catch (e) { console.error('Discover news failed', e); }
 }
 
+/**
+ * Async orchestrator: fetches batch sparkline data for all Discover cards in one API call,
+ * then draws canvas trend lines on each card. Skeleton pulse shown on cards while loading.
+ */
+async function fetchDiscoverSparklines(period = '1d') {
+    // Show skeleton opacity while loading
+    document.querySelectorAll('.discover-sparkline-wrap').forEach(el => {
+        el.style.opacity = '0.2';
+    });
+
+    try {
+        const symbols = ALL_DISCOVER_SYMBOLS.join(',');
+        const res = await fetch(`/api/v1/market/batch-history?symbols=${encodeURIComponent(symbols)}&period=${period}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        // Draw sparkline for each card by data-symbol attribute
+        document.querySelectorAll('[data-discover-symbol]').forEach(card => {
+            const sym = card.dataset.discoverSymbol;
+            const closes = data[sym];
+            if (!closes || closes.length < 2) return;
+
+            const isPos = closes[closes.length - 1] >= closes[0];
+            const color = isPos ? '#10b981' : '#f43f5e';
+            const wrap = card.querySelector('.discover-sparkline-wrap');
+            if (!wrap) return;
+
+            drawDiscoverSparkline(wrap, sym, closes, color);
+
+            // Update change badge to reflect the selected period
+            const pctChange = ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100;
+            const badge = card.querySelector('.discover-change-badge');
+            if (badge) {
+                const sign = pctChange >= 0 ? '+' : '';
+                badge.className = `discover-change-badge ${pctChange >= 0 ? 'pos' : 'neg'}`;
+                badge.textContent = `${sign}${pctChange.toFixed(2)}%`;
+            }
+
+            // Restore opacity
+            wrap.style.opacity = '0.5';
+        });
+    } catch (e) {
+        console.error('Discover sparklines failed:', e);
+    }
+}
+
+function drawDiscoverSparkline(container, symbol, dataset, color) {
+    // Destroy stale instance if canvas is gone
+    if (discoverSparklineInstances[symbol]) {
+        if (!document.body.contains(discoverSparklineInstances[symbol].canvas)) {
+            discoverSparklineInstances[symbol].destroy();
+            delete discoverSparklineInstances[symbol];
+        }
+    }
+
+    if (!discoverSparklineInstances[symbol]) {
+        container.innerHTML = '<canvas></canvas>';
+        const canvas = container.querySelector('canvas');
+        const ctx = canvas.getContext('2d');
+        const minVal = Math.min(...dataset);
+        const maxVal = Math.max(...dataset);
+        const range = maxVal - minVal;
+        const padding = range === 0 ? 1 : range * 0.05;
+
+        // Gradient fill for premium look
+        const gradient = ctx.createLinearGradient(0, 0, 0, 52);
+        gradient.addColorStop(0, color + '40');
+        gradient.addColorStop(1, color + '00');
+
+        discoverSparklineInstances[symbol] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dataset.map((_, i) => i),
+                datasets: [{
+                    data: dataset,
+                    borderColor: color,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: gradient
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: minVal - padding, max: maxVal + padding, beginAtZero: false }
+                },
+                animation: { duration: 400 }
+            }
+        });
+    } else {
+        // Update existing instance
+        const chart = discoverSparklineInstances[symbol];
+        chart.data.datasets[0].data = dataset;
+        chart.data.datasets[0].borderColor = color;
+        chart.update('none');
+    }
+}
+
+function _buildIndexCard(idx) {
+    const isPos = idx.change_pct >= 0;
+    const sign = isPos ? '+' : '';
+    const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return `<div class="discover-index-card" data-discover-symbol="${idx.symbol}">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div class="discover-index-name">${idx.name}</div>
+                    <div style="text-align: right;">
+                        <div class="discover-index-price" data-price>${priceStr}</div>
+                        <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}" data-badge>${sign}${idx.change_pct.toFixed(2)}%</span>
+                    </div>
+                </div>
+                ${renderExtendedHours(idx)}
+                <div class="discover-sparkline-wrap"></div>
+            </div>`;
+}
+
 function renderMarketIndices(regions) {
     const el = document.getElementById('discover-indices');
     if (!el) return;
 
+    // If cards already exist: patch text only — never destroy DOM or sparklines
+    const alreadyBuilt = el.querySelector('[data-discover-symbol]');
+    if (alreadyBuilt) {
+        regions.forEach(r => {
+            (r.indices || []).forEach(idx => {
+                const card = el.querySelector(`[data-discover-symbol="${idx.symbol}"]`);
+                if (!card) return;
+                const isPos = idx.change_pct >= 0;
+                const sign = isPos ? '+' : '';
+                const priceEl = card.querySelector('[data-price]');
+                const badgeEl = card.querySelector('[data-badge]');
+                if (priceEl) priceEl.textContent = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+                if (badgeEl) {
+                    badgeEl.textContent = `${sign}${idx.change_pct.toFixed(2)}%`;
+                    badgeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
+                }
+            });
+        });
+        return;
+    }
+
+    // First load: build full HTML
     el.innerHTML = regions.map(r => {
         if (!r.indices || !r.indices.length) return '';
-        const cards = r.indices.map(idx => {
-            const isPos = idx.change_pct >= 0;
-            const sign = isPos ? '+' : '';
-            // Format price with commas; don't prepend $ for non-USD
-            const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-            return `<div class="discover-index-card">
-                <div class="discover-index-name">${idx.name}</div>
-                <div class="discover-index-price">
-                    <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
-                        <div>${priceStr}</div>
-                    </div>
-                    ${renderExtendedHours(idx)}
-                </div>
-                <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${idx.change_pct.toFixed(2)}%</span>
-            </div>`;
-        }).join('');
-
+        const cards = r.indices.map(idx => _buildIndexCard(idx)).join('');
         return `<div class="discover-region-group">
             <div class="discover-region-label">${r.flag} ${r.region}</div>
             <div class="discover-region-cards">${cards}</div>
@@ -2298,43 +2474,63 @@ function renderMarketIndices(regions) {
     }).join('');
 }
 
+function _buildCommodityCard(c) {
+    const isPos = c.change_pct >= 0;
+    const sign = isPos ? '+' : '';
+    let displayPrice = c.price;
+    let displayUnit = c.unit;
+    if (currentCommodityUnit === 'Metric') {
+        if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
+        else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
+    }
+    return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div class="discover-region-label" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">${c.icon} ${c.name}</div>
+                <div style="text-align: right;">
+                    <div style="display: flex; align-items: baseline; gap: 0.2rem; justify-content: flex-end;">
+                        <span style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1;" data-price>${formatPrice(displayPrice, c.currency || 'USD')}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary);" data-unit>/${displayUnit}</span>
+                    </div>
+                    <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}" data-badge>${sign}${c.change_pct.toFixed(2)}%</span>
+                </div>
+            </div>
+            <div class="discover-sparkline-wrap"></div>
+        </div>`;
+}
+
 function renderCommodities(commodities) {
     const el = document.getElementById('discover-commodities');
     if (!el) return;
-    el.innerHTML = commodities.map(c => {
-        const isPos = c.change_pct >= 0;
-        const sign = isPos ? '+' : '';
 
-        // Unit conversion logic
-        let displayPrice = c.price;
-        let displayUnit = c.unit;
-
-        if (currentCommodityUnit === 'Metric') {
-            if (c.unit === 'oz') {
-                displayPrice = displayPrice / 28.3495; // Price per gram
-                displayUnit = 'g';
-            } else if (c.unit === 'bbl') {
-                displayPrice = displayPrice / 158.987; // Price per liter
-                displayUnit = 'L';
+    // If cards already exist: patch numbers only — preserve sparkline canvases
+    const alreadyBuilt = el.querySelector('[data-discover-symbol]');
+    if (alreadyBuilt) {
+        commodities.forEach(c => {
+            const card = el.querySelector(`[data-discover-symbol="${c.symbol}"]`);
+            if (!card) return;
+            const isPos = c.change_pct >= 0;
+            const sign = isPos ? '+' : '';
+            let displayPrice = c.price;
+            let displayUnit = c.unit;
+            if (currentCommodityUnit === 'Metric') {
+                if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
+                else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
             }
-        }
+            const priceEl = card.querySelector('[data-price]');
+            const unitEl  = card.querySelector('[data-unit]');
+            const badgeEl = card.querySelector('[data-badge]');
+            if (priceEl) priceEl.textContent = formatPrice(displayPrice, c.currency || 'USD');
+            if (unitEl)  unitEl.textContent  = `/${displayUnit}`;
+            if (badgeEl) {
+                badgeEl.textContent = `${sign}${c.change_pct.toFixed(2)}%`;
+                badgeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
+            }
+        });
+        return;
+    }
 
-        // Use formatPrice to apply the selected global currency logic
-        return `<div class="discover-index-card">
-            <div class="discover-region-label">${c.icon} ${c.name}</div>
-            <div class="discover-index-price" style="display: flex; justify-content: space-between; align-items: flex-end;">
-                <div>
-                    <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; min-width: 0;">
-                    <div style="display: flex; align-items: baseline; gap: 0.25rem; white-space: nowrap;">
-                        <span style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1;">${formatPrice(displayPrice, c.currency || 'USD')}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0;">/${displayUnit}</span>
-                    </div>
-                </div>
-            </div>
-        </div>`;
-    }).join('');
+    // First load: build full HTML
+    el.innerHTML = commodities.map(c => _buildCommodityCard(c)).join('');
 }
 
 function renderMovers(tableId, movers, isGainer) {

@@ -104,23 +104,29 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         input_tokens = 900
         output_tokens = 85
         signal = _derive_signal(change_pct)
-        insight_text = (
-            f"1. What's Happening: {ticker} moved {change_pct:.2f}% to end at ${float(latest_data.get('close_price', 0)):.2f}.\n"
-            f"2. What to Watch: Keep an eye on how the market reacts to upcoming volume levels."
-        )
+        insight_text = json.dumps({
+            "WhatsHappening": f"{ticker} gained {change_pct:.2f}% to end at ${float(latest_data.get('close_price', 0)):.2f}. This bullish momentum is underpinned by the '{headline_text.splitlines()[0] if headline_text else 'positive news sentiment'}', indicating strong market confidence in the company's AI pivot. Dynamics show high institutional buying interest as macro headwinds stabilize.",
+            "WhatToWatch": "The upcoming product launch event on June 15th and its impact on Q3 revenue guidance. Investors are looking for concrete evidence of margin expansion and user retention rates.",
+            "Technicals": "The stock is currently testing the 50-day SMA ($610.20) as a key support level. RSI at 52 suggests neutral momentum, but a decisive break above $625 could trigger a short-squeeze scenario given the high relative volume.",
+            "Risks": "Competitive pressure from emerging open-source models and potential FTC scrutiny regarding current data licensing agreements. Macro volatility in the tech sector remains a systemic headwind.",
+            "BottomLine": "A compelling risk-reward play for growth-oriented portfolios, with technical support holding strong amidst positive sentiment shifts."
+        })
         model_used = 'local-mock'
     elif settings.llm_provider == "ollama":
         try:
             prompt = (
-                f"You are an expert financial analyst. Analyze {ticker} based on recent news and price action.\n\n"
-                f"Structure your response exactly as follows:\n"
-                f"1. What's Happening: A clear summary of the latest price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) and context from the latest news headlines.\n"
-                f"2. What to Watch: One specific upcoming event, technical level, or risk factor to monitor.\n\n"
-                f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
-                f"Ticker Data:\n"
+                f"You are a senior equity research analyst. Analyze {ticker} using the provided data and news context as of {datetime.utcnow().strftime('%Y-%m-%d')}.\n\n"
+                f"Return ONLY a valid JSON object with these keys. For each section, provide a detailed, research-driven elaboration:\n"
+                f"1. WhatsHappening: (3-5 sentences) Synthesize price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) with specific news sentiment. Explain the market dynamics—was the move driven by earnings, macro data, or a specific headline from the sources provided? Integrate evidence from headlines.\n"
+                f"2. WhatToWatch: (2-3 sentences) Identify a high-impact upcoming catalyst (earnings, launch, or macro event) and explain its strategic importance for the stock's narrative.\n"
+                f"3. Technicals: (2-3 sentences) Evaluate trend health using specific levels. Mention signals like RSI divergence, proximity to 50/200-day moving averages, and volume dynamics (accumulation/distribution).\n"
+                f"4. Risks: (2-3 sentences) Detail the most pressing risk, distinguishing between company-specific threats mentioned in news and broader macro-sector headwinds.\n"
+                f"5. BottomLine: (2 sentences) A decisive investment thesis summarizing the overall risk-reward profile.\n"
+                f"6. Signal: Exactly 'BUY', 'HOLD', or 'SELL'.\n\n"
+                f"Data:\n"
                 f"- Price: ${float(latest_data.get('close_price', 0)):.2f}\n"
                 f"- Change: {change_pct:+.2f}%\n"
-                f"- News Headlines:\n{headline_text}"
+                f"- News:\n{headline_text}\n"
             )
             
             resp = httpx.post(
@@ -129,28 +135,38 @@ def synthesize_single_insight(latest_data: dict) -> bool:
                     "model": settings.ollama_model,
                     "prompt": prompt,
                     "stream": False,
-                    "options": {"temperature": 0.3}
+                    "options": {"temperature": 0.2}
                 },
                 timeout=90.0
             )
             resp.raise_for_status()
             full_text = resp.json().get('response', '')
             
-            # Simple parsing (Ollama doesn't give token counts easily in basic API)
+            # Robust JSON extraction
+            import re
+            json_match = re.search(r'\{.*\}', full_text, re.DOTALL)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                    insight_text = json.dumps({
+                        "WhatsHappening": data.get("WhatsHappening", ""),
+                        "WhatToWatch": data.get("WhatToWatch", ""),
+                        "Technicals": data.get("Technicals", ""),
+                        "Risks": data.get("Risks", ""),
+                        "BottomLine": data.get("BottomLine", "")
+                    })
+                    signal = str(data.get("Signal", "HOLD")).upper().strip()
+                    if signal not in ["BUY", "SELL", "HOLD"]: signal = "HOLD"
+                except:
+                    insight_text = full_text
+                    signal = "HOLD"
+            else:
+                insight_text = full_text
+                signal = "HOLD"
+
             input_tokens = len(prompt) // 4
             output_tokens = len(full_text) // 4
             model_used = f"ollama-{settings.ollama_model}"
-            
-            signal = "HOLD"
-            lines = full_text.strip().split('\n')
-            insight_lines = []
-            for line in lines:
-                if "SIGNAL:" in line.upper():
-                    for s in ["BUY", "SELL", "HOLD"]:
-                        if s in line.upper(): signal = s
-                else:
-                    insight_lines.append(line)
-            insight_text = '\n\n'.join(insight_lines).strip()
             
         except Exception as e:
             logger.error("Ollama invocation failed", error=str(e))
@@ -159,12 +175,14 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         try:
             bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
             prompt = (
-                f"You are an expert financial analyst. Analyze {ticker} in simple, professional terms using the provided data and news.\n\n"
-                f"Provide exactly 2 sections (no bold text in the summary itself):\n"
-                f"1. What's Happening: Summarize the latest market move and synthesize information from the recent headlines below. Explain the 'why' behind the action.\n"
-                f"2. What to Watch: Identify one clear catalyst, risk, or technical signal the user should monitor next.\n\n"
-                f"Be helpful, clear, and prioritize accuracy. Mention news sources if relevant.\n"
-                f"On the final line, output exactly: SIGNAL: BUY, SIGNAL: HOLD, or SIGNAL: SELL\n\n"
+                f"You are a senior equity research analyst. Analyze {ticker} using the provided data and news context as of {datetime.utcnow().strftime('%Y-%m-%d')}.\n\n"
+                f"Return ONLY a valid JSON object with these keys. For each section, provide a detailed, research-driven elaboration:\n"
+                f"1. WhatsHappening: (3-5 sentences) Synthesize price action (${float(latest_data.get('close_price', 0)):.2f}, {change_pct:+.2f}%) with specific news sentiment. Explain the market dynamics—was the move driven by earnings, macro data, or a specific headline from the sources provided? Integrate evidence from headlines.\n"
+                f"2. WhatToWatch: (2-3 sentences) Identify a high-impact upcoming catalyst (earnings, launch, or macro event) and explain its strategic importance for the stock's narrative.\n"
+                f"3. Technicals: (2-3 sentences) Evaluate trend health using specific levels. Mention signals like RSI divergence, proximity to 50/200-day moving averages, and volume dynamics (accumulation/distribution).\n"
+                f"4. Risks: (2-3 sentences) Detail the most pressing risk, distinguishing between company-specific threats mentioned in news and broader macro-sector headwinds.\n"
+                f"5. BottomLine: (2 sentences) A decisive investment thesis summarizing the overall risk-reward profile.\n"
+                f"6. Signal: Exactly 'BUY', 'HOLD', or 'SELL'.\n\n"
                 f"Ticker: {ticker}\n"
                 f"Market Action: Close at ${float(latest_data.get('close_price', 0)):.2f} ({change_pct:+.2f}%)\n"
                 f"Recent News Context:\n{headline_text}"
@@ -172,8 +190,8 @@ def synthesize_single_insight(latest_data: dict) -> bool:
 
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 800,
-                "temperature": 0.3,
+                "max_tokens": 1000,
+                "temperature": 0.2,
                 "messages": [
                     {"role": "user", "content": [{"type": "text", "text": prompt}]}
                 ]
@@ -192,20 +210,27 @@ def synthesize_single_insight(latest_data: dict) -> bool:
             output_tokens = response_body.get('usage', {}).get('output_tokens', 0)
             model_used = "anthropic.claude-3-haiku-20240307-v1:0"
             
-            # Parse signal and preserve structured paragraphs
-            signal = "HOLD"
-            lines = full_text.strip().split('\n')
-            insight_lines = []
-            for line in lines:
-                stripped = line.strip()
-                if not stripped: continue
-                if stripped.upper().startswith("SIGNAL:"):
-                    raw_signal = stripped.upper().replace("SIGNAL:", "").strip()
-                    if raw_signal in ("BUY", "SELL", "HOLD"):
-                        signal = raw_signal
-                else:
-                    insight_lines.append(line)
-            insight_text = '\n\n'.join(insight_lines).strip()
+            # Robust JSON extraction
+            import re
+            json_match = re.search(r'\{.*\}', full_text, re.DOTALL)
+            if json_match:
+                try:
+                    data = json.loads(json_match.group())
+                    insight_text = json.dumps({
+                        "WhatsHappening": data.get("WhatsHappening", ""),
+                        "WhatToWatch": data.get("WhatToWatch", ""),
+                        "Technicals": data.get("Technicals", ""),
+                        "Risks": data.get("Risks", ""),
+                        "BottomLine": data.get("BottomLine", "")
+                    })
+                    signal = str(data.get("Signal", "HOLD")).upper().strip()
+                    if signal not in ["BUY", "SELL", "HOLD"]: signal = "HOLD"
+                except:
+                    insight_text = full_text
+                    signal = "HOLD"
+            else:
+                insight_text = full_text
+                signal = "HOLD"
             
         except Exception as e:
             error_str = str(e)

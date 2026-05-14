@@ -2,7 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
-## [3.1.2] - 2026-05-14
+## [3.1.4] - 2026-05-14
+
+### Added
+- **Inline Sparkline Strip** — Repositioned the watchlist card sparkline from a background overlay into a dedicated inline strip (64px) placed between the price header and the AI analysis section. This follows the same visual language as the Gold commodity card in the Discover tab.
+- **Gradient Area Fill on Watchlist Sparklines** — Added a colour-matched gradient wash beneath the sparkline line (`color + '55'` → `color + '00'`) for a premium, depth-layered effect consistent with the Discover tab's commodity cards.
+
+### Changed
+- **Sparkline DOM Order** — The sparkline container (`#sparkline-card-{ticker}`) is now emitted after the `.card-header` block and before the `.insight-text` block, acting as a clear visual separator between market data and AI narrative.
+- **CSS Class Refactor** — Replaced the legacy `.card-sparkline-box` / `.sparkline-inner` inline approach with a new `.card-sparkline-bg` class. The old `.card-sparkline-box` is now hidden via `display: none` to preserve compatibility with density-wide/horizontal layout overrides.
+- **Removed Absolute Positioning** — Reverted the card's `.glass` element from `position: relative; overflow: hidden` back to its default flow, as the absolute background approach was discarded in favour of the inline strip.
+
+### Fixed
+- **Z-Index Stacking Cleanup** — Removed the temporary `z-index: 1; position: relative` declarations from `.card-header` that were added to support the now-abandoned absolute sparkline layer.
+
+---
+
+## [3.1.3] - 2026-05-14
+
+### Changed
+- **Deterministic Discovery Engine** — Eliminated the AI-selection shortlist model in `bedrock_recommend_node`. The algorithm now pre-selects the single highest-momentum ticker per category (S&P 500, Global Opportunity, Hidden Gem) using a `get_best()` comparator before any LLM call is made, making it impossible for the model to misattribute analysis to the wrong company.
+- **Isolated Per-Ticker AI Calls** — Replaced the single multi-candidate prompt with three sequential, focused API calls. Each call receives exactly one ticker, with the prompt explicitly forbidding the model from referencing or analysing any other company.
+- **Force-Overwrite Ticker Field** — After parsing the AI response, the `ticker` and `category` fields are overwritten with the algorithm's pre-selected values, providing a final hard safeguard against model drift regardless of what the LLM returns.
+- **Reduced Temperature & Token Budget** — Lowered generation temperature from `0.3` → `0.2` and max tokens from `1500` → `800` per call. Each prompt targets a single stock, requiring less output, improving determinism, and reducing per-run cost.
+- **Category Labels Corrected** — Swapped the `_DAILY_GLOBALOPPORTUNITY_` and `_DAILY_HIDDENGEM_` slot labels in `insights.py` to correctly map international blue-chip picks to **Global Opportunity** and high-potential quality picks to **Hidden Gems**.
+
+### Fixed
+- **Sony/ASML-Type Hallucination** — Resolved the root-cause architecture flaw where a single prompt containing multiple candidate tickers allowed the model to cross-wire analysis between companies (e.g., writing ASML's description under Sony's ticker). The new one-prompt-per-ticker design structurally prevents this class of error.
+- **Stale Fallback Block Removed** — Excised a leftover dead-code block from the previous shortlist architecture (`get_best` / `recs` assignment inside a malformed `except` clause) that was syntactically invalid and unreachable.
+- **Per-Ticker Error Isolation** — AI failures for one category no longer abort the entire discovery run. Each `call_ai` invocation has its own `try/except` with a structured placeholder fallback, ensuring the other two picks are always returned.
+
+---
+
+
 
 ### Added
 - **Structured Research Thesis Architecture** — Overhauled the AI research pipeline to output a strictly enforced 5-key JSON structure: **Why, Numbers, Catalysts, Risks, Bottom Line**.

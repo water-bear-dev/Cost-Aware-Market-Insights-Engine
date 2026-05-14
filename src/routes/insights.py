@@ -75,11 +75,11 @@ def get_daily_picks(request: Request):
     # All 3 Discovery Slots
     slots = ["_DAILY_SP500_", "_DAILY_GLOBALOPPORTUNITY_", "_DAILY_HIDDENGEM_"]
     
-    # Strict Label Mapping (Swapped per user request)
+    # Strict Label Mapping (Corrected per user request)
     label_map = {
         "_DAILY_SP500_": "S&P 500",
-        "_DAILY_GLOBALOPPORTUNITY_": "Hidden Gems",
-        "_DAILY_HIDDENGEM_": "Global Opportunity"
+        "_DAILY_GLOBALOPPORTUNITY_": "Global Opportunity",
+        "_DAILY_HIDDENGEM_": "Hidden Gems"
     }
     
     try:

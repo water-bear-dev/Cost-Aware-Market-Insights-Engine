@@ -2,6 +2,77 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 53: Design Parity — Bringing the Gold Card's Sparkline to the Watchlist (2026-05-14)
+
+One of the most impactful visual improvements often isn't about new features—it's about visual consistency. The Gold commodity card in the Discover tab had long enjoyed a premium aesthetic: a full-width sparkline strip anchored to the bottom of the card, with a gradient colour wash beneath the line that fades to transparent, giving the card a sense of depth and motion. The watchlist cards (META, AAPL, etc.) had sparklines too, but they lived as a small 40px inline row sandwiched awkwardly between the price header and the AI analysis text. The visual treatment was inconsistent, and the sparkline felt disconnected from the card's identity.
+
+**The Design Goal: Visual Language Unification**
+
+The request was precise: make the watchlist sparkline look like the Gold card's sparkline, positioned as a visual separator just above the "What's Happening" AI analysis. This meant three things needed to change simultaneously:
+1. The **position** of the sparkline in the DOM had to move — from inside the `card-header` flex row to after it, acting as a dedicated horizontal strip.
+2. The **CSS class** needed to be redesigned from a small inline box to a full-width 64px block element.
+3. The **Chart.js dataset** needed a gradient fill, not just a bare line.
+
+**Iteration: Background vs. Inline**
+
+Our first attempt was ambitious: we tried to position the sparkline as a full-card background overlay using `position: absolute; bottom: 0; left: 0; right: 0; height: 90px` — the same technique used internally by the commodity card. This required marking the `.glass` container as `position: relative; overflow: hidden` and layering the text content above using `z-index: 1`.
+
+The result worked architecturally, but it wasn't what the user wanted. The sparkline was visible but too subtle, bleeding behind the card content rather than creating a clear visual beat between the header and the analysis. The user's intent was clear: the sparkline should be a **strip you can see**, not a ghost in the background.
+
+**The Final Architecture: The Inline Strip Pattern**
+
+We reverted to an inline model, but executed it properly this time:
+
+- A new `.card-sparkline-bg` CSS class defines a `width: 100%; height: 64px; display: block` element. No absolute positioning, no `z-index` drama — it simply flows between the header and the insight text as a natural block.
+- The sparkline `div` is now emitted at the bottom of `cardInnerHtml()`, between `</div>` (card-header close) and the `.insight-text` div. The `border-top` separator on `.insight-text` naturally creates a clean boundary below the strip.
+- In `drawSparkline()`, we construct a `LinearGradient` from `(0, 0)` to `(0, 90)` with `color + '55'` at the top and `color + '00'` at the bottom. This is the same gradient recipe used in `drawDiscoverSparkline()`, ensuring visual parity.
+
+**The Cleanup**
+
+Every intermediate layer from the background-overlay experiment was carefully rolled back: the `position: relative` and `overflow: hidden` on the `.glass` div, the `z-index: 1; position: relative` on `.card-header`, and the `position: relative; z-index: 1` inline style on `.insight-text`. Clean code and clean UI go together.
+
+The result is a card that reads: **identity → price action (sparkline) → AI narrative** — a natural, scannable information hierarchy.
+
+---
+
+## Entry 52: The Hallucination Fix — Deterministic Discovery by Algorithm (2026-05-14)
+
+One of the most insidious failure modes in AI-driven pipelines isn't the model giving a wrong answer — it's the model giving the *right* answer about the *wrong* thing. We discovered this the hard way when a user noticed that the Daily Discovery card for the "Global Opportunity" slot displayed ASML's ticker but Sony's company description and analysis. The ticker ID was correct; the entire rationale belonged to a different company.
+
+**Understanding the Root Cause**
+
+The previous architecture passed a shortlist of three candidates to a single prompt and asked the model to choose the best one and return a structured JSON object for each. The intent was to give the AI editorial agency — "here are your options, you pick." The failure was that with three company names visible in the same context window, the LLM occasionally conflated their descriptions, especially when two companies occupied similar sector territory.
+
+This is a well-documented class of LLM failure called **cross-entity contamination**. It's not a hallucination in the traditional sense (the model isn't inventing facts) — it's the model performing the right research on the wrong subject, because multiple subjects were visible in the same attention context.
+
+**The Architectural Fix: Algorithm Selects, AI Writes**
+
+The solution was a clean separation of responsibilities. We divided the discovery step into two strictly isolated operations:
+
+1. **Selection (Algorithm)**: A Python `get_best()` function ranks all candidates in each category bucket by `momentum_1mo` and deterministically picks the #1 winner. No LLM involvement. The code decides.
+
+2. **Analysis (LLM)**: Three separate, sequential API calls are made — one per pre-selected ticker. Each prompt contains exactly one company's data and explicitly instructs the model: *"You are analysing {ticker} only. Do NOT mention or analyse any other company. {ticker} is already selected."*
+
+This makes cross-entity contamination structurally impossible. The model never sees another ticker name in its context window.
+
+**The Force-Overwrite Safety Net**
+
+Even with a single-ticker prompt, we added a final hard safeguard: after parsing the AI's JSON response, the `ticker` and `category` fields are unconditionally overwritten with the values the algorithm chose. Even if the model somehow still returns the wrong ticker in the JSON (which is now virtually impossible), the saved record will always carry the correct identifier.
+
+**Cost & Quality Improvements**
+
+Isolating the calls also allowed us to tune the parameters more aggressively:
+- **Temperature**: `0.3` → `0.2` — less creative variance, more literal adherence to the prompt structure.
+- **Max Tokens**: `1500` → `800` per call — each prompt is now focused on a single company, so the analysis needs less space. This cuts per-run token spend by roughly 40%.
+
+**Cleaning Up the Archaeological Site**
+
+The refactor also unearthed a latent code bug from the previous architecture: a `get_best()` function definition and a `recs` list assignment were sitting inside a malformed `except` clause — code that was syntactically invalid and completely unreachable. It was a ghost of the old shortlist model that had been accidentally merged into the exception handler during an earlier iteration. We excised the entire block.
+
+The Discovery Engine is now a deterministic research pipeline with AI serving as a focused writer, not an unguided selector.
+
+---
+
 ## Entry 51: The Research Thesis Pivot — Structured Institutional Intelligence (2026-05-14)
 
 As we moved from a "Market Watcher" to a "Quantitative Research Tool," we realized that long, unstructured paragraphs of AI analysis—while insightful—were a bottleneck for professional scannability. We needed a structured **Research Thesis**.

@@ -4,6 +4,7 @@ from boto3.dynamodb.conditions import Key
 import yfinance as yf
 import structlog
 import json
+import time
 
 from src.limiter import limiter
 from src.ingestion.service import get_active_tickers
@@ -12,6 +13,11 @@ import math
 
 router = APIRouter()
 logger = structlog.get_logger(__name__)
+
+# ─── Batch history cache ──────────────────────────────────────────────────────
+# Structure: { "<period>": { "data": {...}, "last_fetch": float } }
+_batch_history_cache: dict = {}
+_BATCH_HISTORY_TTL = 300  # 5 minutes
 
 def clean_float(val, default=0.0):
     """Ensure value is a JSON-compliant float (no NaN/Inf)."""
@@ -210,3 +216,80 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
     except Exception as e:
         logger.error("Failed to fetch history", ticker=ticker, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/market/batch-history")
+@limiter.limit("30/minute")
+def get_batch_history(
+    request: Request,
+    symbols: str = Query(..., description="Comma-separated ticker symbols"),
+    period: str = Query(default="1d")
+):
+    """
+    Fetch sparkline close-price arrays for multiple tickers in a single call.
+    Returns: { "<SYMBOL>": [float, ...], ... }
+    Results cached per period for 5 minutes to minimise yfinance load.
+    """
+    global _batch_history_cache
+
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        raise HTTPException(status_code=400, detail="No symbols provided")
+
+    yf_period = PERIOD_MAP.get(period, "1d")
+
+    # Check cache
+    cache_key = f"{yf_period}:{','.join(sorted(symbol_list))}"
+    cached = _batch_history_cache.get(cache_key)
+    if cached and time.time() - cached["last_fetch"] < _BATCH_HISTORY_TTL:
+        return cached["data"]
+
+    # Interval by period
+    interval_map = {
+        "1d":  "5m",
+        "5d":  "15m",
+        "1mo": "1d",
+        "3mo": "1d",
+        "6mo": "1d",
+        "ytd": "1d",
+        "1y":  "1wk",
+        "5y":  "1mo",
+        "max": "1mo"
+    }
+    interval = interval_map.get(yf_period, "1d")
+
+    result: dict = {}
+    try:
+        import pandas as pd
+        data = yf.download(
+            symbol_list,
+            period=yf_period,
+            interval=interval,
+            progress=False,
+            group_by="ticker",
+            auto_adjust=True
+        )
+
+        for sym in symbol_list:
+            try:
+                if isinstance(data.columns, pd.MultiIndex):
+                    if sym not in data.columns.get_level_values(0):
+                        result[sym] = []
+                        continue
+                    closes = data[sym]["Close"].dropna()
+                else:
+                    # Single-ticker download returns flat columns
+                    closes = data["Close"].dropna() if "Close" in data.columns else pd.Series([], dtype=float)
+
+                result[sym] = [clean_float(v) for v in closes.tolist()]
+            except Exception as e:
+                logger.warning("batch-history: symbol failed", symbol=sym, error=str(e))
+                result[sym] = []
+
+    except Exception as e:
+        logger.error("batch-history: download failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+    _batch_history_cache[cache_key] = {"data": result, "last_fetch": time.time()}
+    return result
+
