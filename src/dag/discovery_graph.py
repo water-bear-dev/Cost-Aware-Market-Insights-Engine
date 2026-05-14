@@ -157,10 +157,11 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         return {"recommendations": []}
         
     logger.info("Asking AI for recommendations (Research + Quant Model)", environment=settings.environment)
-    metrics_str = json.dumps(state.get("metrics", {}), indent=2)
-    research_str = json.dumps(state.get("research", {}), indent=2)
-    news_str = json.dumps(state.get("news", {}), indent=2)
-    
+
+    metrics = state.get("metrics", {})
+    research = state.get("research", {})
+    news = state.get("news", {})
+
     # Select provider based on environment explicitly if not forced
     provider = settings.llm_provider
     if settings.environment == "production":
@@ -168,31 +169,73 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     elif settings.environment == "local" and not provider:
         provider = "ollama"
 
+    # --- Slim the prompt: pre-select top 3 candidates per category by momentum ---
+    def top_candidates(tickers, n=3):
+        scored = [(t, metrics.get(t, {}).get("momentum_1mo", 0)) for t in tickers if t]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        return [t for t, _ in scored[:n]]
+
+    def fmt_candidate(t):
+        m = metrics.get(t, {})
+        r = research.get(t, {})
+        n_headlines = "; ".join(news.get(t, [])[:2])
+        return (
+            f"{t}: RSI={m.get('rsi_14','?'):.0f} mom={m.get('momentum_1mo','?'):.1%} "
+            f"upside={r.get('target_upside','?'):.1%} ROE={r.get('roe','?')} "
+            f"revGrowth={r.get('rev_growth','?')} | news: {n_headlines[:120]}"
+        ) if isinstance(m.get('rsi_14'), (int, float)) else f"{t}: data limited | news: {n_headlines[:80]}"
+
+    sp500_top   = top_candidates(state.get("sp500_universe", []))
+    intl_top    = top_candidates(state.get("international_universe", []))
+    gem_top     = top_candidates(state.get("hidden_gems_universe", []))
+
+    sp500_block  = "\n".join(fmt_candidate(t) for t in sp500_top)
+    intl_block   = "\n".join(fmt_candidate(t) for t in intl_top)
+    gem_block    = "\n".join(fmt_candidate(t) for t in gem_top)
+
     prompt = (
-        f"You are a consensus committee of a Quantitative Analyst and a Fundamental Research Lead.\n\n"
-        f"DATA SET 1: QUANT MODEL (Technicals/Risk):\n{metrics_str}\n\n"
-        f"DATA SET 2: RESEARCH DEEP DIVE (Fundamentals/Analyst Targets):\n{research_str}\n\n"
-        f"DATA SET 3: RECENT INTELLIGENCE (News):\n{news_str}\n\n"
-        f"Identify exactly 3 picks with these STRICT categories:\n"
-        f"1. Category: 'S&P 500' - Pick from: {state.get('sp500_universe', [])}\n"
-        f"2. Category: 'Global Opportunity' - Pick from: {state.get('international_universe', [])}\n"
-        f"3. Category: 'Hidden Gem' - Pick from: {state.get('hidden_gems_universe', [])}\n\n"
-        f"For each pick, provide the following structured rationale matching this EXACT JSON schema:\n"
+        f"You are a senior equity research analyst writing institutional-grade investment briefs. "
+        f"Pick exactly ONE stock per category from the candidates below, then write a detailed rationale for each.\n\n"
+        f"CANDIDATES:\n"
+        f"[S&P 500] (pick 1):\n{sp500_block}\n\n"
+        f"[Global Opportunity] (pick 1):\n{intl_block}\n\n"
+        f"[Hidden Gem] (pick 1):\n{gem_block}\n\n"
+        f"INSTRUCTIONS FOR EACH FIELD — write 2-4 sentences minimum per field, analytical tone only:\n"
+        f"  Why: Briefly explain the company's core operations and primary revenue streams. "
+        f"Describe their competitive advantage — whether that is brand loyalty, a technology edge, high switching costs, or network effects. "
+        f"Name their main 1-2 competitors and what differentiates this company from them.\n"
+        f"  Numbers: Provide a contextualised financial snapshot using the provided data. "
+        f"Comment on revenue and profit growth trajectory year-over-year and how it compares to the broader industry. "
+        f"Discuss margin trends (expanding or compressing?) and balance sheet health — is the company cash-generative with manageable debt, or stretched?\n"
+        f"  Catalysts: List exactly 2 specific, realistic factors that could drive the stock price meaningfully higher over the next 12-24 months. "
+        f"Be specific — reference product launches, regulatory tailwinds, market expansion, or structural demand shifts relevant to this company.\n"
+        f"  Risks: List exactly 2 specific, realistic risks or challenges that could pressure the stock. "
+        f"Reference named competitors, regulatory exposure, macroeconomic sensitivity, or execution risk relevant to this company. Do not be generic.\n"
+        f"  Bottom Line: Write one objective, analytical sentence summarising the investment case. "
+        f"State clearly what type of investor this suits — value, growth, income — and under what market conditions this pick makes sense. "
+        f"Do not hype the stock or predict price targets.\n\n"
+        f"Return ONLY a valid JSON array with exactly 3 objects, no markdown, no extra text:\n"
         f"[\n"
-        f"  {{\n"
-        f"    \"ticker\": \"...\",\n"
-        f"    \"category\": \"S&P 500\",\n"
-        f"    \"rationale\": {{\n"
-        f"      \"Why\": \"Explain exactly what the company does and how it makes money in plain English.\",\n"
-        f"      \"Numbers\": \"Financial snapshot: Explain margins, growth, and cash context simply.\",\n"
-        f"      \"Catalysts\": \"What recent events or trends suggest this stock is poised to move?\",\n"
-        f"      \"Risks\": \"Top 2 realistic risks (competitors, market shifts, etc.).\",\n"
-        f"      \"Bottom Line\": \"A one-sentence summary of who should watch this stock.\"\n"
-        f"    }}\n"
-        f"  }},\n"
-        f"  ... (repeat for other categories)\n"
+        f"  {{\"ticker\": \"TICK\", \"category\": \"S&P 500\", \"rationale\": {{"
+        f"\"Why\": \"<2-4 sentence operations and competitive moat analysis>\", "
+        f"\"Numbers\": \"<2-4 sentence contextualised financial snapshot>\", "
+        f"\"Catalysts\": \"1. <specific catalyst>. 2. <specific catalyst>.\", "
+        f"\"Risks\": \"1. <specific risk>. 2. <specific risk>.\", "
+        f"\"Bottom Line\": \"<1 objective analytical sentence>\"}}}},\n"
+        f"  {{\"ticker\": \"TICK\", \"category\": \"Global Opportunity\", \"rationale\": {{"
+        f"\"Why\": \"<2-4 sentences>\", \"Numbers\": \"<2-4 sentences>\", "
+        f"\"Catalysts\": \"1. <specific>. 2. <specific>.\", "
+        f"\"Risks\": \"1. <specific>. 2. <specific>.\", "
+        f"\"Bottom Line\": \"<1 sentence>\"}}}},\n"
+        f"  {{\"ticker\": \"TICK\", \"category\": \"Hidden Gem\", \"rationale\": {{"
+        f"\"Why\": \"<2-4 sentences>\", \"Numbers\": \"<2-4 sentences>\", "
+        f"\"Catalysts\": \"1. <specific>. 2. <specific>.\", "
+        f"\"Risks\": \"1. <specific>. 2. <specific>.\", "
+        f"\"Bottom Line\": \"<1 sentence>\"}}}}\n"
         f"]"
     )
+
+    logger.info(f"Prompt size: {len(prompt)} chars / ~{len(prompt)//4} tokens", provider=provider)
     try:
         # --- AI Generation Loop with Retries ---
         recs = []
@@ -202,10 +245,12 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             try:
                 if provider == 'ollama':
                     logger.info(f"Asking Ollama for recommendations (Attempt {attempt+1})", model=settings.ollama_model)
-                    with httpx.Client(timeout=120.0) as client:
+                    with httpx.Client(timeout=180.0) as client:
                         response = client.post(
                             f"{settings.ollama_url}/api/generate",
-                            json={"model": settings.ollama_model, "prompt": prompt, "stream": False, "format": "json"}
+                            # NOTE: Do NOT use format="json" — it forces a single object output
+                            # and strips the outer array brackets, breaking JSON array extraction.
+                            json={"model": settings.ollama_model, "prompt": prompt, "stream": False}
                         )
                         response.raise_for_status()
                         text = response.json().get("response", "")
@@ -215,18 +260,40 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
                     bedrock = boto3.client('bedrock-runtime', region_name=settings.aws_default_region)
                     body = {
                         "anthropic_version": "bedrock-2023-05-31",
-                        "max_tokens": 1000,
-                        "temperature": 0.4,
+                        "max_tokens": 1500,
+                        "temperature": 0.3,
                         "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
                     }
                     resp = bedrock.invoke_model(modelId="anthropic.claude-3-haiku-20240307-v1:0", body=json.dumps(body))
                     resp_body = json.loads(resp.get('body').read())
                     text = resp_body.get('content')[0].get('text', '')
 
+                logger.info(f"Raw AI response (first 300): {text[:300]}")
+
                 import re
-                list_match = re.search(r'\[\s*\{.*\}\s*\]', text, re.DOTALL)
+                # Try to extract a JSON array first
+                list_match = re.search(r'\[\s*\{.*?\}\s*\]', text, re.DOTALL)
                 if list_match:
                     recs = json.loads(list_match.group())
+                else:
+                    # Fallback: try parsing a bare JSON object (Ollama sometimes returns one object)
+                    obj_match = re.search(r'\{.*\}', text, re.DOTALL)
+                    if obj_match:
+                        obj = json.loads(obj_match.group())
+                        recs = [obj] if isinstance(obj, dict) and obj.get('ticker') else []
+
+                # Ensure rationale is always a dict, not a string
+                for rec in recs:
+                    r = rec.get('rationale')
+                    if isinstance(r, str):
+                        try:
+                            rec['rationale'] = json.loads(r)
+                        except Exception:
+                            pass  # Keep as string if not parseable
+
+                if recs:
+                    logger.info(f"Successfully parsed {len(recs)} picks from AI", attempt=attempt+1)
+
             except Exception as e:
                 logger.error(f"AI Provider failed (Attempt {attempt+1})", provider=provider, error=str(e))
 
@@ -314,12 +381,34 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                         "provider_publish_time": n.get("providerPublishTime")
                     })
 
+                raw_rationale = rec.get('rationale', '')
+
+                # Normalize rationale to a clean dict before storing
+                if isinstance(raw_rationale, list):
+                    # AI returned a list — take the first element if it's a dict
+                    raw_rationale = raw_rationale[0] if raw_rationale and isinstance(raw_rationale[0], dict) else {"Why": str(raw_rationale)}
+                
+                if isinstance(raw_rationale, str):
+                    # Try to parse JSON string → dict
+                    try:
+                        parsed = json.loads(raw_rationale)
+                        raw_rationale = parsed if isinstance(parsed, dict) else {"Why": raw_rationale}
+                    except Exception:
+                        # Plain text fallback — wrap in 'Why' key to preserve 2-column layout
+                        raw_rationale = {"Why": raw_rationale} if raw_rationale else {"Why": "Analysis in progress..."}
+
+                if not isinstance(raw_rationale, dict):
+                    raw_rationale = {"Why": str(raw_rationale)}
+
+                # Always serialize as JSON string for DynamoDB
+                rationale_stored = json.dumps(raw_rationale)
+
                 item = {
                     'ticker': ticker_id,
                     'timestamp': timestamp,
                     'generated_at': timestamp,
-                    'rationale': rec.get('rationale', ''),
-                    'insight_text': rec.get('rationale', ''), # Legacy support
+                    'rationale': rationale_stored,
+                    'insight_text': rationale_stored,  # Legacy support
                     'signal': 'WATCH',
                     'model_used': 'discovery-agent',
                     'actual_ticker': ticker,

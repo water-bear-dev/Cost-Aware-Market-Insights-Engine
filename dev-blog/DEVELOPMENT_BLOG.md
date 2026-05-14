@@ -2,6 +2,26 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 51: The Research Thesis Pivot — Structured Institutional Intelligence (2026-05-14)
+
+As we moved from a "Market Watcher" to a "Quantitative Research Tool," we realized that long, unstructured paragraphs of AI analysis—while insightful—were a bottleneck for professional scannability. We needed a structured **Research Thesis**.
+
+**The Architectural Challenge: Forcing JSON Consistency**
+The primary hurdle was LLM reliability. Even with high-conviction prompts, models occasionally return JSON as an escaped string or with inconsistent key casing (`why` vs `WHY`). We solved this by implementing a **Three-Layer Serialization Fix**:
+1.  **The Graph Layer (`discovery_graph.py`)**: We overhaul the AI prompt to strictly output 5 specific keys: **Why, Numbers, Catalysts, Risks, Bottom Line**. We then use a regex-based extractor to force-parse this into a true Python dictionary before saving to DynamoDB as a serialized string.
+2.  **The API Layer (`insights.py`)**: On retrieval, the API now proactively attempts `json.loads()` on the rationale. This ensures that the JSON blob is delivered to the frontend as a proper JavaScript object, not a raw string.
+3.  **The Frontend Layer (`app.js`)**: We added a `JSON.parse()` safety net and a case-insensitive normalizer. If the AI returns malformed or differently-cased keys, the frontend intelligently maps them to the correct UI columns.
+
+**Information Hierarchy: Dashboard vs. Modal**
+To prevent information overload, we introduced "Intelligence Pruning." 
+- **The Dashboard Card**: Acts as a "Hook." It uses the new 2-column layout to display only the **Why** and the **Numbers**. This allows a user to scan 3-4 stocks in seconds and decide which one warrants a deeper look.
+- **The Ticker Modal**: Acts as the "Full Report." It renders the full 5-key research thesis, providing the risks and catalysts that professional investors require for decision-making.
+
+**Legacy Fallbacks & UI Stability**
+A common problem in evolving data schemas is "Legacy Bloat"—old records looking broken in the new UI. We engineered a "Zero-Flicker Fallback" where any existing plain-text rationale is automatically mapped into the new 2-column "**WHY**" section. This ensures 100% layout stability without needing to purge our historical discovery ledger.
+
+This update effectively transitions our AI from being a "Summary Generator" to a "Structured Research Partner."
+
 ## Entry 50: The Institutional Grid & The "Network Error" Debug (2026-05-13)
 
 With the analytical universe decoupled and stable, our focus shifted to the UX. A 600-company quantitative screener cannot live in a standard list; it needs the density and scannability of a Bloomberg terminal.

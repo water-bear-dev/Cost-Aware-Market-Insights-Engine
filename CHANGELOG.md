@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.2] - 2026-05-14
+
+### Added
+- **Structured Research Thesis Architecture** — Overhauled the AI research pipeline to output a strictly enforced 5-key JSON structure: **Why, Numbers, Catalysts, Risks, Bottom Line**.
+- **Smart 2-Column Dashboard Layout** — Implemented a premium, institutional 2-column layout for Discovery picks (Bold Labels on left, Analysis on right).
+- **Intelligent Rationale Filtering** — Dashboard cards now perform "Information Pruning," showing only **Why** and **Numbers** for scannability, while the ticker modal expands to show the full research report.
+
+### Changed
+- **Optimized Exchange Branding** — Standardized all exchange labels to be at most 2 words (e.g., "NASDAQ GS", "ASX") to maintain consistent high-density grid rhythm.
+- **Full-Width Dashboard Centering** — Centered the main dashboard container (`max-width: 1600px`) to better utilize ultra-wide high-resolution displays.
+
+### Fixed
+- **Discovery Pipeline Regression** — Resolved a critical data integrity issue where rationale was being stored/treated as a raw string instead of a structured object.
+- **Three-Layer Serialization Fix** — Implemented robust data stabilization across the entire stack:
+    - **Backend**: Forced JSON-dict parsing and serialization in `discovery_graph.py`.
+    - **API**: Added proactive `json.loads()` deserialization in `insights.py`.
+    - **Frontend**: Added a `JSON.parse()` safety net in `app.js`.
+- **Automatic "Why" Mapping** — Added a frontend fallback that automatically wraps legacy plain-text analysis into the 2-column "WHY" section, ensuring UI stability for older records.
+- **Case-Insensitive Key Parsing** — Hardened the frontend renderer to correctly handle inconsistent AI key casing (e.g., "WHY" vs "Why") and whitespace.
+- **Ticker-Company Alignment** — Fixed a data-drift bug where ticker symbols and descriptions occasionally mismatched during discovery synthesis.
+
 ## [3.1.1] - 2026-05-13
 
 ### Added

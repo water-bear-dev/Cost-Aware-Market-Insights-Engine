@@ -4,6 +4,7 @@ from src.clients.dynamo import get_table
 from src.ingestion.service import get_active_tickers
 from src.limiter import limiter
 from typing import Optional
+import json
 
 router = APIRouter()
 
@@ -92,12 +93,18 @@ def get_daily_picks(request: Request):
             if rows:
                 item = rows[0]
                 # Use 'rationale' as primary, fallback to 'insight_text' for legacy
-                rationale = item.get("rationale") or item.get("insight_text", "Analysis in progress...")
+                raw_rationale = item.get("rationale") or item.get("insight_text", "Analysis in progress...")
+                # Always try to parse it back to a dict (it may be stored as a JSON string)
+                if isinstance(raw_rationale, str):
+                    try:
+                        raw_rationale = json.loads(raw_rationale)
+                    except Exception:
+                        pass  # Keep as string for legacy/fallback rendering
                 
                 picks.append({
                     "category": label_map.get(ticker_id, "Market Pick"),
                     "actual_ticker": item.get("actual_ticker", ticker_id.replace("_DAILY_", "").replace("_", " ")),
-                    "rationale": rationale,
+                    "rationale": raw_rationale,
                     "timestamp": item.get("timestamp"),
                     "last_price": item.get("last_price", "0"),
                     "exchange": item.get("exchange", "Unknown"),

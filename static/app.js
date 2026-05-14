@@ -896,25 +896,50 @@ async function fetchDailyPicks() {
 
                 // Structured Rationale Renderer (Smart 2-Column Layout)
                 let rationaleHtml = '';
-                const rationale = pick.rationale;
-                
-                // Dashboard Card: Only show "Why" and "Numbers"
-                const dashboardKeys = ["Why", "Numbers"];
+                let rationale = pick.rationale;
 
-                if (typeof rationale === 'object' && rationale !== null) {
-                    rationaleHtml = Object.entries(rationale)
-                        .filter(([key]) => dashboardKeys.includes(key))
-                        .map(([key, value]) => {
-                            const label = key.toUpperCase();
-                            return `
-                            <div style="display: flex; gap: 1.5rem; align-items: flex-start; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
-                                <div style="min-width: 100px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 800; padding-top: 4px; opacity: 0.8; line-height: 1.3;">${label}</div>
-                                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0; font-weight: 400;">${value}</p>
-                            </div>`;
-                        }).join('');
+                // Debugging: Log the rationale structure to see what's actually arriving
+                console.log(`[Discovery] Rationale for ${pick.actual_ticker}:`, rationale);
+
+                // 1. Force Parsing if string
+                if (typeof rationale === 'string' && (rationale.startsWith('{') || rationale.startsWith('['))) {
+                    try { rationale = JSON.parse(rationale); } catch(e) { console.error("JSON parse failed", e); }
+                }
+                
+                // 2. Prepare for 2-column rendering
+                const dashboardKeys = ["WHY", "NUMBERS"];
+                let sections = [];
+
+                if (typeof rationale === 'object' && rationale !== null && !Array.isArray(rationale)) {
+                    // Normalize keys to uppercase for robust matching
+                    const normalizedObj = {};
+                    Object.entries(rationale).forEach(([k, v]) => normalizedObj[k.toUpperCase().replace(/\s+/g, '')] = v);
+                    
+                    dashboardKeys.forEach(k => {
+                        if (normalizedObj[k]) {
+                            sections.push({ label: k, content: normalizedObj[k] });
+                        }
+                    });
+
+                    // If no matched keys but we have data, take the first two keys as fallback
+                    if (sections.length === 0) {
+                        Object.entries(rationale).slice(0, 2).forEach(([k, v]) => {
+                            sections.push({ label: k.toUpperCase(), content: v });
+                        });
+                    }
                 } else if (typeof rationale === 'string' && rationale.length > 0) {
-                    // Fallback for legacy string rationale
-                    rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; padding: 1rem 0; margin: 0;">${rationale}</p>`;
+                    // LEGACY FALLBACK: Map plain string to the "WHY" column to preserve 2-column layout
+                    sections.push({ label: "WHY", content: rationale });
+                }
+
+                // 3. Generate HTML
+                if (sections.length > 0) {
+                    rationaleHtml = sections.map(sec => `
+                        <div style="display: flex; gap: 1.5rem; align-items: flex-start; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                            <div style="min-width: 100px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 800; padding-top: 4px; opacity: 0.8; line-height: 1.3;">${sec.label}</div>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0; font-weight: 400; flex: 1;">${sec.content}</p>
+                        </div>
+                    `).join('');
                 } else {
                     rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; opacity: 0.5; margin: 0; padding: 1rem 0;">Analysis synthesis in progress...</p>`;
                 }
@@ -1754,8 +1779,15 @@ async function openDailyPickModal(ticker) {
 
     currentModalMkt = { ticker: ticker, status: 'pending_data' };
     const pick = dailyPicksData[ticker];
+
+    // Parse rationale to object if stored as JSON string
+    let pickRationale = pick ? pick.rationale : null;
+    if (typeof pickRationale === 'string') {
+        try { pickRationale = JSON.parse(pickRationale); } catch(e) { /* keep as string */ }
+    }
+
     currentModalInsight = {
-        insight_text: pick ? pick.rationale : 'Fetching full analysis...',
+        insight_text: pickRationale || 'Fetching full analysis...',
         model_used: 'discovery-agent',
         signal: 'WATCH',
         cost_usd: 0
