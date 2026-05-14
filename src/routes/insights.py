@@ -65,13 +65,24 @@ def get_insights(request: Request, ticker: Optional[str] = None):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/daily_picks")
+@ router.get("/daily_picks")
 @limiter.limit("60/minute")
 def get_daily_picks(request: Request):
     table = get_table('Insights')
     picks = []
+    
+    # All 3 Discovery Slots
+    slots = ["_DAILY_SP500_", "_DAILY_GLOBALOPPORTUNITY_", "_DAILY_HIDDENGEM_"]
+    
+    # Strict Label Mapping (Swapped per user request)
+    label_map = {
+        "_DAILY_SP500_": "S&P 500",
+        "_DAILY_GLOBALOPPORTUNITY_": "Hidden Gems",
+        "_DAILY_HIDDENGEM_": "Global Opportunity"
+    }
+    
     try:
-        for ticker_id in ["_DAILY_SP500_", "_DAILY_HIDDENGEM_"]:
+        for ticker_id in slots:
             resp = table.query(
                 KeyConditionExpression=Key('ticker').eq(ticker_id),
                 ScanIndexForward=False,
@@ -80,18 +91,19 @@ def get_daily_picks(request: Request):
             rows = resp.get('Items', [])
             if rows:
                 item = rows[0]
+                # Use 'rationale' as primary, fallback to 'insight_text' for legacy
+                rationale = item.get("rationale") or item.get("insight_text", "Analysis in progress...")
+                
                 picks.append({
-                    "category": "S&P 500" if "SP500" in ticker_id else "Hidden Gem",
-                    "actual_ticker": item.get("actual_ticker", "N/A"),
-                    "rationale": item.get("insight_text", ""),
+                    "category": label_map.get(ticker_id, "Market Pick"),
+                    "actual_ticker": item.get("actual_ticker", ticker_id.replace("_DAILY_", "").replace("_", " ")),
+                    "rationale": rationale,
                     "timestamp": item.get("timestamp"),
                     "last_price": item.get("last_price", "0"),
-                    "change_5d": item.get("change_5d", "0"),
-                    "exchange": item.get("exchange", ""),
+                    "exchange": item.get("exchange", "Unknown"),
                     "company_name": item.get("company_name", ""),
+                    "industry": item.get("industry", "Unknown"),
                     "currency": item.get("currency", "USD"),
-                    "rsi_14": item.get("rsi_14", "50"),
-                    "dist_sma_200": item.get("dist_sma_200", "0"),
                     "news": item.get("news")
                 })
         return picks

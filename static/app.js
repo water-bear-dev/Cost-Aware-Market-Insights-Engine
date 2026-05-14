@@ -884,64 +884,74 @@ async function fetchDailyPicks() {
             container.style.display = 'block';
             data.forEach(p => dailyPicksData[p.actual_ticker] = p);
 
-            // Labels for the 3 rationale bullets (legacy support)
-            const bulletLabels = ['📈 What\'s Happening', '💡 Why It\'s Interesting', '👀 What to Watch'];
-
             grid.innerHTML = data.map(pick => {
                 const price = parseFloat(pick.last_price || 0);
 
-                // Build rationale display — handles both legacy array and new human-readable string
+                // Color-coding for categories
+                let categoryColor = 'var(--accent)';
+                const normCat = (pick.category || '').toUpperCase();
+                if (normCat.includes('S&P')) categoryColor = '#a78bfa';
+                if (normCat.includes('GLOBAL') || normCat.includes('INT')) categoryColor = '#10b981';
+                if (normCat.includes('GEM')) categoryColor = '#fbbf24';
+
+                // Structured Rationale Renderer (Smart 2-Column Layout)
                 let rationaleHtml = '';
-                if (Array.isArray(pick.rationale)) {
-                    rationaleHtml = pick.rationale.slice(0, 3).map((text, i) => `
-                        <div style="display: flex; gap: 0.65rem; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px dashed rgba(255,255,255,0.07);">
-                            <div style="min-width: 140px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; padding-top: 2px;">${bulletLabels[i] || '●'}</div>
-                            <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0;">${text}</p>
-                        </div>`).join('');
-                } else if (typeof pick.rationale === 'string' && pick.rationale.length > 0) {
-                    rationaleHtml = `<p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin: 0.5rem 0;">${pick.rationale}</p>`;
+                const rationale = pick.rationale;
+                
+                // Dashboard Card: Only show "Why" and "Numbers"
+                const dashboardKeys = ["Why", "Numbers"];
+
+                if (typeof rationale === 'object' && rationale !== null) {
+                    rationaleHtml = Object.entries(rationale)
+                        .filter(([key]) => dashboardKeys.includes(key))
+                        .map(([key, value]) => {
+                            const label = key.toUpperCase();
+                            return `
+                            <div style="display: flex; gap: 1.5rem; align-items: flex-start; padding: 0.85rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                                <div style="min-width: 100px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); font-weight: 800; padding-top: 4px; opacity: 0.8; line-height: 1.3;">${label}</div>
+                                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0; font-weight: 400;">${value}</p>
+                            </div>`;
+                        }).join('');
+                } else if (typeof rationale === 'string' && rationale.length > 0) {
+                    // Fallback for legacy string rationale
+                    rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; padding: 1rem 0; margin: 0;">${rationale}</p>`;
                 } else {
-                    rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">AI synthesis in progress...</p>`;
+                    rationaleHtml = `<p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; opacity: 0.5; margin: 0; padding: 1rem 0;">Analysis synthesis in progress...</p>`;
                 }
 
-                // Color-coding for categories
-                let categoryColor = 'var(--accent)'; // default
-                if (pick.category === 'S&P 500') categoryColor = '#a78bfa'; // Amethyst
-                if (pick.category === 'Global Opportunity') categoryColor = '#10b981'; // Emerald
-                if (pick.category === 'Hidden Gem') categoryColor = '#fbbf24'; // Amber
-
                 return `
-                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem;" onclick="openDailyPickModal('${pick.actual_ticker}')">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.08em; color: ${categoryColor}; font-weight: 700;">${pick.category}</span>
-                        <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.2rem 0.6rem; border-radius: 12px;">Daily Pick</span>
+                <div class="metric-card glass glow-hover discovery-pick-card" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 480px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.1em; color: ${categoryColor}; font-weight: 800;">${pick.category}</span>
+                        <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
                     </div>
 
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                            ${pick.exchange ? `<span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 4px;">${formatExchange(pick.exchange)}</span>` : ''}
-                            <h3 class="metric-value text-gradient-purple" style="font-size: 2rem; line-height: 1.1; letter-spacing: -0.5px; margin: 0;">${pick.actual_ticker}</h3>
-                            ${pick.company_name ? `<span style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${pick.company_name}</span>` : ''}
+                            <span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.05em; opacity: 0.8;">${formatExchange(pick.exchange)}</span>
+                            <h3 class="metric-value text-gradient-purple" style="font-size: 2.8rem; line-height: 1; letter-spacing: -1.5px; margin: 0; font-weight: 900;">${pick.actual_ticker}</h3>
+                            <span style="font-size: 0.9rem; color: var(--text-primary); margin-top: 8px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">${pick.company_name}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; font-weight: 500; opacity: 0.7;">${pick.industry}</span>
                         </div>
                         <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 4px;">
-                                <span style="font-size: 0.6rem; color: var(--accent); font-weight: 700; opacity: 0.8; letter-spacing: 0.05em;">CLOSE</span>
-                                <span style="font-size: 1.5rem; font-weight: 700; color: var(--text-primary); line-height: 1;">${formatPrice(price, pick.currency || 'USD')}</span>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 8px;">
+                                <span style="font-size: 0.6rem; color: var(--accent); font-weight: 800; opacity: 0.8; letter-spacing: 0.1em;">LAST CLOSE</span>
+                                <span style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px;">${formatPrice(price, pick.currency || 'USD')}</span>
                             </div>
                             ${renderExtendedHours(pick)}
-                            <button class="glass-btn primary" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; border-radius: 6px; margin-top: 0.75rem;"
+                            <button class="glass-btn primary" style="padding: 0.4rem 1rem; font-size: 0.65rem; border-radius: 8px; margin-top: 1.25rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
                                     onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
                                 + Track
                             </button>
                         </div>
                     </div>
 
-                    <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.875rem; padding-top: 0.875rem;">
+                    <div style="border-top: 1px solid rgba(255,255,255,0.08); margin-top: 0.5rem; flex-grow: 1;">
                         ${rationaleHtml}
                     </div>
 
-                    <div style="font-size:0.75rem; color:var(--accent); text-align: right; margin-top: 1.25rem; font-weight: 500;">
-                        Deep Dive &rarr;
+                    <div style="font-size:0.7rem; color:var(--accent); text-align: right; margin-top: 1.8rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;">
+                        DETAILED REPORT &rarr;
                     </div>
                 </div>
                 `;
@@ -2106,14 +2116,24 @@ function renderAnalystBar(summary) {
 }
 
 function formatInsight(text, limit = null) {
-
     if (!text) return '';
 
-    // Handle array input (sometimes returned by discovery agent)
+    // Handle structured Discovery Rationale (JSON Object)
+    if (typeof text === 'object' && !Array.isArray(text)) {
+        return Object.entries(text).map(([key, value]) => {
+            const label = key.toUpperCase();
+            return `
+            <div style="display: flex; gap: 1.5rem; align-items: flex-start; padding: 1.25rem 0; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <div style="min-width: 140px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--accent); font-weight: 800; padding-top: 4px; opacity: 0.9;">${label}</div>
+                <p style="font-size: 0.95rem; color: var(--text-primary); line-height: 1.7; margin: 0; font-weight: 400; flex: 1;">${value}</p>
+            </div>`;
+        }).join('');
+    }
+
+    // Handle legacy strings or arrays
     let rawText = Array.isArray(text) ? text.join('\n') : String(text);
     let formatted = rawText.trim();
 
-    // Handle numbered or dash bullets
     const lines = formatted.split('\n');
     let bullets = [];
     let firstLine = '';
@@ -2121,19 +2141,10 @@ function formatInsight(text, limit = null) {
     for (const line of lines) {
         const trimmed = line.trim();
         if (!trimmed) continue;
-
         if (!firstLine) firstLine = trimmed;
 
-        // Lenient bullet detection: Numbered (1. 2.), dash (-), or star (*)
         if (trimmed.match(/^(\d+\.|-|\*)\s?|^\u2022/)) {
             let content = trimmed.replace(/^(\d+\.|-|\*)\s?|^\u2022/, '').trim();
-
-            // User requested: Remove "What to watch" from the overview (limit mode)
-            if (limit && (content.toLowerCase().includes('what to watch') || content.toLowerCase().includes('what\'s next'))) {
-                continue;
-            }
-
-            // Bold the "Category:" if present
             if (content.includes(':')) {
                 const parts = content.split(':');
                 const category = parts.shift();
@@ -2141,7 +2152,7 @@ function formatInsight(text, limit = null) {
                 content = `<strong>${category}:</strong>${rest}`;
             }
             bullets.push(`<div class="insight-bullet">${content}</div>`);
-            if (limit && bullets.length >= limit) break; // Stop after limit reached
+            if (limit && bullets.length >= limit) break;
         } else if (trimmed && (!limit || bullets.length < limit)) {
             bullets.push(`<div>${trimmed}</div>`);
         }

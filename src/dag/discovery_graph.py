@@ -177,18 +177,20 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         f"1. Category: 'S&P 500' - Pick from: {state.get('sp500_universe', [])}\n"
         f"2. Category: 'Global Opportunity' - Pick from: {state.get('international_universe', [])}\n"
         f"3. Category: 'Hidden Gem' - Pick from: {state.get('hidden_gems_universe', [])}\n\n"
-        f"For each pick, provide the following information:.\n\n"
-        f"Explain exactly what the company (use the company name not the ticker) does and how it actually makes its money. Use plain English and absolutely no corporate jargon. .\n\n"
-        f"Why is this stock a 'must-watch' right now? Why do customers choose them over the competition?.\n\n"
-        f"The Health Check (The Numbers Translated): Provide a snapshot of their financials. Explain what the numbers mean in simple terms.\n\n"
-        f"The 'Why Now' Signal (The Catalysts): What recent events, trends, or data points suggest this stock is poised to move in the near future?.\n\n"
-        f"The Catch (Risks): List the top 2 realistic risks that could hurt this company (e.g., changing consumer habits, a specific new competitor). Keep the explanations simple.\n\n"
-        f"The Bottom Line: A one-sentence summary of what kind of person might want to add this stock to their watchlist.\n\n"
-        f"Output MUST be pure JSON matching this schema exactly:\n"
+        f"For each pick, provide the following structured rationale matching this EXACT JSON schema:\n"
         f"[\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"S&P 500\", \"rationale\": \"...\"}},\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"Global Opportunity\", \"rationale\": \"...\"}},\n"
-        f"  {{\"ticker\": \"...\", \"category\": \"Hidden Gem\", \"rationale\": \"...\"}}\n"
+        f"  {{\n"
+        f"    \"ticker\": \"...\",\n"
+        f"    \"category\": \"S&P 500\",\n"
+        f"    \"rationale\": {{\n"
+        f"      \"Why\": \"Explain exactly what the company does and how it makes money in plain English.\",\n"
+        f"      \"Numbers\": \"Financial snapshot: Explain margins, growth, and cash context simply.\",\n"
+        f"      \"Catalysts\": \"What recent events or trends suggest this stock is poised to move?\",\n"
+        f"      \"Risks\": \"Top 2 realistic risks (competitors, market shifts, etc.).\",\n"
+        f"      \"Bottom Line\": \"A one-sentence summary of who should watch this stock.\"\n"
+        f"    }}\n"
+        f"  }},\n"
+        f"  ... (repeat for other categories)\n"
         f"]"
     )
     try:
@@ -259,30 +261,51 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
         return {"recommendations": []}
 
 def save_recommendations_node(state: DiscoveryState) -> dict:
+    """Saves the final AI picks to DynamoDB with strict category mapping and metadata."""
     recs = state.get("recommendations", [])
     if not recs: return {}
     
     insights_table = get_table('Insights')
     timestamp = datetime.utcnow().isoformat() + "Z"
-    metrics = state.get("metrics", {})
-    research_data = state.get("research", {})
-    
+    ttl = int(datetime.utcnow().timestamp()) + (7 * 24 * 60 * 60) # 7 day retention
+
+    # Strict slot mapping for the UI
+    cat_to_id = {
+        "S&P 500": "_DAILY_SP500_",
+        "Global Opportunity": "_DAILY_GLOBALOPPORTUNITY_",
+        "Hidden Gem": "_DAILY_HIDDENGEM_"
+    }
+
+    # Normalize category names from AI
+    def normalize_cat(cat):
+        c = (cat or "").upper()
+        if "S&P" in c or "500" in c: return "S&P 500"
+        if "GLOBAL" in c or "INT" in c or "OPP" in c: return "Global Opportunity"
+        if "GEM" in c or "HIDDEN" in c: return "Hidden Gem"
+        return "Hidden Gem" # Default fallback
+
     try:
         for rec in recs:
-            if not isinstance(rec, dict) or 'category' not in rec or 'ticker' not in rec:
-                continue
-
-            t = rec['ticker']
-            m = metrics.get(t, {})
-            res = research_data.get(t, {})
+            ticker = rec.get("ticker", "").upper()
+            if not ticker: continue
             
-            category_clean = rec['category'].replace(' ', '').replace('&', '').upper()
-            ticker_id = f"_DAILY_{category_clean}_"
-            final_price = m.get('last_price', 0.0)
-
-            ticker_news = []
+            raw_cat = rec.get("category", "Hidden Gem")
+            norm_cat = normalize_cat(raw_cat)
+            ticker_id = cat_to_id.get(norm_cat, "_DAILY_HIDDENGEM_")
+            
+            # Robust Metadata & Pricing Fetch
             try:
-                t_obj = yf.Ticker(t)
+                t_obj = yf.Ticker(ticker)
+                info = t_obj.info
+                hist = t_obj.history(period="1d")
+                
+                close_price = 0.0
+                if not hist.empty:
+                    close_price = round(float(hist['Close'].iloc[-1]), 2)
+                else:
+                    close_price = info.get('previousClose', 0.0)
+
+                ticker_news = []
                 for n in t_obj.news[:3]:
                     ticker_news.append({
                         "title": n.get("title"),
@@ -290,32 +313,45 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                         "link": n.get("link"),
                         "provider_publish_time": n.get("providerPublishTime")
                     })
-            except: pass
 
-            item = {
-                'ticker': ticker_id,
-                'timestamp': timestamp,
-                'generated_at': timestamp,
-                'insight_text': rec.get('rationale', ''),
-                'signal': 'WATCH',
-                'model_used': 'discovery-agent',
-                'cost_usd': 0,
-                'actual_ticker': t,
-                'last_price': str(final_price),
-                'change_5d':  str(m.get('change_5d', 0.0)),
-                'momentum_1mo': str(round(m.get('momentum_1mo', 0.0) * 100, 2)),
-                'volatility_ann': str(round(m.get('volatility_ann', 0.0) * 100, 2)),
-                'dist_sma_200': str(round(m.get('dist_sma_200', 0.0) * 100, 2)),
-                'rsi_14': str(round(m.get('rsi_14', 50), 2)),
-                'exchange': res.get('sector', 'Unknown'), 
-                'company_name': t,
-                'currency': 'USD',
-                'news': json.dumps(ticker_news)
-            }
-            insights_table.put_item(Item=item)
-            logger.info("Saved research-backed daily pick", category=rec['category'], ticker=rec['ticker'])
+                item = {
+                    'ticker': ticker_id,
+                    'timestamp': timestamp,
+                    'generated_at': timestamp,
+                    'rationale': rec.get('rationale', ''),
+                    'insight_text': rec.get('rationale', ''), # Legacy support
+                    'signal': 'WATCH',
+                    'model_used': 'discovery-agent',
+                    'actual_ticker': ticker,
+                    'last_price': str(close_price),
+                    'exchange': info.get('exchange', 'Unknown'),
+                    'company_name': info.get('longName') or info.get('shortName') or ticker,
+                    'industry': info.get('industry') or info.get('sector') or 'Unknown',
+                    'currency': info.get('currency', 'USD'),
+                    'news': json.dumps(ticker_news),
+                    'ttl': ttl
+                }
+                
+                insights_table.put_item(Item=item)
+                logger.info("Saved discovery pick", slot=ticker_id, ticker=ticker, currency=item['currency'])
+                
+            except Exception as meta_e:
+                logger.error("Meta fetch failed for pick", ticker=ticker, error=str(meta_e))
+                # Save basic version if meta fails
+                item = {
+                    'ticker': ticker_id,
+                    'timestamp': timestamp,
+                    'actual_ticker': ticker,
+                    'rationale': rec.get('rationale', ''),
+                    'company_name': ticker,
+                    'last_price': "0.00",
+                    'currency': 'USD',
+                    'ttl': ttl
+                }
+                insights_table.put_item(Item=item)
+
     except Exception as e:
-        logger.error("Failed saving daily recommendation", error=str(e))
+        logger.error("Failed saving recommendations", error=str(e))
         
     return {}
 

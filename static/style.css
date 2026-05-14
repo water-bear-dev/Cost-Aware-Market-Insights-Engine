@@ -30,13 +30,16 @@ body {
     overflow-x: hidden;
     position: relative;
     padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 /* =====================================================
    Background Aesthetics
    ===================================================== */
 .background-glob {
-    position: absolute;
+    position: fixed;
     top: -100px;
     left: -10%;
     width: 50vw;
@@ -57,7 +60,8 @@ body {
    Layout
    ===================================================== */
 .dashboard-container {
-    max-width: 1400px;
+    width: 100%;
+    max-width: 1600px;
     margin: 0 auto;
 }
 
