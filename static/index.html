@@ -504,11 +504,11 @@
                     </div>
                 </div>
 
-                <div class="process-grid">
+                <div class="process-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
                     <div class="process-card glass">
                         <div class="process-step">01</div>
                         <h3>Data Ingestion</h3>
-                        <p>A background service polls market metrics and headlines every 5 minutes, ensuring the engine stays current without excessive API calls.</p>
+                        <p>A background service polls market metrics and headlines every 5 minutes via <a href="https://github.com/ranaroussi/yfinance" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 600;">yfinance</a>, ensuring the engine stays current without excessive API calls.</p>
                     </div>
                     <div class="process-card glass">
                         <div class="process-step">02</div>
@@ -522,13 +522,58 @@
                     </div>
                 </div>
 
+                <div class="process-card glass" style="grid-column: 1 / -1; margin-top: 2rem; border-color: rgba(14, 165, 233, 0.2);">
+                    <div class="process-step">04</div>
+                    <h3>Ticker Discovery Formula</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
+                        <div>
+                            <p style="margin-bottom: 1.25rem; color: #cbd5e1; line-height: 1.7;">
+                                Developed by Joel Greenblatt in <a href="https://amzn.to/4eM6fEH" target="_blank" class="book-link">"The Little Book That Still Beats the Market"</a>, this formula was selected as the engine's primary discovery layer for three key reasons:
+                            </p>
+                            <ul style="list-style: none; padding: 0; font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>Superior Backtested Alpha:</strong> Historically, this strategy has delivered 20-30% annual returns, consistently outperforming the S&P 500 over 20+ year periods.</span>
+                                </li>
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>Noise Elimination:</strong> By requiring high Return on Capital (ROC), we instantly filter out 90% of global tickers that have poor unit economics or unsustainable business models.</span>
+                                </li>
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>Holistic Valuation:</strong> Using Enterprise Value (EV) instead of just Market Cap ensures we account for a company's debt, providing a "truthful" measure of its acquisition price.</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                            <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(0,0,0,0.2);">
+                                <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">1. Earnings Yield (EY)</h4>
+                                <div style="font-family: monospace; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">EBIT / Enterprise Value</div>
+                                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary);">Identifies undervalued assets by looking at pre-tax operating profits relative to the total cost of the business (Debt + Equity).</p>
+                            </div>
+
+                            <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(0,0,0,0.2);">
+                                <h4 style="font-size: 0.8rem; color: #10b981; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">2. Return on Capital (ROC)</h4>
+                                <div style="font-family: monospace; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 0.5rem;">EBIT / (Fixed Assets + Working Capital)</div>
+                                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary);">Measures how effectively a company generates profit from the capital invested in its core operations.</p>
+                            </div>
+                            
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic; margin-top: 0.5rem;">
+                                Source: <a href="https://amzn.to/4eM6fEH" target="_blank" style="color: inherit; text-decoration: underline;">Greenblatt, J. (2005). The Little Book That Still Beats the Market.</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="process-card glass" style="grid-column: 1 / -1; margin-top: 2rem; border-color: rgba(125, 211, 252, 0.2);">
 
-                        <div class="process-step" style="background: var(--accent);">05</div>
+                        <div class="process-step">05</div>
                         <h3>Quality Minus Junk (QMJ) Formula</h3>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
                             <div>
-                                <p style="margin-bottom: 1.5rem; color: #cbd5e1;">Based on the methodology by Asness, Frazzini, and Pedersen (2018), "Quality" is defined as assets with high profitability, growth, and safety. This engine implements a robust version using SEC-standardized financial reports.</p>
+                                <p style="margin-bottom: 1.5rem; color: #cbd5e1;">Based on the methodology by <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2312432" target="_blank" style="color: inherit; text-decoration: underline;">Asness, Frazzini, and Pedersen (2018)</a>, "Quality" is defined as assets with high profitability, growth, and safety. This engine implements a robust version using SEC-standardized financial reports.</p>
                                 
                                 <div class="glass" style="padding: 1.2rem; border-radius: 12px; background: rgba(0,0,0,0.2);">
                                     <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem;">1. Profitability (GP/A)</h4>
@@ -560,12 +605,18 @@
                                 </div>
 
                                 <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(15, 23, 42, 0.4);">
-                                    <h4 style="font-size: 0.8rem; color: #f59e0b; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">Value & Momentum (APM 2013)</h4>
+                                    <h4 style="font-size: 0.8rem; color: #f59e0b; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;"><a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2174501" target="_blank" style="color: inherit; text-decoration: underline;">Value & Momentum (APM 2013)</a></h4>
                                     <ul style="list-style: none; padding: 0; font-size: 0.85rem; color: var(--text-secondary);">
                                         <li style="margin-bottom: 0.5rem;"><strong>Value:</strong> Measured as Earnings Yield (Net Income / Market Cap). High yield indicates deep value.</li>
                                         <li><strong>Momentum:</strong> 12-month price return, skipping the most recent month to avoid short-term reversals.</li>
                                     </ul>
                                 </div>
+                                
+                                <p style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic; margin-top: 0.5rem; line-height: 1.5;">
+                                    Sources: <br/>
+                                    • <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2312432" target="_blank" style="color: inherit; text-decoration: underline;">Asness, C., Frazzini, A., & Pedersen, L. (2013). Quality Minus Junk.</a> <br/>
+                                    • <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2174501" target="_blank" style="color: inherit; text-decoration: underline;">Asness, C., Moskowitz, T., & Pedersen, L. (2013). Value and Momentum Everywhere.</a>
+                                </p>
                             </div>
                         </div>
                     </div>

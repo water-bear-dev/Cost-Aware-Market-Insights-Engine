@@ -954,7 +954,7 @@ async function fetchDailyPicks() {
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start;">
                             <span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.05em; opacity: 0.8;">${formatExchange(pick.exchange)}</span>
-                            <h3 class="metric-value text-gradient-purple" style="font-size: 2.8rem; line-height: 1; letter-spacing: -1.5px; margin: 0; font-weight: 900;">${pick.actual_ticker}</h3>
+                            <h3 class="metric-value text-gradient-purple" style="font-size: 2.2rem; line-height: 1; letter-spacing: -1.5px; margin: 0; font-weight: 900;">${pick.actual_ticker}</h3>
                             <span style="font-size: 0.9rem; color: var(--text-primary); margin-top: 8px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">${pick.company_name}</span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; font-weight: 500; opacity: 0.7;">${pick.industry}</span>
                         </div>
@@ -2279,13 +2279,11 @@ function renderMarketIndices(regions) {
             const sign = isPos ? '+' : '';
             // Format price with commas; don't prepend $ for non-USD
             const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-            const currencyLabel = idx.currency && idx.currency !== 'USD' ? idx.currency : '$';
             return `<div class="discover-index-card">
                 <div class="discover-index-name">${idx.name}</div>
                 <div class="discover-index-price">
                     <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
-                        <span style="font-size: 0.5rem; color: var(--accent); font-weight: 700; opacity: 0.7;">CLOSE</span>
-                        <div>${currencyLabel !== '$' ? '' : '$'}${priceStr} <span style="font-size:0.65rem;color:var(--text-secondary);">${currencyLabel !== '$' ? currencyLabel : ''}</span></div>
+                        <div>${priceStr}</div>
                     </div>
                     ${renderExtendedHours(idx)}
                 </div>
@@ -2328,10 +2326,10 @@ function renderCommodities(commodities) {
                 <div>
                     <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}">${sign}${c.change_pct.toFixed(2)}%</span>
                 </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end;">
-                    <div style="display: flex; align-items: baseline; gap: 0.25rem;">
+                <div style="display: flex; flex-direction: column; align-items: flex-end; min-width: 0;">
+                    <div style="display: flex; align-items: baseline; gap: 0.25rem; white-space: nowrap;">
                         <span style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary); line-height: 1;">${formatPrice(displayPrice, c.currency || 'USD')}</span>
-                        <span style="font-size: 0.75rem; color: var(--text-secondary);">/${displayUnit}</span>
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); flex-shrink: 0;">/${displayUnit}</span>
                     </div>
                 </div>
             </div>
