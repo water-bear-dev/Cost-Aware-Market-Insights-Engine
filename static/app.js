@@ -20,8 +20,17 @@ let currentPeriod = '1d'; // Start with 1D as default for live change
 let currentModalMkt = {};
 let currentModalInsight = null;
 
+// All symbols we need sparklines for (indices + commodities)
+const DISCOVER_INDEX_SYMBOLS  = ['^AXJO','^GSPC','^IXIC','^STOXX50E','^FTSE','^N225','^HSI'];
+const DISCOVER_COMMODITY_SYMBOLS = ['GC=F','SI=F','HG=F','PL=F','PA=F','CL=F'];
+const ALL_DISCOVER_SYMBOLS = [...DISCOVER_INDEX_SYMBOLS, ...DISCOVER_COMMODITY_SYMBOLS];
+
 // Track starting price for the selected trend period
 const periodStartPrices = {};
+
+// Master History Cache (1-Year Daily)
+let MASTER_HISTORY = {};
+let isMasterHistorySyncing = false;
 
 // Snapshot of last known data for diff-and-patch
 let lastMarketData = {};
@@ -170,6 +179,50 @@ function renderExtendedHours(mkt) {
 
     html += '</div>';
     return html;
+}
+
+/* =====================================================
+   Master History Cache (1-Year Daily)
+   ===================================================== */
+async function syncMasterHistory() {
+    if (isMasterHistorySyncing) return;
+    isMasterHistorySyncing = true;
+    
+    debugLog("Syncing 1-Year Master History...");
+    
+    // Combine all tickers: Portfolio + Discovery
+    const portfolioTickers = Object.keys(lastMarketData);
+    const discoveryTickers = ALL_DISCOVER_SYMBOLS || [];
+    const allTickers = Array.from(new Set([...portfolioTickers, ...discoveryTickers]));
+    
+    if (allTickers.length === 0) {
+        isMasterHistorySyncing = false;
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/v1/market/master-history?symbols=${encodeURIComponent(allTickers.join(','))}`);
+        if (!res.ok) throw new Error("Master sync failed");
+        
+        const data = await res.json();
+        if (data && data.data) {
+            MASTER_HISTORY = data.data;
+            debugLog(`Master History Synced: ${Object.keys(MASTER_HISTORY).length} symbols`);
+            
+            // Trigger UI refresh for any non-1d charts
+            if (currentPortfolioPeriod !== '1d') updatePortfolioChart(Object.values(lastMarketData));
+            if (currentDiscoverPeriod !== '1d') fetchDiscoverSparklines(currentDiscoverPeriod);
+        }
+    } catch (e) {
+        console.error("syncMasterHistory failed:", e);
+    } finally {
+        isMasterHistorySyncing = false;
+    }
+}
+
+function calculateChange(start, end) {
+    if (!start || start === 0) return 0;
+    return ((end - start) / start) * 100;
 }
 
 /* =====================================================
@@ -675,6 +728,10 @@ async function refreshTickerSparkline(ticker, period) {
                         // We use the same classes as updateCard/cardInnerHtml
                         changeEl.className = `${cClass} card-change ${pillClass}`;
                         changeEl.textContent = `${sign}${changePct.toFixed(2)}%`;
+
+                        // Update card wrapper trend class
+                        if (changePct < 0) card.classList.add('trend-negative');
+                        else card.classList.remove('trend-negative');
                     }
                 }
             }
@@ -898,6 +955,9 @@ async function initDashboard() {
     await fetchMarketAndInsights();
     await fetchDailyPicks();
 
+    // Warm up the 1-Year Master History Cache
+    syncMasterHistory();
+
     // Background batch: ensure all tickers have synthesis
     triggerBatchSynthesis();
 
@@ -907,6 +967,11 @@ async function initDashboard() {
         fetchDashboardCosts();
         fetchMarketAndInsights();
         fetchDailyPicks();
+        
+        // Periodic sync to keep 1Y cache fresh (every 4 hours)
+        if (Date.now() % (4 * 60 * 60 * 1000) < 15000) {
+            syncMasterHistory();
+        }
     }, 15000);
 
     // Refresh sparklines specifically every 24 hours
@@ -1411,8 +1476,17 @@ function drawSparkline(elementId, dataset, color) {
         const range = maxVal - minVal;
         const padding = range === 0 ? 1 : range * 0.1;
 
+        // Recalculate gradient to match new color
+        const gradCanvas = sparklineInstances[elementId].canvas;
+        const gradCtx = gradCanvas.getContext('2d');
+        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const gradient = gradCtx.createLinearGradient(0, 0, 0, 90);
+        gradient.addColorStop(0, `rgba(${rgb}, 0.3)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+
         sparklineInstances[elementId].data.datasets[0].data = dataset;
         sparklineInstances[elementId].data.datasets[0].borderColor = color;
+        sparklineInstances[elementId].data.datasets[0].backgroundColor = gradient;
         sparklineInstances[elementId].options.scales.y.min = minVal - padding;
         sparklineInstances[elementId].options.scales.y.max = maxVal + padding;
         sparklineInstances[elementId].update('none');
@@ -1450,6 +1524,14 @@ async function fetchMarketAndInsights() {
 
         lastMarketData = newMarket;
         lastInsightsData = newInsights;
+
+        // Update Master History with latest live price
+        marketArr.forEach(m => {
+            if (MASTER_HISTORY[m.ticker]) {
+                const s = MASTER_HISTORY[m.ticker];
+                if (s.length > 0) s[s.length - 1] = parseFloat(m.price);
+            }
+        });
 
         triggerBatchIngestion(marketArr);
 
@@ -1549,8 +1631,15 @@ function buildCard(mkt, insight, index) {
     wrapper.dataset.company = mkt.company_name || '';
     wrapper.dataset.exchange = mkt.exchange || '';
     wrapper.dataset.price = mkt.close_price || 0;
-    wrapper.dataset.change = mkt.change_pct || 0;
-    const isNeg = (mkt.change_pct || 0) < 0;
+    let displayPct = mkt.change_pct || 0;
+    if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+        const first = periodStartPrices[mkt.ticker];
+        const last = mkt.close_price;
+        displayPct = ((last - first) / first) * 100;
+    }
+
+    wrapper.dataset.change = displayPct;
+    const isNeg = displayPct < 0;
     wrapper.className = 'insight-card' + (isNeg ? ' trend-negative' : '');
     wrapper.style.animationDelay = `${index * 0.05}s`;
 
@@ -1577,9 +1666,9 @@ function updateCard(wrapper, mkt, insight) {
     if (priceEl) priceEl.textContent = formatPrice(mkt.close_price, mkt.currency);
 
     const changeEl = inner.querySelector('.card-change');
-    if (changeEl) {
-        let displayPct = mkt.change_pct;
+    let displayPct = mkt.change_pct || 0;
 
+    if (changeEl) {
         // If we are NOT in 1D view and we have a cached start price, recalculate
         if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
             const first = periodStartPrices[mkt.ticker];
@@ -1611,8 +1700,8 @@ function updateCard(wrapper, mkt, insight) {
     wrapper.dataset.company = mkt.company_name || '';
     wrapper.dataset.exchange = mkt.exchange || '';
 
-    // Update trend class
-    if (mkt.change_pct < 0) wrapper.classList.add('trend-negative');
+    // Update trend class based on displayed percentage
+    if (displayPct < 0) wrapper.classList.add('trend-negative');
     else wrapper.classList.remove('trend-negative');
 }
 
@@ -1782,31 +1871,54 @@ async function updatePortfolioChart(marketData) {
             return new Date(nowMs - msAgo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         });
     } else {
+        // Master Cache Slicing Logic
+        let batch = null;
         const tickers = active.map(m => m.ticker).join(',');
-        try {
-            const resp = await fetch(`/api/v1/market/batch-history?symbols=${tickers}&period=${currentPortfolioPeriod}`);
-            if (!resp.ok) throw new Error("Batch fetch failed");
-            const batch = await resp.json();
-            
-            if (!batch.timestamps || batch.timestamps.length === 0) return;
-
-            labels = batch.timestamps.map(t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }));
-            
-            combined = Array.from({ length: batch.timestamps.length }, (_, i) => {
-                let total = 0;
-                active.forEach(m => {
-                    const series = (batch.data && batch.data[m.ticker]) ? batch.data[m.ticker] : [];
-                    const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i-1] || 0);
-                    const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
-                    total += (val / tickerUsdRate) * rate;
-                });
-                return total;
+        
+        const daysMap = { '1w': 5, '1mo': 22, '3mo': 66, '6mo': 132, '1y': 252 };
+        const sliceLen = daysMap[currentPortfolioPeriod] || 252;
+        
+        // Use master cache if ALL active tickers are present
+        const hasMaster = active.every(m => MASTER_HISTORY[m.ticker] && MASTER_HISTORY[m.ticker].length > 0);
+        
+        if (hasMaster) {
+            debugLog(`Using MASTER_HISTORY for ${currentPortfolioPeriod} slice`);
+            batch = { data: {}, timestamps: [] };
+            active.forEach(m => {
+                batch.data[m.ticker] = MASTER_HISTORY[m.ticker].slice(-sliceLen);
             });
-        } catch (e) {
-            console.error("Portfolio history fetch failed", e);
-            if (loader) loader.style.display = 'none';
-            return;
+            // Generate mock daily timestamps for slicing
+            batch.timestamps = Array.from({ length: sliceLen }, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (sliceLen - 1 - i));
+                return d.toISOString();
+            });
+        } else {
+            try {
+                const resp = await fetch(`/api/v1/market/batch-history?symbols=${tickers}&period=${currentPortfolioPeriod}`);
+                if (!resp.ok) throw new Error("Batch fetch failed");
+                batch = await resp.json();
+            } catch (e) {
+                console.error("Portfolio history fetch failed", e);
+                if (loader) loader.style.display = 'none';
+                return;
+            }
         }
+        
+        if (!batch || !batch.timestamps || batch.timestamps.length === 0) return;
+
+        labels = batch.timestamps.map(t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+        
+        combined = Array.from({ length: batch.timestamps.length }, (_, i) => {
+            let total = 0;
+            active.forEach(m => {
+                const series = (batch.data && batch.data[m.ticker]) ? batch.data[m.ticker] : [];
+                const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i-1] || 0);
+                const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
+                total += (val / tickerUsdRate) * rate;
+            });
+            return total;
+        });
     }
 
     if (combined.length === 0) {
@@ -2078,8 +2190,8 @@ function renderHeroStats(mkt) {
             ${renderExtendedHours(mkt)}
         </div>
         <div class="hero-stat main">
-            <div class="hero-stat-label">DAY CHANGE</div>
-            <div class="hero-stat-value main" style="color:${changeColor}">${sign}${(mkt.change_pct || 0).toFixed(2)}%</div>
+            <div id="modal-change-label" class="hero-stat-label">DAY CHANGE</div>
+            <div id="modal-change-value" class="hero-stat-value main" style="color:${changeColor}">${sign}${(mkt.change_pct || 0).toFixed(2)}%</div>
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
@@ -2094,6 +2206,50 @@ function renderHeroStats(mkt) {
             <div class="hero-stat-value">${formatPrice(mkt.low_price, mkt.currency)}</div>
         </div>
     `;
+}
+
+function updateModalPerformance(closes, period) {
+    const labelEl = document.getElementById('modal-change-label');
+    const valueEl = document.getElementById('modal-change-value');
+    if (!labelEl || !valueEl || !closes || closes.length === 0) return;
+
+    let displayLabel = 'DAY CHANGE';
+    let perf = 0;
+
+    if (period === '1d') {
+        displayLabel = 'DAY CHANGE';
+        // Use the default market data change if available for 1D
+        if (currentModalMkt && typeof currentModalMkt.change_pct === 'number') {
+            perf = currentModalMkt.change_pct;
+        } else {
+            const start = closes[0];
+            const end = closes[closes.length - 1];
+            perf = start ? ((end - start) / start) * 100 : 0;
+        }
+    } else {
+        const start = closes[0];
+        const end = closes[closes.length - 1];
+        perf = start ? ((end - start) / start) * 100 : 0;
+        
+        const periodMap = {
+            '1w': '1W CHANGE',
+            '1mo': '1M CHANGE',
+            '3mo': '3M CHANGE',
+            '6mo': '6M CHANGE',
+            'ytd': 'YTD CHANGE',
+            '1y': '1Y CHANGE',
+            '5y': '5Y CHANGE',
+            'max': 'MAX (ALL TIME)'
+        };
+        displayLabel = periodMap[period] || `${period.toUpperCase()} CHANGE`;
+    }
+
+    const sign = perf >= 0 ? '+' : '';
+    const color = perf >= 0 ? 'var(--positive)' : 'var(--negative)';
+    
+    labelEl.textContent = displayLabel;
+    valueEl.textContent = `${sign}${perf.toFixed(2)}%`;
+    valueEl.style.color = color;
 }
 
 function renderKeyStats(info, mkt) {
@@ -2251,6 +2407,9 @@ async function loadModalChart(ticker, period) {
 
             renderHeroStats(currentModalMkt);
         }
+
+        // Dynamically update the header performance metrics based on selected period
+        updateModalPerformance(closes, period);
 
         if (modalChartInstance) { modalChartInstance.destroy(); modalChartInstance = null; }
         const ctx = document.getElementById('modal-history-chart').getContext('2d');
@@ -2434,12 +2593,9 @@ function formatInsight(text, limit = null, showOnly = null) {
    ===================================================== */
 let _discoverRefreshTimer = null;
 let _discoverNewsTimer = null;
-let currentDiscoverPeriod = '1d';
+let currentDiscoverPeriod = '3mo';
 
-// All symbols we need sparklines for (indices + commodities)
-const DISCOVER_INDEX_SYMBOLS  = ['^AXJO','^GSPC','^IXIC','^STOXX50E','^FTSE','^N225','^HSI'];
-const DISCOVER_COMMODITY_SYMBOLS = ['GC=F','SI=F','HG=F','PL=F','PA=F','CL=F'];
-const ALL_DISCOVER_SYMBOLS = [...DISCOVER_INDEX_SYMBOLS, ...DISCOVER_COMMODITY_SYMBOLS];
+// Sparkline chart instances keyed by symbol
 
 // Sparkline chart instances keyed by symbol
 const discoverSparklineInstances = {};
@@ -2484,6 +2640,23 @@ async function fetchDiscoverIndices() {
         renderMarketIndices(data.regions || []);
         lastDiscoverCommodities = data.commodities || [];
         renderCommodities(lastDiscoverCommodities);
+
+        // Update Master History with latest live price
+        (data.regions || []).forEach(r => {
+            (r.indices || []).forEach(idx => {
+                if (MASTER_HISTORY[idx.symbol]) {
+                    const s = MASTER_HISTORY[idx.symbol];
+                    if (s.length > 0) s[s.length - 1] = parseFloat(idx.price);
+                }
+            });
+        });
+        (data.commodities || []).forEach(c => {
+            if (MASTER_HISTORY[c.symbol]) {
+                const s = MASTER_HISTORY[c.symbol];
+                if (s.length > 0) s[s.length - 1] = parseFloat(c.price);
+            }
+        });
+
         // Kick off sparklines after cards are rendered
         fetchDiscoverSparklines(currentDiscoverPeriod);
     } catch (e) { console.error('Discover indices failed', e); }
@@ -2549,43 +2722,74 @@ async function fetchDiscoverNews() {
  * Async orchestrator: fetches batch sparkline data for all Discover cards in one API call,
  * then draws canvas trend lines on each card. Skeleton pulse shown on cards while loading.
  */
-async function fetchDiscoverSparklines(period = '1d') {
+async function fetchDiscoverSparklines(period = '3mo') {
     // Show skeleton opacity while loading
     document.querySelectorAll('.discover-sparkline-wrap').forEach(el => {
         el.style.opacity = '0.2';
     });
 
     try {
-        const symbols = ALL_DISCOVER_SYMBOLS.join(',');
-        const res = await fetch(`/api/v1/market/batch-history?symbols=${encodeURIComponent(symbols)}&period=${period}`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const daysMap = { '1w': 5, '1mo': 22, '3mo': 66, '6mo': 132, '1y': 252 };
+        const sliceLen = daysMap[period] || 252;
+        const useMaster = (period === '3mo' || period === '6mo' || period === '1y') && Object.keys(MASTER_HISTORY).length > 0;
 
-        // Draw sparkline for each card by data-symbol attribute
-        document.querySelectorAll('[data-discover-symbol]').forEach(card => {
-            const sym = card.dataset.discoverSymbol;
-            const closes = data[sym];
-            if (!closes || closes.length < 2) return;
+        const renderGroup = (groupData) => {
+            if (!groupData) return;
+            document.querySelectorAll('[data-discover-symbol]').forEach(card => {
+                const sym = card.dataset.discoverSymbol;
+                if (!groupData[sym]) return;
 
-            const isPos = closes[closes.length - 1] >= closes[0];
-            const color = isPos ? '#10b981' : '#f43f5e';
-            const wrap = card.querySelector('.discover-sparkline-wrap');
-            if (!wrap) return;
+                const closes = groupData[sym];
+                if (!closes || closes.length < 2) return;
 
-            drawDiscoverSparkline(wrap, sym, closes, color);
+                const wrap = card.querySelector('.discover-sparkline-wrap');
+                if (wrap) wrap.style.opacity = '0.5';
 
-            // Update change badge to reflect the selected period
-            const pctChange = ((closes[closes.length - 1] - closes[0]) / closes[0]) * 100;
-            const badge = card.querySelector('.discover-change-badge');
-            if (badge) {
-                const sign = pctChange >= 0 ? '+' : '';
-                badge.className = `discover-change-badge ${pctChange >= 0 ? 'pos' : 'neg'}`;
-                badge.textContent = `${sign}${pctChange.toFixed(2)}%`;
+                const isPos = closes[closes.length - 1] >= closes[0];
+                const color = isPos ? '#10b981' : '#f43f5e';
+                if (!wrap) return;
+
+                drawDiscoverSparkline(wrap, sym, closes, color);
+
+                const pctChange = calculateChange(closes[0], closes[closes.length - 1]);
+                const badge = card.querySelector('.discover-change-badge');
+                if (badge && !isNaN(pctChange) && isFinite(pctChange)) {
+                    const sign = pctChange >= 0 ? '+' : '';
+                    badge.className = `discover-change-badge ${pctChange >= 0 ? 'pos' : 'neg'}`;
+                    badge.textContent = `${sign}${pctChange.toFixed(2)}%`;
+                }
+            });
+        };
+
+        if (useMaster) {
+            debugLog(`Using MASTER_HISTORY for Discover ${period}`);
+            const masterData = {};
+            ALL_DISCOVER_SYMBOLS.forEach(sym => {
+                if (MASTER_HISTORY[sym]) {
+                    masterData[sym] = MASTER_HISTORY[sym].slice(-sliceLen);
+                }
+            });
+            renderGroup(masterData);
+        } else {
+            debugLog(`Fetching high-res batch for Discover ${period}`);
+            try {
+                // Fetch all symbols in one batch to ensure synchronization
+                const res = await fetch(`/api/v1/market/batch-history?symbols=${encodeURIComponent(ALL_DISCOVER_SYMBOLS.join(','))}&period=${period}`);
+                if (!res.ok) throw new Error(`Batch fetch failed: ${res.status}`);
+                const json = await res.json();
+                
+                if (json.data) {
+                    const receivedCount = Object.keys(json.data).length;
+                    const emptyCount = Object.values(json.data).filter(d => !d || d.length === 0).length;
+                    debugLog(`Received ${receivedCount} sparklines (${emptyCount} empty)`);
+                    renderGroup(json.data);
+                }
+            } catch (e) {
+                console.error('Discover batch fetch failed:', e);
+                // Reset opacity on error so cards don't stay hidden
+                document.querySelectorAll('.discover-sparkline-wrap').forEach(el => el.style.opacity = '1');
             }
-
-            // Restore opacity
-            wrap.style.opacity = '0.5';
-        });
+        }
     } catch (e) {
         console.error('Discover sparklines failed:', e);
     }
@@ -2604,15 +2808,20 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         container.innerHTML = '<canvas></canvas>';
         const canvas = container.querySelector('canvas');
         const ctx = canvas.getContext('2d');
+
+        // Aggressive Smart Scaling: Ensure we see movement even for stable assets
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
-        const padding = range === 0 ? 1 : range * 0.05;
+        
+        // Use a tighter padding (2%) for better dynamic feel, with a minimum floor to avoid Infinity
+        const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
 
-        // Gradient fill for premium look
+        // Premium Gradient Aesthetic
         const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
-        const gradient = ctx.createLinearGradient(0, 0, 0, 52);
-        gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
+        const gradient = ctx.createLinearGradient(0, 0, 0, 80);
+        gradient.addColorStop(0, `rgba(${rgb}, 0.28)`);
+        gradient.addColorStop(0.6, `rgba(${rgb}, 0.05)`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
 
         discoverSparklineInstances[symbol] = new Chart(ctx, {
@@ -2622,11 +2831,12 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
                 datasets: [{
                     data: dataset,
                     borderColor: color,
-                    borderWidth: 1.5,
+                    borderWidth: 1.8,
                     pointRadius: 0,
-                    tension: 0.4,
+                    tension: 0.45,
                     fill: true,
-                    backgroundColor: gradient
+                    backgroundColor: gradient,
+                    borderCapStyle: 'round'
                 }]
             },
             options: {
@@ -2635,16 +2845,41 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
                 plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } },
                 scales: {
                     x: { display: false },
-                    y: { display: false, min: minVal - padding, max: maxVal + padding, beginAtZero: false }
+                    y: { 
+                        display: false, 
+                        min: minVal - padding, 
+                        max: maxVal + padding, 
+                        beginAtZero: false 
+                    }
                 },
-                animation: { duration: 400 }
+                animation: { duration: 600, easing: 'easeOutQuart' }
             }
         });
     } else {
         // Update existing instance
         const chart = discoverSparklineInstances[symbol];
+        const ctx = chart.ctx;
+        
+        // Recalculate gradient to match new color
+        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const gradient = ctx.createLinearGradient(0, 0, 0, 52);
+        gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+
+        chart.data.labels = dataset.map((_, i) => i);
         chart.data.datasets[0].data = dataset;
         chart.data.datasets[0].borderColor = color;
+        chart.data.datasets[0].backgroundColor = gradient;
+        
+        // Update scale bounds for new data range (match new smart scaling logic)
+        const minVal = Math.min(...dataset);
+        const maxVal = Math.max(...dataset);
+        const range = maxVal - minVal;
+        const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
+        
+        chart.options.scales.y.min = minVal - padding;
+        chart.options.scales.y.max = maxVal + padding;
+        
         chart.update('none');
     }
 }

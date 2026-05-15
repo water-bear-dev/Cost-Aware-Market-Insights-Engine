@@ -269,6 +269,11 @@ The application behavior is controlled via environment variables (see `src/confi
 └── system-design/           # Architecture diagrams and system overview
 ```
 
+## Technical Constraints & Data Policy
+
+*   **Discovery Timeframe Standardization**: The "Discover" engine standardizes on a **3-Month (3M)** minimum timeframe for all sparkline visualizations. This ensures high-density trend lines using stable daily price series.
+*   **Intra-Day Commodity Gaps**: High-resolution (1D/1W) data for commodities (e.g., Gold, Oil) is currently unavailable in the local development environment due to API resolution constraints. These shorter timeframes have been deprecated in the Discovery dashboard to maintain system-wide data integrity.
+
 ## Phased Rollout Roadmap
 - **[COMPLETE] Phase 1: Monolithic System** - Built the foundational FastAPI backend, local DynamoDB ledger, FinOps constraints, and glassmorphic UI.
 - **[COMPLETE] Phase 2: Alpha-DAG via MCP** - Deconstructed the monolith into a distributed system governed by a LangGraph orchestrator.
@@ -277,8 +282,8 @@ The application behavior is controlled via environment variables (see `src/confi
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
 - **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
-- **[COMPLETE] Phase 9: Discovery Agent Revamp & Institutional Intelligence** - Implementing a 12-hour refresh cycle (8 AM/8 PM AEST), high-conviction AI investment theses, and direct news integration within discovery picks. Added "Add to Watchlist" functionality directly in modal views for seamless asset acquisition.
-- **[PLANNED] Phase 10: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 10: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
+- **[PLANNED] Phase 11: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
 
 
 ---

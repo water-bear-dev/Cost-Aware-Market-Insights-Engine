@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.2.1] - 2026-05-15
+
+### Added
+- **Discovery Stabilization Layer** — Implemented a robust sequential fetching architecture using the proven `yf.download` method, bypassing MultiIndex parsing issues and session conflicts.
+- **Unified Batch Fetching** — Consolidated all discovery sparkline requests into a single, synchronized network call in `app.js`, eliminating UI flickering and race conditions during rendering.
+
+### Changed
+- **Minimum Timeframe Standardization** — Removed 1-Day, 1-Week, and 1-Month timeframes from the Discovery dashboard. The interface now defaults to a **3-Month (3M)** minimum view to ensure 100% data reliability and trend density across all global assets.
+- **Backend Interval Policy** — Standardized all historical trend requests on stable `1d` (daily) intervals, removing the dependency on high-resolution intra-day slices that were susceptible to "silent blocks" in the server environment.
+
+### Fixed
+- **Empty Sparkline Regression** — Resolved the issue where sparkline containers remained hidden or empty due to data retrieval failures for commodities and indices.
+- **Sync Lag** — Eliminated the staggered loading effect of discovery charts by implementing a unified fetch-and-render pipeline.
+
+### Known Constraints
+- **Intra-Day Commodity Gaps** — High-resolution (1D/1W) data for commodities (`GC=F`, `CL=F`) is currently unavailable in the local development environment due to API resolution constraints. These views have been deprecated in favor of the stabilized 3M+ daily trendlines.
+
+## [3.2.0] - 2026-05-15
+
+### Added
+- **1-Year Master Caching System** — Implemented a high-performance data architecture that fetches a full year of historical data in a single bulk request on app launch. This enables instantaneous (0ms) timeframe switching by slicing cached data in memory.
+- **Backend Data Sanitization** — Developed a `sanitize_series` utility to forward-fill gaps (zeros/NaNs) and strip leading zeros, eliminating the "square-wave" chart effect and fixing `Infinity%` errors.
+- **Real-Time "Live-Append" Logic** — Unified the 15-second market heartbeat with the historical cache. New price points are now patched directly into the 1-year history, ensuring that 1W and 1M charts remain dynamic without redundant network calls.
+
+### Changed
+- **Unified History API** — Transitioned from multiple fragmented `/api/v1/market/history` calls to a single `/api/v1/market/master-history` endpoint with 24-hour server-side caching.
+- **Calculated Change Standard** — Implemented a defensive `calculateChange` utility to standardize percentage calculations across the Portfolio and Discovery sections.
+
+### Fixed
+- **Discovery Chart Regressions** — Resolved the issue where Global Markets and Commodities charts failed to render or displayed invalid "NaN" metrics.
+- **Portfolio Color Sync** — Fixed the trend-aware color synchronization for portfolio sparklines, ensuring green/red gradients correctly reflect historical performance.
+
 ## [3.1.8] - 2026-05-14
 
 ### Added

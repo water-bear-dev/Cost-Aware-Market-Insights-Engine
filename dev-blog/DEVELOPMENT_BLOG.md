@@ -2,6 +2,56 @@
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 
+## Entry 58: The Battle of the Sparklines — Stabilizing High-Frequency Data (2026-05-15)
+
+The "Discovery" dashboard is the visual soul of the platform, but it recently faced its toughest engineering challenge: the reliability of high-resolution intra-day data. Today, we made a strategic pivot to **stabilize the visualization layer** by standardizing on a 3-Month minimum view.
+
+**The Discovery Regression: The Multi-Index Trap**
+
+We initially attempted to optimize the Discovery sparklines by using a `ThreadPoolExecutor` and parallelizing `yfinance` requests. While fast, this introduced a "Multi-Index Trap." Depending on the environment, `yfinance` would return data in different structural shapes—sometimes flat, sometimes multi-indexed by `(Field, Ticker)`. This caused "silent" data extraction failures where the UI would show empty charts despite the network request succeeding.
+
+**The "Silent Block" Problem**
+
+Further investigation revealed that Yahoo Finance frequently "silently blocks" high-resolution requests (5m/15m intervals) originating from non-browser environments, specifically for commodities like Gold (`GC=F`) and Oil (`CL=F`). This resulted in the 1D and 1W views for commodities consistently returning `0` data points, even when the daily (1D interval) data was flowing perfectly.
+
+**The Strategic Pivot: 3M Minimum and Daily Standardization**
+
+To ensure 100% reliability for our users, we made the following engineering decisions:
+1.  **Removal of 1D, 1W, and 1M views:** By removing the timeframes that relied on unstable high-resolution slices, we eliminated the primary source of UI failure.
+2.  **3-Month (3M) Default:** The dashboard now defaults to a 3-month view. This is the "sweet spot" for market trend visualization, providing enough data points for a smooth, high-density trend line while relying exclusively on **stable daily price series**.
+3.  **Unified Batch-Fetch Logic:** We unified the frontend fetch into a single atomic call. This ensures all cards on the Discovery tab update in perfect synchronization, eliminating the staggered, flickering loading effect seen in previous versions.
+
+**Conclusion: Reliability over Granularity**
+
+In institutional finance, a missing chart is worse than a slightly lower-resolution one. By standardizing on 3M+ daily data, we have guaranteed that the Discovery Engine will always provide a consistent, trend-accurate visualization for every global index and commodity in the system.
+
+## Entry 57: The Master Cache — 0ms Latency and Data Sanitization (2026-05-15)
+
+As the platform matured, we noticed two recurring issues: the "network tax" of timeframe switching and data quality regressions in the Discovery tab (the infamous "square-wave" commodity charts). Today, we solved both by implementing a **Unified Master History Architecture**.
+
+**The Architectural Pivot: From Fragmented to Centralized**
+
+Previously, every time a user clicked "1M" or "1Y", the frontend would fire off a new network request to the backend. This was expensive, redundant, and introduced a 2-3 second "wait state" on every interaction.
+
+We pivoted to a **Bootstrap-Sync model**:
+1.  **Warm Boot:** On application launch, the frontend triggers a single, background `syncMasterHistory()` call. This fetches a full 1-year historical record for every tracked asset and discovery symbol (indices/commodities).
+2.  **In-Memory Slicing:** Because the frontend now owns the 1-year master record, timeframe switching is no longer a network operation. Clicking "1W" or "3M" simply slices the existing JavaScript array. Latency dropped from ~2,500ms to **0ms**.
+
+**Killing the "Square-Wave" and Infinity% Errors**
+
+Global commodities (like Gold) and certain international indices occasionally suffer from "gappy" data in Yahoo Finance, appearing as zero-price points or missing intervals. This caused two major visual bugs:
+- **Square-Waves:** The chart would drop to zero and jump back, creating an ugly box-like shape.
+- **Infinity% Change:** If the "start" price of a period was zero, the change calculation would return `Infinity%`, breaking the UI badges.
+
+We solved this with a new **Backend Sanitization Layer** (`sanitize_series`):
+- **Leading Zero Stripping:** We automatically find the first non-zero price point and discard everything before it.
+- **Forward-Filling:** Any internal gaps (zeros or NaNs) are automatically filled with the *previous* valid price. This results in smooth, continuous trend lines even when the raw data is messy.
+
+**Real-Time Continuity: The Live-Append Pattern**
+
+One risk of a 1-year cache is that it becomes "stale" the moment market prices move. We implemented a **Live-Append Pattern** to keep the cache moving:
+Every 15 seconds, the application's market heartbeat updates the *last* point of the historical arrays in `MASTER_HISTORY`. This ensures that your "1-Month" or "1-Year" chart actually reflects the price that just ticked 5 seconds ago, without ever needing to re-fetch the entire history.
+
 ## Entry 56: The "Portfolio Pulse" — Orchestrating Multi-Period Portfolio Analytics (2026-05-14)
 
 One of the most requested features for the "Tracked Assets" dashboard was the ability to see how the total portfolio has performed over time, not just in the last 24 hours. While we had sparklines for individual stocks, the **Unified Portfolio Chart** was stuck in a "Daily" snapshot mode. Today, we broke that barrier.

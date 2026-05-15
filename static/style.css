@@ -379,6 +379,13 @@ body {
     transition: border-color 0.2s, transform 0.2s;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.discover-index-card > div:first-child {
+    position: relative;
+    z-index: 10; /* Ensure content is above sparkline */
 }
 
 .discover-index-card:hover {
