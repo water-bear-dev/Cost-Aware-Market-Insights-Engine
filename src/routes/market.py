@@ -71,6 +71,10 @@ def clean_float(val, default=0.0):
         return default
 
 PERIOD_MAP = {
+    "1d":  "1d",
+    "1w":  "5d",
+    "5d":  "5d",
+    "1mo": "1mo",
     "3mo": "3mo",
     "6mo": "6mo",
     "ytd": "ytd",
@@ -167,6 +171,19 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
         
         hist = t.history(period=yf_period, interval=interval)
         
+        # Fallback for closed markets (1d -> 5d, 5d -> 1mo)
+        if hist.empty:
+            if yf_period == "1d":
+                logger.info("1d history empty, falling back to 5d", ticker=ticker)
+                yf_period = "5d"
+                interval = "15m"
+                hist = t.history(period=yf_period, interval=interval)
+            elif yf_period == "5d":
+                logger.info("5d history empty, falling back to 1mo", ticker=ticker)
+                yf_period = "1mo"
+                interval = "1d"
+                hist = t.history(period=yf_period, interval=interval)
+
         if hist.empty:
             raise HTTPException(status_code=404, detail=f"No history data for {ticker}")
         
@@ -265,7 +282,7 @@ _TICKER_CACHE_TTL = 300  # 5 minutes
 def get_batch_history(
     request: Request,
     symbols: str = Query(..., description="Comma-separated ticker symbols"),
-    period: str = Query(default="1d")
+    period: str = Query(default="3mo")
 ):
     """
     Fetch sparkline close-price arrays for multiple tickers using parallel threads
@@ -278,8 +295,21 @@ def get_batch_history(
         raise HTTPException(status_code=400, detail="No symbols provided")
 
     yf_period = PERIOD_MAP.get(period, "3mo")
-    # All Discovery timeframes (1M, 3M, 6M, 1Y) now use 1d interval for stability
-    interval = "1d"
+    
+    # Discovery resolution mapping
+    res_map = {
+        "1d": "15m",
+        "5d": "1h",
+        "1mo": "1d",
+        "3mo": "1d",
+        "6mo": "1d",
+        "ytd": "1d",
+        "1y": "1wk",
+        "5y": "1mo",
+        "max": "1mo"
+    }
+    interval = res_map.get(yf_period, "1d")
+    
     result_data = {}
     tickers_to_fetch = []
 
@@ -299,6 +329,13 @@ def get_batch_history(
     try:
         batch_df = yf.download(tickers_to_fetch, period=yf_period, interval=interval, progress=False)
         
+        # Fallback for closed markets (batch level)
+        if batch_df.empty and yf_period == "1d":
+            logger.info("1d batch empty, falling back to 5d", symbols=tickers_to_fetch)
+            yf_period = "5d"
+            interval = "1h"
+            batch_df = yf.download(tickers_to_fetch, period=yf_period, interval=interval, progress=False)
+
         for ticker in tickers_to_fetch:
             try:
                 closes = []

@@ -85,7 +85,9 @@
                         <button class="period-btn" data-period="1m">1M</button>
                         <button class="period-btn" data-period="3m">3M</button>
                         <button class="period-btn" data-period="6m">6M</button>
+                        <button class="period-btn" data-period="ytd">YTD</button>
                         <button class="period-btn" data-period="1y">1Y</button>
+                        <button class="period-btn" data-period="5y">5Y</button>
                     </div>
                     <div id="portfolio-change-stat" style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px; display: flex; align-items: center; gap: 0.5rem;"></div>
                 </div>
@@ -142,7 +144,9 @@
                             <button class="trend-btn" data-trend="1mo">1M</button>
                             <button class="trend-btn" data-trend="3mo">3M</button>
                             <button class="trend-btn" data-trend="6mo">6M</button>
+                            <button class="trend-btn" data-trend="ytd">YTD</button>
                             <button class="trend-btn" data-trend="1y">1Y</button>
+                            <button class="trend-btn" data-trend="5y">5Y</button>
                         </div>
                     </div>
                     <div style="position:relative">
@@ -189,19 +193,29 @@
                 <h2 class="discover-section-title" style="margin: 0;">🌍 Global Markets</h2>
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                     <div class="discover-period-selector" id="discover-period-selector">
+                        <button class="discover-period-btn" data-period="1mo">1M</button>
                         <button class="discover-period-btn active" data-period="3mo">3M</button>
                         <button class="discover-period-btn" data-period="6mo">6M</button>
                         <button class="discover-period-btn" data-period="ytd">YTD</button>
                         <button class="discover-period-btn" data-period="1y">1Y</button>
+                        <button class="discover-period-btn" data-period="5y">5Y</button>
                     </div>
                 </div>
             </div>
             <div id="discover-indices" class="discover-indices-wrapper"></div>
 
             <!-- ⚡ Commodities -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2.5rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
                 <h2 class="discover-section-title" style="margin: 0;">⚡ Commodities</h2>
-                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                    <div class="discover-period-selector" id="commodity-period-selector">
+                        <button class="discover-period-btn" data-period="1mo">1M</button>
+                        <button class="discover-period-btn active" data-period="3mo">3M</button>
+                        <button class="discover-period-btn" data-period="6mo">6M</button>
+                        <button class="discover-period-btn" data-period="ytd">YTD</button>
+                        <button class="discover-period-btn" data-period="1y">1Y</button>
+                        <button class="discover-period-btn" data-period="5y">5Y</button>
+                    </div>
                     <select id="discover-currency-main" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
                         <option value="USD">USD ($)</option>
                         <option value="AUD">AUD (A$)</option>
@@ -720,15 +734,14 @@
 
             <!-- Period Selector: 1D 1W 1M 3M 6M YTD 1Y 5Y MAX -->
             <div class="period-selector" id="period-selector">
-                <button class="period-btn" data-period="1d">1D</button>
+                <button class="period-btn active" data-period="1d">1D</button>
                 <button class="period-btn" data-period="1w">1W</button>
-                <button class="period-btn active" data-period="1mo">1M</button>
+                <button class="period-btn" data-period="1mo">1M</button>
                 <button class="period-btn" data-period="3mo">3M</button>
                 <button class="period-btn" data-period="6mo">6M</button>
                 <button class="period-btn" data-period="ytd">YTD</button>
                 <button class="period-btn" data-period="1y">1Y</button>
                 <button class="period-btn" data-period="5y">5Y</button>
-                <button class="period-btn" data-period="max">MAX</button>
             </div>
 
             <!-- History Chart -->

@@ -21,12 +21,32 @@ let currentModalMkt = {};
 let currentModalInsight = null;
 
 // All symbols we need sparklines for (indices + commodities)
-const DISCOVER_INDEX_SYMBOLS  = ['^AXJO','^GSPC','^IXIC','^STOXX50E','^FTSE','^N225','^HSI'];
-const DISCOVER_COMMODITY_SYMBOLS = ['GC=F','SI=F','HG=F','PL=F','PA=F','CL=F'];
+const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI'];
+const DISCOVER_COMMODITY_SYMBOLS = ['GC=F', 'SI=F', 'HG=F', 'PL=F', 'PA=F', 'CL=F'];
 const ALL_DISCOVER_SYMBOLS = [...DISCOVER_INDEX_SYMBOLS, ...DISCOVER_COMMODITY_SYMBOLS];
 
 // Track starting price for the selected trend period
 const periodStartPrices = {};
+function getSliceLen(period) {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const diff = now - startOfYear;
+    const ytdDays = Math.floor(diff / (1000 * 60 * 60 * 24)) * 5/7; // Estimate trading days
+    
+    const daysMap = { 
+        '1d': 1, 
+        '1w': 5, 
+        '1m': 22, 
+        '1mo': 22, 
+        '3mo': 66, 
+        '6mo': 132, 
+        'ytd': Math.max(1, Math.round(ytdDays)),
+        '1y': 252,
+        '5y': 1260
+    };
+    return daysMap[period] || 252;
+}
+
 
 // Master History Cache (1-Year Daily)
 let MASTER_HISTORY = {};
@@ -187,14 +207,14 @@ function renderExtendedHours(mkt) {
 async function syncMasterHistory() {
     if (isMasterHistorySyncing) return;
     isMasterHistorySyncing = true;
-    
+
     debugLog("Syncing 1-Year Master History...");
-    
+
     // Combine all tickers: Portfolio + Discovery
     const portfolioTickers = Object.keys(lastMarketData);
     const discoveryTickers = ALL_DISCOVER_SYMBOLS || [];
     const allTickers = Array.from(new Set([...portfolioTickers, ...discoveryTickers]));
-    
+
     if (allTickers.length === 0) {
         isMasterHistorySyncing = false;
         return;
@@ -203,12 +223,12 @@ async function syncMasterHistory() {
     try {
         const res = await fetch(`/api/v1/market/master-history?symbols=${encodeURIComponent(allTickers.join(','))}`);
         if (!res.ok) throw new Error("Master sync failed");
-        
+
         const data = await res.json();
         if (data && data.data) {
             MASTER_HISTORY = data.data;
             debugLog(`Master History Synced: ${Object.keys(MASTER_HISTORY).length} symbols`);
-            
+
             // Trigger UI refresh for any non-1d charts
             if (currentPortfolioPeriod !== '1d') updatePortfolioChart(Object.values(lastMarketData));
             if (currentDiscoverPeriod !== '1d') fetchDiscoverSparklines(currentDiscoverPeriod);
@@ -522,7 +542,7 @@ function updateSortUI() {
     document.querySelectorAll('#qmj-table th.sortable').forEach(th => {
         th.classList.remove('active');
         const indicator = th.querySelector('.sort-indicator');
-        
+
         if (th.dataset.sort === qmjSortKey) {
             th.classList.add('active');
             const symbol = qmjSortDir === 'asc' ? '↑' : '↓';
@@ -550,11 +570,11 @@ const COLUMN_DEFINITIONS = {
     'Momentum': '<strong>12M Momentum</strong>: The price return over the past 12 months, skipping the most recent month to avoid short-term reversals. Quality stocks often exhibit persistent price trends.'
 };
 
-window.openDefinitionModal = function(term) {
+window.openDefinitionModal = function (term) {
     const modal = document.getElementById('definition-modal');
     const title = document.getElementById('definition-title');
     const content = document.getElementById('definition-content');
-    
+
     if (modal && title && content) {
         title.innerText = term;
         content.innerHTML = COLUMN_DEFINITIONS[term] || 'No definition available.';
@@ -563,7 +583,7 @@ window.openDefinitionModal = function(term) {
     }
 };
 
-window.closeDefinitionModal = function() {
+window.closeDefinitionModal = function () {
     const modal = document.getElementById('definition-modal');
     if (modal) {
         modal.classList.remove('open');
@@ -967,7 +987,7 @@ async function initDashboard() {
         fetchDashboardCosts();
         fetchMarketAndInsights();
         fetchDailyPicks();
-        
+
         // Periodic sync to keep 1Y cache fresh (every 4 hours)
         if (Date.now() % (4 * 60 * 60 * 1000) < 15000) {
             syncMasterHistory();
@@ -1030,9 +1050,9 @@ async function fetchDailyPicks() {
 
                 // 1. Force Parsing if string
                 if (typeof rationale === 'string' && (rationale.startsWith('{') || rationale.startsWith('['))) {
-                    try { rationale = JSON.parse(rationale); } catch(e) { console.error("JSON parse failed", e); }
+                    try { rationale = JSON.parse(rationale); } catch (e) { console.error("JSON parse failed", e); }
                 }
-                
+
                 // 2. Prepare for 2-column rendering
                 const dashboardKeys = ["WHY", "NUMBERS"];
                 let sections = [];
@@ -1041,7 +1061,7 @@ async function fetchDailyPicks() {
                     // Normalize keys to uppercase for robust matching
                     const normalizedObj = {};
                     Object.entries(rationale).forEach(([k, v]) => normalizedObj[k.toUpperCase().replace(/\s+/g, '')] = v);
-                    
+
                     dashboardKeys.forEach(k => {
                         if (normalizedObj[k]) {
                             sections.push({ label: k, content: normalizedObj[k] });
@@ -1436,7 +1456,7 @@ function drawSparkline(elementId, dataset, color) {
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
-        const padding = range === 0 ? 1 : range * 0.1;
+        const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
 
         // Build gradient fill for premium background look (matches Gold commodity card)
         const gradCanvas = container.querySelector('canvas');
@@ -1474,7 +1494,7 @@ function drawSparkline(elementId, dataset, color) {
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
-        const padding = range === 0 ? 1 : range * 0.1;
+        const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
 
         // Recalculate gradient to match new color
         const gradCanvas = sparklineInstances[elementId].canvas;
@@ -1484,6 +1504,7 @@ function drawSparkline(elementId, dataset, color) {
         gradient.addColorStop(0, `rgba(${rgb}, 0.3)`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
 
+        sparklineInstances[elementId].data.labels = dataset.map((_, i) => i);
         sparklineInstances[elementId].data.datasets[0].data = dataset;
         sparklineInstances[elementId].data.datasets[0].borderColor = color;
         sparklineInstances[elementId].data.datasets[0].backgroundColor = gradient;
@@ -1632,7 +1653,7 @@ function buildCard(mkt, insight, index) {
     wrapper.dataset.exchange = mkt.exchange || '';
     wrapper.dataset.price = mkt.close_price || 0;
     let displayPct = mkt.change_pct || 0;
-    if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+    if (periodStartPrices[mkt.ticker]) {
         const first = periodStartPrices[mkt.ticker];
         const last = mkt.close_price;
         displayPct = ((last - first) / first) * 100;
@@ -1670,7 +1691,7 @@ function updateCard(wrapper, mkt, insight) {
 
     if (changeEl) {
         // If we are NOT in 1D view and we have a cached start price, recalculate
-        if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+        if (periodStartPrices[mkt.ticker]) {
             const first = periodStartPrices[mkt.ticker];
             const last = mkt.close_price;
             displayPct = ((last - first) / first) * 100;
@@ -1761,7 +1782,7 @@ function cardInnerHtml(mkt, insight) {
 
     let displayPct = mkt.change_pct;
     // If we are NOT in 1D view and we have a cached start price, recalculate
-    if (currentPeriod !== '1d' && periodStartPrices[mkt.ticker]) {
+    if (periodStartPrices[mkt.ticker]) {
         const first = periodStartPrices[mkt.ticker];
         const last = mkt.close_price;
         displayPct = ((last - first) / first) * 100;
@@ -1832,7 +1853,7 @@ async function deleteTickerLogic(ticker) {
 async function updatePortfolioChart(marketData) {
     if (!marketData || marketData.length === 0) return;
     const active = [...marketData].filter(m => m.status === 'active');
-    
+
     const loader = document.getElementById('portfolio-loader');
     const statEl = document.getElementById('portfolio-change-stat');
 
@@ -1867,20 +1888,22 @@ async function updatePortfolioChart(marketData) {
 
         const nowMs = Date.now();
         labels = combined.map((_, i) => {
-            const msAgo = (len - 1 - i) * 15 * 60 * 1000;
-            return new Date(nowMs - msAgo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            // Estimate timestamps if not provided by backend batch
+            const msPerBar = (24 * 60 * 60 * 1000) / len;
+            const msAgo = (len - 1 - i) * msPerBar;
+            const d = new Date(nowMs - msAgo);
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         });
     } else {
         // Master Cache Slicing Logic
         let batch = null;
         const tickers = active.map(m => m.ticker).join(',');
-        
-        const daysMap = { '1w': 5, '1mo': 22, '3mo': 66, '6mo': 132, '1y': 252 };
-        const sliceLen = daysMap[currentPortfolioPeriod] || 252;
-        
+
+        const sliceLen = getSliceLen(currentPortfolioPeriod);
+
         // Use master cache if ALL active tickers are present
         const hasMaster = active.every(m => MASTER_HISTORY[m.ticker] && MASTER_HISTORY[m.ticker].length > 0);
-        
+
         if (hasMaster) {
             debugLog(`Using MASTER_HISTORY for ${currentPortfolioPeriod} slice`);
             batch = { data: {}, timestamps: [] };
@@ -1904,16 +1927,16 @@ async function updatePortfolioChart(marketData) {
                 return;
             }
         }
-        
+
         if (!batch || !batch.timestamps || batch.timestamps.length === 0) return;
 
         labels = batch.timestamps.map(t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }));
-        
+
         combined = Array.from({ length: batch.timestamps.length }, (_, i) => {
             let total = 0;
             active.forEach(m => {
                 const series = (batch.data && batch.data[m.ticker]) ? batch.data[m.ticker] : [];
-                const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i-1] || 0);
+                const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i - 1] || 0);
                 const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
                 total += (val / tickerUsdRate) * rate;
             });
@@ -1954,7 +1977,7 @@ async function updatePortfolioChart(marketData) {
         portfolioChartInstance.data.datasets[0].borderColor = lineColor;
         portfolioChartInstance.data.datasets[0].backgroundColor = fillColor;
         portfolioChartInstance.options.scales.y.ticks.callback = v => `${symbol}${v.toLocaleString()}`;
-        portfolioChartInstance.options.plugins.tooltip.callbacks.label = c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+        portfolioChartInstance.options.plugins.tooltip.callbacks.label = c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
         portfolioChartInstance.update();
     } else {
         portfolioChartInstance = new Chart(ctx, {
@@ -1980,7 +2003,7 @@ async function updatePortfolioChart(marketData) {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, {minimumFractionDigits: 2})}`
+                            label: c => ` Combined: ${symbol}${c.parsed.y.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                         }
                     }
                 },
@@ -2014,7 +2037,7 @@ function initModal() {
 
     closeBtn.addEventListener('click', closeModal);
     backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
-    document.addEventListener('keydown', e => { 
+    document.addEventListener('keydown', e => {
         if (e.key === 'Escape') {
             closeModal();
             closeDefinitionModal();
@@ -2080,7 +2103,7 @@ async function openDailyPickModal(ticker) {
     // Parse rationale to object if stored as JSON string
     let pickRationale = pick ? pick.rationale : null;
     if (typeof pickRationale === 'string') {
-        try { pickRationale = JSON.parse(pickRationale); } catch(e) { /* keep as string */ }
+        try { pickRationale = JSON.parse(pickRationale); } catch (e) { /* keep as string */ }
     }
 
     currentModalMkt = {
@@ -2174,7 +2197,7 @@ function renderHeroStats(mkt) {
     const changeColor = isPos ? 'var(--positive)' : 'var(--negative)';
     const statsBox = document.getElementById('modal-hero-stats');
     const modalPanel = document.querySelector('.modal-panel');
-    
+
     if (!isPos) {
         statsBox.classList.add('trend-negative');
         if (modalPanel) modalPanel.classList.add('trend-negative');
@@ -2230,7 +2253,7 @@ function updateModalPerformance(closes, period) {
         const start = closes[0];
         const end = closes[closes.length - 1];
         perf = start ? ((end - start) / start) * 100 : 0;
-        
+
         const periodMap = {
             '1w': '1W CHANGE',
             '1mo': '1M CHANGE',
@@ -2246,7 +2269,7 @@ function updateModalPerformance(closes, period) {
 
     const sign = perf >= 0 ? '+' : '';
     const color = perf >= 0 ? 'var(--positive)' : 'var(--negative)';
-    
+
     labelEl.textContent = displayLabel;
     valueEl.textContent = `${sign}${perf.toFixed(2)}%`;
     valueEl.style.color = color;
@@ -2517,18 +2540,18 @@ function formatInsight(text, limit = null, showOnly = null) {
     // Handle JSON strings (parsing if needed)
     let rationale = text;
     if (typeof text === 'string' && text.trim().startsWith('{')) {
-        try { rationale = JSON.parse(text); } catch(e) { /* fallback to string */ }
+        try { rationale = JSON.parse(text); } catch (e) { /* fallback to string */ }
     }
 
     // Handle structured Rationale (Object)
     if (typeof rationale === 'object' && !Array.isArray(rationale)) {
         let entries = Object.entries(rationale);
-        
+
         // Filter if requested
         if (showOnly) {
             entries = entries.filter(([key]) => showOnly.includes(key));
         }
-        
+
         // Limit if requested
         if (limit) {
             entries = entries.slice(0, limit);
@@ -2601,17 +2624,27 @@ let currentDiscoverPeriod = '3mo';
 const discoverSparklineInstances = {};
 
 function initDiscoverPeriodSelector() {
-    const selector = document.getElementById('discover-period-selector');
-    if (!selector || selector.dataset.hooked) return;
-    selector.addEventListener('click', (e) => {
-        const btn = e.target.closest('.discover-period-btn');
-        if (!btn) return;
-        selector.querySelectorAll('.discover-period-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentDiscoverPeriod = btn.dataset.period;
-        fetchDiscoverSparklines(currentDiscoverPeriod);
+    ['discover-period-selector', 'commodity-period-selector'].forEach(id => {
+        const selector = document.getElementById(id);
+        if (!selector || selector.dataset.hooked) return;
+        selector.addEventListener('click', (e) => {
+            const btn = e.target.closest('.discover-period-btn');
+            if (!btn) return;
+
+            const period = btn.dataset.period;
+            currentDiscoverPeriod = period;
+
+            // Sync all discover selectors
+            document.querySelectorAll('.discover-period-selector').forEach(s => {
+                s.querySelectorAll('.discover-period-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.period === period);
+                });
+            });
+
+            fetchDiscoverSparklines(currentDiscoverPeriod);
+        });
+        selector.dataset.hooked = 'true';
     });
-    selector.dataset.hooked = 'true';
 }
 
 async function fetchDiscoverData() {
@@ -2729,9 +2762,8 @@ async function fetchDiscoverSparklines(period = '3mo') {
     });
 
     try {
-        const daysMap = { '1w': 5, '1mo': 22, '3mo': 66, '6mo': 132, '1y': 252 };
-        const sliceLen = daysMap[period] || 252;
-        const useMaster = (period === '3mo' || period === '6mo' || period === '1y') && Object.keys(MASTER_HISTORY).length > 0;
+        const sliceLen = getSliceLen(period);
+        const useMaster = (period !== '1d' && period !== '1w' && period !== '5y') && Object.keys(MASTER_HISTORY).length > 0;
 
         const renderGroup = (groupData) => {
             if (!groupData) return;
@@ -2740,7 +2772,7 @@ async function fetchDiscoverSparklines(period = '3mo') {
                 if (!groupData[sym]) return;
 
                 const closes = groupData[sym];
-                if (!closes || closes.length < 2) return;
+                if (!closes || closes.length === 0) return;
 
                 const wrap = card.querySelector('.discover-sparkline-wrap');
                 if (wrap) wrap.style.opacity = '0.5';
@@ -2777,7 +2809,7 @@ async function fetchDiscoverSparklines(period = '3mo') {
                 const res = await fetch(`/api/v1/market/batch-history?symbols=${encodeURIComponent(ALL_DISCOVER_SYMBOLS.join(','))}&period=${period}`);
                 if (!res.ok) throw new Error(`Batch fetch failed: ${res.status}`);
                 const json = await res.json();
-                
+
                 if (json.data) {
                     const receivedCount = Object.keys(json.data).length;
                     const emptyCount = Object.values(json.data).filter(d => !d || d.length === 0).length;
@@ -2813,7 +2845,7 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
-        
+
         // Use a tighter padding (2%) for better dynamic feel, with a minimum floor to avoid Infinity
         const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
 
@@ -2845,11 +2877,11 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
                 plugins: { legend: { display: false }, tooltip: { enabled: false }, datalabels: { display: false } },
                 scales: {
                     x: { display: false },
-                    y: { 
-                        display: false, 
-                        min: minVal - padding, 
-                        max: maxVal + padding, 
-                        beginAtZero: false 
+                    y: {
+                        display: false,
+                        min: minVal - padding,
+                        max: maxVal + padding,
+                        beginAtZero: false
                     }
                 },
                 animation: { duration: 600, easing: 'easeOutQuart' }
@@ -2859,7 +2891,7 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         // Update existing instance
         const chart = discoverSparklineInstances[symbol];
         const ctx = chart.ctx;
-        
+
         // Recalculate gradient to match new color
         const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
         const gradient = ctx.createLinearGradient(0, 0, 0, 52);
@@ -2870,16 +2902,16 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         chart.data.datasets[0].data = dataset;
         chart.data.datasets[0].borderColor = color;
         chart.data.datasets[0].backgroundColor = gradient;
-        
+
         // Update scale bounds for new data range (match new smart scaling logic)
         const minVal = Math.min(...dataset);
         const maxVal = Math.max(...dataset);
         const range = maxVal - minVal;
         const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
-        
+
         chart.options.scales.y.min = minVal - padding;
         chart.options.scales.y.max = maxVal + padding;
-        
+
         chart.update('none');
     }
 }
@@ -2945,6 +2977,7 @@ function _buildCommodityCard(c) {
     if (currentCommodityUnit === 'Metric') {
         if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
         else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
+        else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
     }
     return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -2978,12 +3011,13 @@ function renderCommodities(commodities) {
             if (currentCommodityUnit === 'Metric') {
                 if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
                 else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
+                else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
             }
             const priceEl = card.querySelector('[data-price]');
-            const unitEl  = card.querySelector('[data-unit]');
+            const unitEl = card.querySelector('[data-unit]');
             const badgeEl = card.querySelector('[data-badge]');
             if (priceEl) priceEl.textContent = formatPrice(displayPrice, c.currency || 'USD');
-            if (unitEl)  unitEl.textContent  = `/${displayUnit}`;
+            if (unitEl) unitEl.textContent = `/${displayUnit}`;
             if (badgeEl) {
                 badgeEl.textContent = `${sign}${c.change_pct.toFixed(2)}%`;
                 badgeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
@@ -3021,7 +3055,7 @@ function renderMovers(tableId, movers, isGainer) {
         const sign = m.change_pct >= 0 ? '+' : '';
         const color = m.change_pct >= 0 ? '#10b981' : '#f43f5e';
         const region = getRegionFlag(m.ticker);
-        
+
         // Remove truncation, allow wrapping in CSS
         const name = m.company_name || m.ticker;
 
@@ -3201,14 +3235,14 @@ function initPortfolioPeriodSelector() {
     selector.addEventListener('click', async e => {
         const btn = e.target.closest('.period-btn');
         if (!btn) return;
-        
+
         // Don't re-fetch if already active
         if (btn.classList.contains('active')) return;
 
         document.querySelectorAll('#portfolio-period-selector .period-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentPortfolioPeriod = btn.dataset.period;
-        
+
         // Trigger a fresh calculation/fetch for the portfolio chart
         const marketArr = Object.values(lastMarketData);
         if (marketArr.length > 0) {

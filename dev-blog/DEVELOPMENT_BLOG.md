@@ -1,4 +1,33 @@
 # Development Blog
+## Entry 59: Refining the Edge — 5-Factor QMJ and Global Sourcing (2026-05-15)
+
+Today we finalized the core quantitative engine, moving from a simplified 2-factor prototype to a robust **5-Factor QMJ Factor Model**.
+
+**The 5-Factor Alpha**
+
+We expanded our academic scoring to include five distinct dimensions of "Quality":
+1.  **Profitability (GPA)**: Gross Profits over Total Assets.
+2.  **Safety (Leverage)**: Total Debt over Total Equity (Inverted).
+3.  **Growth**: YoY Gross Profit expansion.
+4.  **Value**: Net Income over Market Cap (Earnings Yield).
+5.  **Momentum**: Technical price strength.
+
+By using Z-scores across all five factors, we have significantly improved the robustness of our rankings, ensuring that companies must be fundamentally sound across the board to surface in our "Discovery Agent" picks.
+
+**Standardizing the Change Metric**
+
+We identified a subtle but critical "Institutional Gap" in our dashboard: our Change % was calculating from the current day's opening price. While mathematically accurate for intraday traders, it was misleading for portfolio tracking as it ignored overnight price gaps.
+- **The Fix**: We refactored the entire ingestion pipeline (`ingestion/service.py`) and the MCP layer to calculate performance against the **Previous Close**.
+- **Impact**: The dashboard now perfectly matches institutional terminals (Bloomberg/Refinitiv), correctly showing red for a stock that gaps down 5% but stays flat all day.
+
+**Metric Integrity for Base Metals**
+
+Finally, we polished our localization engine by fixing a "Metric Blindspot" for Copper.
+- **The Issue**: Our unit toggler handled ounces (Gold) and barrels (Oil) but ignored pounds (Copper).
+- **The Fix**: We implemented a 2.20462x multiplier to convert Copper from USD/lb to **USD/kg** when Metric is selected.
+
+These refinements move the engine from a "data experiment" into a "production-ready financial tool," capable of handling complex global data with professional-grade accuracy.
+
 
 A working document detailing engineering decisions, feature updates, and architectural pivots as the Cost-Aware Market Insights Engine evolves.
 

@@ -81,19 +81,40 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             high_price = float(latest['High'])
             low_price = float(latest['Low'])
             volume = int(latest['Volume'])
-            change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
+            
+            # Standard Market Change (Today Close vs Yesterday Close)
+            try:
+                prev_close = getattr(ticker.fast_info, 'previous_close', 0)
+                if prev_close == 0 and len(hist) > 1:
+                    prev_close = float(hist.iloc[-2]['Close'])
+                
+                if prev_close != 0:
+                    change_pct = ((close_price - prev_close) / prev_close) * 100
+                else:
+                    change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
+            except:
+                change_pct = ((close_price - open_price) / open_price) * 100 if open_price else 0.0
         else:
             info = getattr(ticker, 'fast_info', {})
             close_price = info.get('lastPrice') or info.get('last_price')
+            prev_close = info.get('previousClose') or info.get('previous_close')
+            
             if not close_price:
                 raw_info = ticker.info
                 close_price = raw_info.get('regularMarketPrice') or raw_info.get('currentPrice')
+                prev_close = raw_info.get('regularMarketPreviousClose') or raw_info.get('previousClose')
+                
             if not close_price:
                 return {}
+            
             close_price = float(close_price)
             open_price = high_price = low_price = close_price
             volume = 0
-            change_pct = 0.0
+            
+            if prev_close and float(prev_close) != 0:
+                change_pct = ((close_price - float(prev_close)) / float(prev_close)) * 100
+            else:
+                change_pct = 0.0
             
         headlines_data = fetch_headlines(ticker_symbol, max_count=5)
         
