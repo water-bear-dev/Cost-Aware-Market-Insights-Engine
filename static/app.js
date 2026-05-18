@@ -21,7 +21,7 @@ let currentModalMkt = {};
 let currentModalInsight = null;
 
 // All symbols we need sparklines for (indices + commodities)
-const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI'];
+const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI', '^GDAXI', '^GSPTSE'];
 const DISCOVER_COMMODITY_SYMBOLS = ['GC=F', 'SI=F', 'HG=F', 'PL=F', 'PA=F', 'CL=F'];
 const COMMODITY_NAMES = {
     'GC=F': 'Gold',
@@ -1263,7 +1263,13 @@ async function fetchDailyPicks() {
                 <div class="metric-card glass glow-hover discovery-pick-card ${isNeg ? 'trend-negative' : ''}" style="cursor: pointer; display: flex; flex-direction: column; gap: 0; padding: 1.5rem; min-height: 560px;" onclick="openDailyPickModal('${pick.actual_ticker}')">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.1em; color: ${categoryColor}; font-weight: 800;">${pick.category}</span>
-                        <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
+                            <button class="glass-btn primary" style="padding: 0.3rem 0.8rem; font-size: 0.65rem; border-radius: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
+                                    onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
+                                + Track Ticker
+                            </button>
+                        </div>
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
@@ -1293,10 +1299,6 @@ async function fetchDailyPicks() {
                         <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6;">
                             VIEW REPORT &rarr;
                         </div>
-                        <button class="glass-btn primary" style="padding: 0.4rem 1rem; font-size: 0.65rem; border-radius: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
-                                onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
-                            + Track Ticker
-                        </button>
                     </div>
                 </div>
                 `;
@@ -1804,30 +1806,38 @@ function buildNewsHtml(mkt) {
     const links = mkt.headline_links || [];
     const headlines = mkt.headlines || [];
 
-    // Use rich links if available, else fall back to bare strings
     if (links.length > 0) {
         const items = links.slice(0, 5);
-        let html = '<ul class="news-list">';
+        let html = '<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">';
         for (const h of items) {
             if (!h.title) continue;
+            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
             if (h.url) {
-                html += `<li><div><a href="${h.url}" target="_blank" rel="noopener noreferrer">${h.title}</a>${h.source ? `<span class="news-source">${h.source}</span>` : ''}</div></li>`;
+                html += `
+                    <a class="news-article-card" href="${h.url}" target="_blank" rel="noopener noreferrer">
+                        <div class="news-article-source">${h.source || 'News'}${pub ? ` · ${pub}` : ''}</div>
+                        <div class="news-article-title">${h.title}</div>
+                        <svg class="news-article-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
+                    </a>
+                `;
             } else {
-                html += `<li><div>${h.title}</div></li>`;
+                html += `<div class="news-article-card no-link"><div class="news-article-title">${h.title}</div></div>`;
             }
         }
-        html += '</ul>';
+        html += '</div>';
         return html;
     }
 
     if (headlines.length > 0) {
-        let html = '<ul class="news-list">';
-        headlines.slice(0, 3).forEach(h => { html += `<li><div>${h}</div></li>`; });
-        html += '</ul>';
+        let html = '<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">';
+        headlines.slice(0, 3).forEach(h => { 
+            html += `<div class="news-article-card no-link"><div class="news-article-title">${h}</div></div>`; 
+        });
+        html += '</div>';
         return html;
     }
 
-    return `<ul class="news-list"><li style="color:var(--text-secondary)"><div>No recent headlines found.</div></li></ul>`;
+    return `<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; color:var(--text-secondary); font-size: 0.85rem;">No recent headlines found.</div>`;
 }
 
 function buildCard(mkt, insight, index) {

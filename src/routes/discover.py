@@ -167,6 +167,8 @@ def _get_company_name(sym: str) -> str:
 
 def _fetch_movers() -> dict:
     """Scan the movers universe and return top 10 gainers and losers for All, US, and Internationals."""
+    start_time = time.time()
+    logger.info("Discover: Starting fresh fetch of movers universe...", universe_size=len(MOVERS_UNIVERSE))
     try:
         import pandas as pd
         data = yf.download(MOVERS_UNIVERSE, period="2d", interval="1d",
@@ -265,6 +267,8 @@ def _fetch_movers() -> dict:
         with ThreadPoolExecutor(max_workers=10) as executor:
             executor.map(enrich_single, unique_tickers.values())
 
+        duration = time.time() - start_time
+        logger.info("Discover: Movers fetch completed successfully", duration_seconds=round(duration, 2))
         return {
             "all": {"gainers": all_gain, "losers": all_lose},
             "americas": {"gainers": americas_gain, "losers": americas_lose},
@@ -273,7 +277,8 @@ def _fetch_movers() -> dict:
             "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
     except Exception as e:
-        logger.error("Failed to fetch movers", error=str(e))
+        duration = time.time() - start_time
+        logger.error("Failed to fetch movers", error=str(e), duration_seconds=round(duration, 2))
         return {
             "all": {"gainers": [], "losers": []},
             "americas": {"gainers": [], "losers": []},
