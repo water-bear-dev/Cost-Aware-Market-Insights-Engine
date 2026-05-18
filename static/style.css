@@ -1330,11 +1330,11 @@ body {
     order: 1;
 }
 
-.insights-grid.density-horizontal .card-sparkline-box {
+.insights-grid.density-horizontal .card-sparkline-bg {
     width: auto;
     flex: 1;
     order: 2;
-    margin: 0;
+    margin: 0 2rem;
     height: 35px;
 }
 
@@ -1345,6 +1345,7 @@ body {
 
 .insights-grid.density-horizontal .insight-text,
 .insights-grid.density-horizontal .news-list,
+.insights-grid.density-horizontal .discovery-catalysts,
 .insights-grid.density-horizontal .status-chip {
     display: none;
 }
@@ -1728,7 +1729,7 @@ body {
     top: 100%;
     right: 0;
     margin-top: 0.5rem;
-    width: 280px;
+    width: 360px;
     background: #1e293b;
     border: 1px solid var(--glass-border);
     border-radius: 12px;
@@ -1758,10 +1759,40 @@ body {
     background: rgba(255, 255, 255, 0.03);
     border-radius: 6px;
     border: 1px solid transparent;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.manage-item.dragging {
+    opacity: 0.4;
+    border: 1px dashed var(--accent);
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.manage-item.drag-over {
+    border: 1px solid var(--accent);
+    background: rgba(56, 189, 248, 0.1);
 }
 
 .manage-item:hover {
     border-color: var(--glass-border);
+}
+
+/* Main Grid Cards Drag and Drop Styles */
+.insight-card.grid-dragging {
+    opacity: 0.3;
+    transform: scale(0.98);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.insight-card.grid-dragging .glass {
+    border: 1px dashed var(--accent) !important;
+    background: rgba(56, 189, 248, 0.02) !important;
+    box-shadow: none !important;
+}
+
+.insight-card.grid-drag-over .glass {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.2) !important;
 }
 
 .manage-item-ticker {

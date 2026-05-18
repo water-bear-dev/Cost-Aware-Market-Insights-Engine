@@ -940,27 +940,165 @@ async function refreshTickerSparkline(ticker, period) {
 
 function renderManageList() {
     const list = document.getElementById('manage-list');
-    const tickers = Object.keys(lastMarketData).sort();
+    if (!list) return;
+
+    let customOrder = [];
+    try {
+        customOrder = JSON.parse(localStorage.getItem('insights_custom_ticker_order') || '[]');
+    } catch (e) {
+        customOrder = [];
+    }
+
+    const tickers = Object.keys(lastMarketData);
+    tickers.sort((a, b) => {
+        const idxA = customOrder.indexOf(a);
+        const idxB = customOrder.indexOf(b);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.localeCompare(b);
+    });
 
     if (tickers.length === 0) {
         list.innerHTML = '<li style="font-size:0.8rem; color:var(--text-secondary); text-align:center; padding:1rem;">Your watchlist is empty</li>';
         return;
     }
 
-    list.innerHTML = tickers.map(t => `
-        <li class="manage-item">
-            <span class="manage-item-ticker" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(t)}', '_blank')" title="View ${t} on Yahoo Finance">${t} <span style="font-size: 0.75em; color: var(--accent); opacity: 0.7;">↗</span></span>
-            <button class="manage-item-delete" onclick="handleManageDelete('${t}', this)" title="Remove ${t}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-            </button>
-        </li>
-    `).join('');
+    list.innerHTML = tickers.map(t => {
+        const companyName = lastMarketData[t]?.company_name || t;
+        return `
+            <li class="manage-item" draggable="true" data-ticker="${t}" style="cursor: grab; display: flex; align-items: center; width: 100%;">
+                <div class="manage-item-drag-handle" style="color: var(--text-secondary); opacity: 0.4; margin-right: 0.75rem; cursor: grab; font-family: monospace; font-size: 1.1rem; user-select: none;">⋮⋮</div>
+                <span class="manage-item-ticker" style="cursor: pointer; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 0.5rem;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(t)}', '_blank')" title="View ${t} on Yahoo Finance">
+                    <span class="manage-item-company-name" style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${companyName}</span>
+                    <span class="manage-item-symbol-sub" style="font-size: 0.7rem; color: var(--text-secondary); font-weight: normal; margin-top: 0.1rem;">${t} <span style="font-size: 0.85em; color: var(--accent); opacity: 0.7;">↗</span></span>
+                </span>
+                <button class="manage-item-delete" onclick="handleManageDelete('${t}', this)" title="Remove ${t}" style="flex-shrink: 0;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                </button>
+            </li>
+        `;
+    }).join('');
+
+    initDragAndDrop();
+}
+
+function initDragAndDrop() {
+    const list = document.getElementById('manage-list');
+    if (!list) return;
+    const items = list.querySelectorAll('.manage-item');
+    let dragSrcEl = null;
+
+    items.forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            dragSrcEl = this;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            this.classList.add('dragging');
+        });
+
+        item.addEventListener('dragover', function(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        });
+
+        item.addEventListener('dragenter', function(e) {
+            this.classList.add('drag-over');
+        });
+
+        item.addEventListener('dragleave', function(e) {
+            this.classList.remove('drag-over');
+        });
+
+        item.addEventListener('drop', function(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (dragSrcEl !== this) {
+                const rect = this.getBoundingClientRect();
+                const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+                list.insertBefore(dragSrcEl, next ? this.nextSibling : this);
+                saveCustomTickerOrder();
+            }
+            return false;
+        });
+
+        item.addEventListener('dragend', function() {
+            items.forEach(it => {
+                it.classList.remove('drag-over');
+                it.classList.remove('dragging');
+            });
+        });
+    });
+}
+
+function saveCustomTickerOrder() {
+    const ordered = Array.from(document.querySelectorAll('#manage-list .manage-item'))
+        .map(el => el.dataset.ticker)
+        .filter(Boolean);
+    
+    localStorage.setItem('insights_custom_ticker_order', JSON.stringify(ordered));
+
+    // Update active sorting controls to Custom
+    const customSortBtn = document.getElementById('sort-custom-btn');
+    if (customSortBtn) {
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        customSortBtn.classList.add('active');
+        _activeSortKey = 'custom';
+    }
+
+    applyManageFilters();
+}
+
+function showDeleteConfirmModal(companyName, ticker) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-delete-modal');
+        const message = document.getElementById('confirm-delete-message');
+        const cancelBtn = document.getElementById('confirm-delete-cancel');
+        const okBtn = document.getElementById('confirm-delete-ok');
+
+        if (!modal || !message || !cancelBtn || !okBtn) {
+            resolve(confirm(`Are you sure you want to stop tracking ${companyName} (${ticker})?`));
+            return;
+        }
+
+        message.innerHTML = `Are you sure you want to stop tracking <strong>${companyName} (${ticker})</strong>?<br><br>This will remove all real-time insights, financial indicators, and recent news charts from your dashboard.`;
+        modal.classList.add('active');
+
+        const cleanup = (confirmed) => {
+            modal.classList.remove('active');
+            cancelBtn.removeEventListener('click', onCancel);
+            okBtn.removeEventListener('click', onOk);
+            resolve(confirmed);
+        };
+
+        function onCancel() { cleanup(false); }
+        function onOk() { cleanup(true); }
+
+        cancelBtn.addEventListener('click', onCancel);
+        okBtn.addEventListener('click', onOk);
+    });
 }
 
 window.handleManageDelete = async (ticker, btn) => {
+    const companyName = lastMarketData[ticker]?.company_name || ticker;
+    const confirmed = await showDeleteConfirmModal(companyName, ticker);
+    if (!confirmed) return;
+
     btn.disabled = true;
     const success = await deleteTickerLogic(ticker);
     if (success) {
+        // Also remove from custom order list
+        try {
+            let customOrder = JSON.parse(localStorage.getItem('insights_custom_ticker_order') || '[]');
+            customOrder = customOrder.filter(t => t !== ticker);
+            localStorage.setItem('insights_custom_ticker_order', JSON.stringify(customOrder));
+        } catch (e) {}
+
         renderManageList();
         // Remove from UI grid
         const el = document.querySelector(`[data-ticker="${ticker}"]`);
@@ -1822,6 +1960,89 @@ function patchInsightsGrid(newMarket, newInsights) {
             drawSparkline(sparklineId, mkt.sparkline, color);
         }
     });
+
+    // Re-apply sorting/filters and initialize drag-and-drop
+    applyManageFilters();
+    initGridDragAndDrop();
+}
+
+function initGridDragAndDrop() {
+    const container = document.getElementById('insights-container');
+    if (!container) return;
+    const cards = container.querySelectorAll('.insight-card');
+    let dragSrcEl = null;
+
+    cards.forEach(card => {
+        card.setAttribute('draggable', 'true');
+        card.style.cursor = 'grab';
+
+        card.addEventListener('dragstart', function(e) {
+            dragSrcEl = this;
+            window.isDraggingCard = true;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+            this.classList.add('grid-dragging');
+        });
+
+        card.addEventListener('dragover', function(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        });
+
+        card.addEventListener('dragenter', function(e) {
+            this.classList.add('grid-drag-over');
+        });
+
+        card.addEventListener('dragleave', function(e) {
+            this.classList.remove('grid-drag-over');
+        });
+
+        card.addEventListener('drop', function(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            if (dragSrcEl !== this) {
+                const rect = this.getBoundingClientRect();
+                const next = (e.clientX - rect.left) / (rect.right - rect.left) > 0.5;
+                container.insertBefore(dragSrcEl, next ? this.nextSibling : this);
+                saveGridTickerOrder();
+            }
+            return false;
+        });
+
+        card.addEventListener('dragend', function() {
+            cards.forEach(c => {
+                c.classList.remove('grid-drag-over');
+                c.classList.remove('grid-dragging');
+            });
+            setTimeout(() => {
+                window.isDraggingCard = false;
+            }, 100);
+        });
+    });
+}
+
+function saveGridTickerOrder() {
+    const ordered = Array.from(document.querySelectorAll('#insights-container .insight-card'))
+        .map(el => el.dataset.ticker)
+        .filter(Boolean);
+    
+    localStorage.setItem('insights_custom_ticker_order', JSON.stringify(ordered));
+
+    // Update active sort button UI to Custom
+    const customSortBtn = document.getElementById('sort-custom-btn');
+    if (customSortBtn) {
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        customSortBtn.classList.add('active');
+        _activeSortKey = 'custom';
+    }
+
+    // Instantly sync the Edit Watchlist manager order
+    renderManageList();
 }
 
 function signalClass(signal) {
@@ -1936,6 +2157,7 @@ function buildCard(mkt, insight, index) {
 
     // Card body click → open modal
     inner.addEventListener('click', () => {
+        if (window.isDraggingCard) return;
         openModal(mkt.ticker);
     });
 
@@ -3898,7 +4120,7 @@ const EXCHANGE_COUNTRY = {
     TSE: 'ASIA', HKEX: 'ASIA',
 };
 
-let _activeSortKey = 'name';
+let _activeSortKey = localStorage.getItem('insights_custom_ticker_order') ? 'custom' : 'name';
 
 function initManageFilters() {
     const search = document.getElementById('asset-search');
@@ -3911,7 +4133,14 @@ function initManageFilters() {
     country.addEventListener('change', applyManageFilters);
     exchange.addEventListener('change', applyManageFilters);
 
+    // Style the initial sort button active state
     document.querySelectorAll('.sort-btn').forEach(btn => {
+        if (btn.dataset.sort === _activeSortKey) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+
         btn.addEventListener('click', () => {
             document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -3958,6 +4187,18 @@ function applyManageFilters() {
             case 'price-asc': return aP - bP;
             case 'change-desc': return bC - aC;
             case 'change-asc': return aC - bC;
+            case 'custom': {
+                let customOrder = [];
+                try {
+                    customOrder = JSON.parse(localStorage.getItem('insights_custom_ticker_order') || '[]');
+                } catch (e) {}
+                const idxA = customOrder.indexOf(aT);
+                const idxB = customOrder.indexOf(bT);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return aT.localeCompare(bT);
+            }
             default: return aT.localeCompare(bT);
         }
     });

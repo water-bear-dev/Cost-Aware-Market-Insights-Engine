@@ -1,5 +1,25 @@
 # Development Blog
 
+## Entry 65: Direct Grid Card Drag-and-Drop, Watchlist Manager Reordering, & Safety Warning Modals (2026-05-18)
+
+Today, we implemented a massive set of usability enhancements for watchlist reordering, grid management, deletion safety, and layout density inside our glassmorphic financial insights dashboard.
+
+**Direct Grid Card Drag-and-Drop on Main Interface**
+To make the dashboard feel completely natural and interactive, we introduced full direct drag-and-drop capability for all stock cards on the main dashboard grid.
+- **The Protocol/Drag-Cancel Bug**: We solved a critical HTML5 drag-and-drop protocol bug. Previously, setting `pointer-events: none` on `dragstart` caused modern browsers to instantly lose cursor-target tracking, which silently cancelled the drag session before it could begin. We removed the pointer-event overrides completely to keep the browser's drag engine fully active.
+- **Double-Activation Gate**: To prevent the ticker details modal from launching during card dragging, we created a flag-based system (`window.isDraggingCard`) that acts as an interceptor. Inside the card click event listener, a check (`if (window.isDraggingCard) return;`) completely silences modal triggers during drag operations.
+- **Glowing Glassmorphic Highlights**: We styled distinct states for dragging cards, with dragging items fading to `0.3` opacity and scaling to `0.98`, and adjacent hovered cards glowing with a beautiful translucent cyan backdrop shadow (`0 0 15px rgba(56, 189, 248, 0.2)`).
+- **Persistent Local Sorting**: Dropping a card updates the grid sequence, triggers an update to local browser storage, and sets the active sort mode to "Custom" instantly.
+
+**Watchlist Manager Enhancements & Company Names**
+We revamped the watchlist editor panel to render full company names (e.g. `Apple Inc. (AAPL)`) as the primary label, rather than bare ticker symbols. We widened the sidebar panel from `280px` to `360px` to beautifully prevent name truncation and wrapping. Furthermore, we integrated Visual Drag Handles (`⋮⋮`) and standard HTML5 drag-and-drop sorting directly within the watchlist sidebar list items. Any reordering made inside the sidebar instantly reflects on the main dashboard cards and vice versa!
+
+**Promise-Based Warning Safety Modals**
+To safeguard users against accidental watchlist data deletion, we created a custom, promise-based confirm modal `#confirm-delete-modal` inside `index.html`. Clicking a delete button intercepts the deletion event, opens a high-fidelity glassmorphic overlay, displays a highly specific warning message (e.g. `"Are you sure you want to stop tracking Apple Inc. (AAPL)?"`), and awaits a positive confirmation before triggering the API and initiating the card's smooth fade-out animation.
+
+**Horizontal View Density News Concealment**
+To clean up vertical layout space in Horizontal view and offer a highly compacted grid view option, we configured `.discovery-catalysts` (the recent news feed inside the stock cards) to be completely hidden in Horizontal mode (`display: none;`). The sparkline strip positions cleanly, offering a perfect, streamlined horizontal layout for high-density monitoring.
+
 ## Entry 64: Symmetrical 2-Row Clock Completeness, Timezone Selector GMT Offsets & Clean News Date Layouts (2026-05-18)
 
 Today, we continued refining the visual intelligence and layout precision of our cost-aware market dashboard, completing high-fidelity enhancements to timezone selector offsets, target timezone clocks, clean market news feeds, and dynamic date parsing.

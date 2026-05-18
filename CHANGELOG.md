@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.3.0] - 2026-05-18
+
+### Added
+- **Direct Card Drag-and-Drop on Main Interface** — Added complete HTML5 direct drag-and-drop capability to the main dashboard grid. Users can now click, hold, and drag any `.insight-card` to customize the display order instantly. The order is automatically saved to local storage under `insights_custom_ticker_order`.
+- **Glassmorphic Drop Highlights & Scale Animations** — Designed rich CSS states for direct dragging: `.insight-card.grid-dragging` scales down to `0.98` with `0.3` opacity, and dragging over sibling cards (`.insight-card.grid-drag-over`) highlights their glass background with a beautiful glowing cyan backdrop shadow (`0 0 15px rgba(56, 189, 248, 0.2)`).
+- **Flag-Based Drag Click-Gate** — Implemented `window.isDraggingCard` to seamlessly toggle on drag actions. Added a direct check inside the `buildCard()` click event listener: `if (window.isDraggingCard) return;`. This allows full card dragging across the screen while successfully preventing the detail modal from launching.
+- **Enhanced Watchlist Manager Layout** — Widened the watchlist manager from `280px` to `360px` and replaced bare ticker symbols with full company names (e.g. `Apple Inc. (AAPL)`) for maximum institutional scannability.
+- **Watchlist Reordering Handles** — Added visual drag handles (`⋮⋮`) and integrated drag-and-drop reordering directly within the "Edit Watchlist" list items, completely synchronized with the main grid display order.
+- **Promise-Based Warning Safety Modal** — Created a beautiful glassmorphic modal overlay (`#confirm-delete-modal`) to intercept deletion clicks. Displays an explicit warning message (e.g., `"Are you sure you want to stop tracking Apple Inc. (AAPL)?"`) and requires confirmation, preventing accidental asset tracking loss.
+- **Horizontal Density News Concealment** — Configured `.discovery-catalysts` (the recent news feed) to be hidden in Horizontal view (`display: none;`) to clean up vertical space and maximize card density.
+- **Horizontal Sparkline Alignments** — Adjusted absolute and relative positions for `.card-sparkline-bg` to position the sparkline strip perfectly in Horizontal view.
+
 ## [3.2.7] - 2026-05-18
 
 ### Changed
