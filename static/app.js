@@ -251,18 +251,112 @@ function calculateChange(start, end) {
     return ((end - start) / start) * 100;
 }
 
+let selectedTimezone = localStorage.getItem('user_market_timezone') || 'auto';
+
 function initLocalClock() {
+    const container = document.getElementById('local-clock-container');
     const clockEl = document.getElementById('local-clock-time');
-    if (!clockEl) return;
+    const dropdown = document.getElementById('timezone-dropdown-menu');
+    const autoLabel = document.getElementById('auto-tz-label');
     
+    if (!clockEl || !container || !dropdown) return;
+    
+    // Set active class in list on startup
+    const options = dropdown.querySelectorAll('.timezone-option');
+    options.forEach(opt => {
+        if (opt.dataset.tz === selectedTimezone) {
+            opt.classList.add('active');
+        } else {
+            opt.classList.remove('active');
+        }
+    });
+
+    // Detect browser auto timezone
+    const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const localTzName = new Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || 'Local';
+    if (autoLabel) {
+        autoLabel.textContent = localTzName;
+    }
+
+    const tzMeta = {
+        'America/New_York': { flag: '🇺🇸', name: 'NY' },
+        'Europe/London': { flag: '🇬🇧', name: 'LDN' },
+        'Asia/Tokyo': { flag: '🇯🇵', name: 'TYO' },
+        'Asia/Hong_Kong': { flag: '🇭🇰', name: 'HKG' },
+        'Australia/Sydney': { flag: '🇦🇺', name: 'SYD' },
+        'Europe/Berlin': { flag: '🇪🇺', name: 'FRA' }
+    };
+
     function updateClock() {
         const now = new Date();
-        const hrs = String(now.getHours()).padStart(2, '0');
-        const mins = String(now.getMinutes()).padStart(2, '0');
-        const secs = String(now.getSeconds()).padStart(2, '0');
-        clockEl.textContent = `${hrs}:${mins}:${secs}`;
+        
+        // 1. Render Local Clock (Date before Time, timezone after)
+        const dateOptions = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+        const localDateStr = now.toLocaleDateString(undefined, dateOptions);
+        
+        const localTimeStr = now.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
+        
+        const localTzPart = new Intl.DateTimeFormat(undefined, {
+            timeZoneName: 'short'
+        }).formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
+        
+        let displayText = `${localDateStr} · ${localTimeStr} ${localTzPart}`;
+        
+        // 2. Render Modified Clock next to it if active
+        if (selectedTimezone && selectedTimezone !== 'auto') {
+            const meta = tzMeta[selectedTimezone] || { flag: '🌐', name: 'TZ' };
+            const targetTimeStr = now.toLocaleTimeString('en-US', {
+                timeZone: selectedTimezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            const targetTzPart = new Intl.DateTimeFormat('en-US', {
+                timeZone: selectedTimezone,
+                timeZoneName: 'short'
+            }).formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
+            
+            displayText += ` | ${meta.flag} ${meta.name}: ${targetTimeStr} ${targetTzPart}`;
+        }
+        
+        clockEl.textContent = displayText;
     }
-    
+
+    // Toggle Dropdown when clicking clock
+    container.addEventListener('click', (e) => {
+        // Prevent click inside option from closing before handling
+        if (e.target.closest('.timezone-option')) return;
+        dropdown.classList.toggle('show');
+    });
+
+    // Handle Timezone Option Clicks
+    options.forEach(opt => {
+        opt.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent clock container toggle handler
+            selectedTimezone = opt.dataset.tz;
+            localStorage.setItem('user_market_timezone', selectedTimezone);
+            
+            options.forEach(o => o.classList.remove('active'));
+            opt.classList.add('active');
+            
+            dropdown.classList.remove('show');
+            updateClock();
+        });
+    });
+
+    // Close Dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!container.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
     updateClock();
     setInterval(updateClock, 1000);
 }

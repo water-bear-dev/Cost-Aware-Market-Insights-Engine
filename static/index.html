@@ -28,9 +28,40 @@
                     <h1>Market Insights Engine</h1>
                 </div>
                 <div class="header-actions">
-                    <div class="local-clock" id="local-clock-container" title="Local Time">
+                    <div class="local-clock" id="local-clock-container" title="Click to Change Timezone">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                         <span id="local-clock-time">--:--:--</span>
+                        <div class="timezone-dropdown" id="timezone-dropdown-menu">
+                            <div class="timezone-dropdown-header">Select Market Timezone</div>
+                            <div class="timezone-option active" data-tz="auto">
+                                <span class="flag-label">💻 Auto-Detect</span>
+                                <span class="tz-abbrev" id="auto-tz-label">Local</span>
+                            </div>
+                            <div class="timezone-option" data-tz="America/New_York">
+                                <span class="flag-label">🇺🇸 New York</span>
+                                <span class="tz-abbrev">EST/EDT</span>
+                            </div>
+                            <div class="timezone-option" data-tz="Europe/London">
+                                <span class="flag-label">🇬🇧 London</span>
+                                <span class="tz-abbrev">GMT/BST</span>
+                            </div>
+                            <div class="timezone-option" data-tz="Asia/Tokyo">
+                                <span class="flag-label">🇯🇵 Tokyo</span>
+                                <span class="tz-abbrev">JST</span>
+                            </div>
+                            <div class="timezone-option" data-tz="Asia/Hong_Kong">
+                                <span class="flag-label">🇭🇰 Hong Kong</span>
+                                <span class="tz-abbrev">HKT</span>
+                            </div>
+                            <div class="timezone-option" data-tz="Australia/Sydney">
+                                <span class="flag-label">🇦🇺 Sydney</span>
+                                <span class="tz-abbrev">AEST/AEDT</span>
+                            </div>
+                            <div class="timezone-option" data-tz="Europe/Berlin">
+                                <span class="flag-label">🇪🇺 Frankfurt</span>
+                                <span class="tz-abbrev">CET/CEST</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="health-status">
                         <div class="dot pulse-animation" id="db-health-dot" style="background-color: var(--positive); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></div>
