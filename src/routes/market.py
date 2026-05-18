@@ -7,9 +7,40 @@ import structlog
 import json
 import time
 import requests
+def extract_ticker_series(df: pd.DataFrame, ticker: str) -> pd.Series:
+    """
+    Robustly extract the 'Close' series for a specific ticker from a yfinance DataFrame.
+    Handles MultiIndex (Attribute, Ticker), (Ticker, Attribute), and single-ticker Index.
+    """
+    if df.empty:
+        return pd.Series()
+    
+    # 1. Handle MultiIndex
+    if isinstance(df.columns, pd.MultiIndex):
+        # Try Attribute first (standard yfinance)
+        if 'Close' in df.columns.levels[0] and ticker in df['Close'].columns:
+            return df['Close'][ticker]
+        # Try Ticker first (group_by='ticker')
+        if ticker in df.columns.levels[0] and 'Close' in df[ticker].columns:
+            return df[ticker]['Close']
+        # Try cross-section search if levels are weird
+        try:
+            return df.xs(key=ticker, axis=1, level='Ticker')['Close']
+        except:
+            try:
+                return df.xs(key=ticker, axis=1, level=1)['Close']
+            except:
+                pass
+    
+    # 2. Handle Single Ticker Index
+    if 'Close' in df.columns:
+        return df['Close']
+        
+    return pd.Series(0.0, index=df.index)
+
 
 from src.limiter import limiter
-from src.ingestion.service import get_active_tickers
+from src.ingestion.service import get_active_tickers, is_market_open
 
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -74,8 +105,11 @@ PERIOD_MAP = {
     "1d":  "1d",
     "1w":  "5d",
     "5d":  "5d",
+    "1m":  "1mo",
     "1mo": "1mo",
+    "3m":  "3mo",
     "3mo": "3mo",
+    "6m":  "6mo",
     "6mo": "6mo",
     "ytd": "ytd",
     "1y":  "1y",
@@ -123,6 +157,8 @@ def get_market_data(request: Request):
                     "company_name": v.get("company_name", ""),
                     "sparkline": [clean_float(p) for p in (v.get("sparkline") or [])],
                     "currency": v.get("currency", "USD"),
+                    "last_trading_day": v.get("last_trading_day"),
+                    "is_open": is_market_open(v["ticker"], v.get("exchange", "")),
                     "status": "active"
                 })
             else:
@@ -286,7 +322,7 @@ def get_batch_history(
 ):
     """
     Fetch sparkline close-price arrays for multiple tickers using parallel threads
-    and granular ticker-level caching.
+    and granular ticker-level caching. Returns prices and timestamps.
     """
     global _ticker_history_cache
 
@@ -322,57 +358,58 @@ def get_batch_history(
         else:
             tickers_to_fetch.append(sym)
 
-    if not tickers_to_fetch:
-        return {"data": result_data}
-
     # 2. Native Batch Fetch (Proven Reliable for daily data)
-    try:
-        batch_df = yf.download(tickers_to_fetch, period=yf_period, interval=interval, progress=False)
-        
-        # Fallback for closed markets (batch level)
-        if batch_df.empty and yf_period == "1d":
-            logger.info("1d batch empty, falling back to 5d", symbols=tickers_to_fetch)
-            yf_period = "5d"
-            interval = "1h"
-            batch_df = yf.download(tickers_to_fetch, period=yf_period, interval=interval, progress=False)
+    # If everything is cached, we still need timestamps.
+    fetch_list = tickers_to_fetch.copy()
+    if not fetch_list and symbol_list:
+        fetch_list = [symbol_list[0]] # Fetch one to get timestamps
 
-        for ticker in tickers_to_fetch:
-            try:
-                closes = []
-                if isinstance(batch_df.columns, pd.MultiIndex):
-                    if 'Close' in batch_df.columns.levels[0] and ticker in batch_df['Close'].columns:
-                        closes = batch_df['Close'][ticker].tolist()
-                else:
-                    # Single ticker case
-                    if 'Close' in batch_df.columns:
-                        closes = batch_df['Close'].tolist()
+    batch_df = pd.DataFrame()
+    if fetch_list:
+        try:
+            batch_df = yf.download(fetch_list, period=yf_period, interval=interval, progress=False)
+            
+            # Fallback for closed markets (batch level)
+            if batch_df.empty and yf_period == "1d":
+                logger.info("1d batch empty, falling back to 5d", symbols=fetch_list)
+                yf_period = "5d"
+                interval = "1h"
+                batch_df = yf.download(fetch_list, period=yf_period, interval=interval, progress=False)
 
-                if not closes:
-                    result_data[ticker] = []
-                    continue
+            # Align all tickers to the same index by using the full batch_df
+            full_index = batch_df.index
+            for ticker in tickers_to_fetch:
+                try:
+                    series = extract_ticker_series(batch_df, ticker)
+                    cleaned = series.reindex(full_index).ffill().fillna(0.0).tolist()
+                    
+                    # Update granular cache
+                    cache_key = f"{ticker}:{yf_period}:{interval}"
+                    _ticker_history_cache[cache_key] = {
+                        "data": cleaned,
+                        "last_fetch": time.time()
+                    }
+                    result_data[ticker] = cleaned
+                except Exception as e:
+                    logger.warning("batch-history: extraction failed", symbol=ticker, error=str(e))
+                    result_data[ticker] = [0.0] * len(batch_df)
+        except Exception as e:
+            logger.error("batch-history: native batch fetch failed", error=str(e))
+            for t in tickers_to_fetch:
+                result_data[t] = []
 
-                cleaned = sanitize_series(closes)
-                
-                # Update granular cache
-                cache_key = f"{ticker}:{yf_period}:{interval}"
-                _ticker_history_cache[cache_key] = {
-                    "data": cleaned,
-                    "last_fetch": time.time()
-                }
-                result_data[ticker] = cleaned
-            except Exception as e:
-                logger.warning("batch-history: extraction failed", symbol=ticker, error=str(e))
-                result_data[ticker] = []
-
-    except Exception as e:
-        logger.error("batch-history: native batch fetch failed", error=str(e))
-        for t in tickers_to_fetch:
-            result_data[t] = []
-
-    return {"data": result_data}
+    # Include timestamps for frontend chart alignment
+    timestamps = []
+    if not batch_df.empty:
+        try:
+            timestamps = [t.isoformat() for t in batch_df.index]
+        except:
+            timestamps = [str(t) for t in batch_df.index]
+    
+    return {"data": result_data, "timestamps": timestamps}
 
 @router.get("/market/master-history")
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 def get_master_history(
     request: Request,
     symbols: str = Query(..., description="Comma-separated ticker symbols")
@@ -394,33 +431,36 @@ def get_master_history(
     if cached and time.time() - cached["last_fetch"] < _MASTER_HISTORY_TTL:
         return cached["data"]
 
-    result: dict = {"symbols": symbol_list, "data": {}}
+    result: dict = {"symbols": symbol_list, "data": {}, "timestamps": []}
     try:
+        # Fetch data with auto_adjust to handle splits/dividends
         data = yf.download(
             symbol_list,
             period="1y",
             interval="1d",
             progress=False,
-            group_by="ticker",
             auto_adjust=True
         )
 
+        if data.empty:
+            return result
+
+        # Extract timestamps once from the index
+        try:
+            result["timestamps"] = [t.isoformat() for t in data.index]
+        except:
+            result["timestamps"] = [str(t) for t in data.index]
+
+        # Process each symbol
+        full_index = data.index
         for sym in symbol_list:
             try:
-                import pandas as pd
-                if isinstance(data.columns, pd.MultiIndex):
-                    if sym not in data.columns.get_level_values(0):
-                        result["data"][sym] = []
-                        continue
-                    closes = data[sym]["Close"].tolist()
-                else:
-                    closes = data["Close"].tolist() if "Close" in data.columns else []
-
-                # Sanitize: Forward-fill gaps and strip leading zeros
-                result["data"][sym] = sanitize_series(closes)
+                series = extract_ticker_series(data, sym)
+                # Ensure perfect alignment and forward-fill
+                result["data"][sym] = series.reindex(full_index).ffill().fillna(0.0).tolist()
             except Exception as e:
                 logger.warning("master-history: symbol failed", symbol=sym, error=str(e))
-                result["data"][sym] = []
+                result["data"][sym] = [0.0] * len(data)
 
     except Exception as e:
         logger.error("master-history: download failed", error=str(e))

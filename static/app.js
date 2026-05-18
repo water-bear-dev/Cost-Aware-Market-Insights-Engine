@@ -38,7 +38,9 @@ function getSliceLen(period) {
         '1w': 5, 
         '1m': 22, 
         '1mo': 22, 
+        '3m': 66, 
         '3mo': 66, 
+        '6m': 132, 
         '6mo': 132, 
         'ytd': Math.max(1, Math.round(ytdDays)),
         '1y': 252,
@@ -50,7 +52,9 @@ function getSliceLen(period) {
 
 // Master History Cache (1-Year Daily)
 let MASTER_HISTORY = {};
+let MASTER_TIMESTAMPS = [];
 let isMasterHistorySyncing = false;
+let isMasterHistoryLoaded = false;
 
 // Snapshot of last known data for diff-and-patch
 let lastMarketData = {};
@@ -227,10 +231,12 @@ async function syncMasterHistory() {
         const data = await res.json();
         if (data && data.data) {
             MASTER_HISTORY = data.data;
-            debugLog(`Master History Synced: ${Object.keys(MASTER_HISTORY).length} symbols`);
+            MASTER_TIMESTAMPS = data.timestamps || [];
+            isMasterHistoryLoaded = true;
+            debugLog(`Master History Synced: ${Object.keys(MASTER_HISTORY).length} symbols, ${MASTER_TIMESTAMPS.length} timestamps`);
 
             // Trigger UI refresh for any non-1d charts
-            if (currentPortfolioPeriod !== '1d') updatePortfolioChart(Object.values(lastMarketData));
+            if (currentPortfolioPeriod !== '1d') updatePortfolioChart(Object.values(lastMarketData), true);
             if (currentDiscoverPeriod !== '1d') fetchDiscoverSparklines(currentDiscoverPeriod);
         }
     } catch (e) {
@@ -1539,20 +1545,43 @@ async function fetchMarketAndInsights() {
         // Only auto-update portfolio chart if we are in 1D view (real-time).
         // Historical views (1W, 1M, etc) are updated via manual selector clicks.
         if (currentPortfolioPeriod === '1d') {
-            await updatePortfolioChart(marketArr);
+            await updatePortfolioChart(marketArr, true);
         }
         patchInsightsGrid(newMarket, newInsights);
 
         lastMarketData = newMarket;
         lastInsightsData = newInsights;
 
-        // Update Master History with latest live price
-        marketArr.forEach(m => {
-            if (MASTER_HISTORY[m.ticker]) {
-                const s = MASTER_HISTORY[m.ticker];
-                if (s.length > 0) s[s.length - 1] = parseFloat(m.price);
-            }
-        });
+        // Update Master History with latest live price (Timezone-Aware)
+        // Guard: Only allow live updates if the 1-Year baseline is fully loaded
+        if (MASTER_TIMESTAMPS.length > 0) {
+            const lastMasterDate = MASTER_TIMESTAMPS[MASTER_TIMESTAMPS.length - 1].split('T')[0];
+            let newDayAdded = false;
+
+            marketArr.forEach(m => {
+                if (MASTER_HISTORY[m.ticker] && m.last_trading_day && m.close_price) {
+                    const s = MASTER_HISTORY[m.ticker];
+                    const liveDate = m.last_trading_day;
+                    const price = parseFloat(m.close_price);
+                    if (isNaN(price) || price <= 0) return;
+
+                    if (liveDate > lastMasterDate) {
+                        // Australia Monday case
+                        if (!newDayAdded) {
+                            MASTER_TIMESTAMPS.push(`${liveDate}T00:00:00`);
+                            newDayAdded = true;
+                            Object.keys(MASTER_HISTORY).forEach(t => {
+                                MASTER_HISTORY[t].push(MASTER_HISTORY[t][MASTER_HISTORY[t].length - 1] || 0);
+                            });
+                        }
+                        s[s.length - 1] = price;
+                    } else if (liveDate === lastMasterDate) {
+                        // Update current slot
+                        if (s.length > 0) s[s.length - 1] = price;
+                    }
+                }
+            });
+        }
 
         triggerBatchIngestion(marketArr);
 
@@ -1599,8 +1628,8 @@ function patchInsightsGrid(newMarket, newInsights) {
         // Sparkline update is now decoupled from the 15s poll.
         // It will only be drawn on initial load or manual refresh.
         const sparklineId = `sparkline-card-${mkt.ticker}`;
-        const canvas = container.querySelector(`#${sparklineId} canvas`);
-        if (!canvas && mkt.sparkline && mkt.sparkline.length > 0) {
+        const hasCanvas = !!sparklineInstances[sparklineId];
+        if (!hasCanvas && mkt.sparkline && mkt.sparkline.length > 0) {
             const color = mkt.change_pct >= 0 ? '#10b981' : '#f43f5e';
             drawSparkline(sparklineId, mkt.sparkline, color);
         }
@@ -1612,8 +1641,29 @@ function signalClass(signal) {
     return signal.toLowerCase();
 }
 
-function statusChip(modelUsed) {
-    return '';
+function statusChip(isOpen) {
+    if (isOpen === "Lunch") {
+        return `
+            <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(245, 158, 11, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                <div style="width: 6px; height: 6px; background: #f59e0b; border-radius: 50%;"></div>
+                <span style="font-size: 0.6rem; font-weight: 800; color: #f59e0b; letter-spacing: 0.05em;">LUNCH</span>
+            </div>
+        `;
+    }
+    if (isOpen === true || isOpen === "True" || isOpen === "true") {
+        return `
+            <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(16, 185, 129, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                <div class="dot pulse-animation" style="width: 6px; height: 6px; background: #10b981; box-shadow: 0 0 6px #10b981;"></div>
+                <span style="font-size: 0.6rem; font-weight: 800; color: #10b981; letter-spacing: 0.05em;">OPEN</span>
+            </div>
+        `;
+    }
+    return `
+        <div style="display: flex; align-items: center; gap: 0.35rem; background: rgba(255, 255, 255, 0.05); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="width: 6px; height: 6px; background: var(--text-secondary); border-radius: 50%; opacity: 0.5;"></div>
+            <span style="font-size: 0.6rem; font-weight: 800; color: var(--text-secondary); letter-spacing: 0.05em; opacity: 0.8;">CLOSED</span>
+        </div>
+    `;
 }
 
 function buildNewsHtml(mkt) {
@@ -1685,6 +1735,13 @@ function updateCard(wrapper, mkt, insight) {
     // Targeted updates to preserve canvas/sparklines
     const priceEl = inner.querySelector('.card-price');
     if (priceEl) priceEl.textContent = formatPrice(mkt.close_price, mkt.currency);
+
+    // Update status chip
+    const priceBox = inner.querySelector('.card-price-box div:first-child');
+    if (priceBox) {
+        const chip = priceBox.querySelector('div:first-child');
+        if (chip) chip.outerHTML = statusChip(mkt.is_open);
+    }
 
     const changeEl = inner.querySelector('.card-change');
     let displayPct = mkt.change_pct || 0;
@@ -1765,7 +1822,7 @@ function cardInnerHtml(mkt, insight) {
                 <div class="card-header-left" style="align-items: flex-start;">
                     <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem;">
                         ${mkt.exchange ? `<span style="font-size: 0.6rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">${mkt.exchange}</span>` : ''}
-                        <span class="ticker-symbol">${mkt.ticker}</span>
+                        <span class="ticker-symbol">${mkt.ticker.split('.')[0]}</span>
                     </div>
                 </div>
                 ${statusChip(null)}
@@ -1800,7 +1857,7 @@ function cardInnerHtml(mkt, insight) {
             <div class="card-header-left">
                 ${mkt.exchange ? `<span class="card-exchange">${formatExchange(mkt.exchange)}</span>` : ''}
                 <div class="card-ticker-row">
-                    <span class="ticker-symbol">${mkt.ticker}</span>
+                    <span class="ticker-symbol">${mkt.ticker.split('.')[0]}</span>
                     ${signal ? `<span class="signal-pill ${sClass}">${signal}</span>` : ''}
                 </div>
                 ${mkt.company_name ? `<span class="card-company-name">${mkt.company_name}</span>` : ''}
@@ -1808,7 +1865,9 @@ function cardInnerHtml(mkt, insight) {
 
             <div class="card-price-box">
                 <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 2px;">
-                    <span style="font-size: 0.55rem; color: var(--accent); font-weight: 700; opacity: 0.7; letter-spacing: 0.05em;">CLOSE</span>
+                    <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 2px;">
+                        ${statusChip(mkt.is_open)}
+                    </div>
                     <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
                 </div>
                 ${renderExtendedHours(mkt)}
@@ -1850,7 +1909,13 @@ async function deleteTickerLogic(ticker) {
 /* =====================================================
    Portfolio Chart
    ===================================================== */
-async function updatePortfolioChart(marketData) {
+let lastManualChartUpdate = 0;
+async function updatePortfolioChart(marketData, isBackground = false) {
+    if (isBackground && Date.now() - lastManualChartUpdate < 30000) {
+        debugLog("Skipping background portfolio chart update (recently updated manually)");
+        return;
+    }
+    if (!isBackground) lastManualChartUpdate = Date.now();
     if (!marketData || marketData.length === 0) return;
     const active = [...marketData].filter(m => m.status === 'active');
 
@@ -1902,20 +1967,15 @@ async function updatePortfolioChart(marketData) {
         const sliceLen = getSliceLen(currentPortfolioPeriod);
 
         // Use master cache if ALL active tickers are present
-        const hasMaster = active.every(m => MASTER_HISTORY[m.ticker] && MASTER_HISTORY[m.ticker].length > 0);
+        const hasMaster = isMasterHistoryLoaded && active.every(m => MASTER_HISTORY[m.ticker] && MASTER_HISTORY[m.ticker].length > 0);
 
-        if (hasMaster) {
+        if (hasMaster && MASTER_TIMESTAMPS.length >= sliceLen) {
             debugLog(`Using MASTER_HISTORY for ${currentPortfolioPeriod} slice`);
             batch = { data: {}, timestamps: [] };
             active.forEach(m => {
                 batch.data[m.ticker] = MASTER_HISTORY[m.ticker].slice(-sliceLen);
             });
-            // Generate mock daily timestamps for slicing
-            batch.timestamps = Array.from({ length: sliceLen }, (_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - (sliceLen - 1 - i));
-                return d.toISOString();
-            });
+            batch.timestamps = MASTER_TIMESTAMPS.slice(-sliceLen);
         } else {
             try {
                 const resp = await fetch(`/api/v1/market/batch-history?symbols=${tickers}&period=${currentPortfolioPeriod}`);
@@ -1930,13 +1990,30 @@ async function updatePortfolioChart(marketData) {
 
         if (!batch || !batch.timestamps || batch.timestamps.length === 0) return;
 
-        labels = batch.timestamps.map(t => new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }));
+        debugLog(`Rendering Portfolio Chart: ${batch.timestamps.length} points for period ${currentPortfolioPeriod}`);
+        labels = batch.timestamps.map(t => {
+            const d = new Date(t);
+            const options = (currentPortfolioPeriod === '5y' || currentPortfolioPeriod === '1y') 
+                ? { year: '2-digit', month: 'short' } 
+                : { month: 'short', day: 'numeric' };
+            return d.toLocaleDateString([], options);
+        });
+
+        // Track last valid price for each ticker to fill gaps (Forward-Fill)
+        const lastPrices = {};
+        active.forEach(m => lastPrices[m.ticker] = 0);
 
         combined = Array.from({ length: batch.timestamps.length }, (_, i) => {
             let total = 0;
             active.forEach(m => {
                 const series = (batch.data && batch.data[m.ticker]) ? batch.data[m.ticker] : [];
-                const val = (series[i] !== undefined && series[i] !== null) ? series[i] : (series[i - 1] || 0);
+                let val = series[i];
+                // Use !val to catch 0, null, undefined, and NaN
+                if (!val || isNaN(val)) {
+                    val = lastPrices[m.ticker];
+                } else {
+                    lastPrices[m.ticker] = val;
+                }
                 const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
                 total += (val / tickerUsdRate) * rate;
             });

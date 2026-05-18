@@ -94,6 +94,75 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
     return results
 
 
+import pytz
+from datetime import datetime, time as dt_time
+
+def is_market_open(ticker_symbol: str, exchange: str = "") -> 'typing.Union[bool, str]':
+    """
+    Check if a market is currently open based on ticker suffix or exchange name.
+    Accounts for major global exchanges and their specific timezones/hours.
+    """
+    now_utc = datetime.now(pytz.utc)
+    
+    # 1. Map Ticker Suffix/Exchange to Timezone & Hours
+    # Default: US Markets (NYSE/NASDAQ)
+    tz_name = "US/Eastern"
+    open_time = dt_time(9, 30)
+    close_time = dt_time(16, 0)
+    lunch_break = None # (start, end)
+    
+    t = ticker_symbol.upper()
+    e = (exchange or "").upper()
+    
+    # Precise Exchange Matching
+    if t.endswith(".AX") or any(x in e for x in ["ASX", "AUSTRALIA"]):
+        tz_name = "Australia/Sydney"
+        open_time = dt_time(10, 0)
+        close_time = dt_time(16, 0)
+    elif t.endswith(".L") or any(x in e for x in ["LSE", "LONDON", "FTSE"]):
+        tz_name = "Europe/London"
+        open_time = dt_time(8, 0)
+        close_time = dt_time(16, 30)
+    elif t.endswith(".T") or any(x in e for x in ["TSE", "TOKYO", "TYO"]):
+        tz_name = "Asia/Tokyo"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(15, 30)
+        lunch_break = (dt_time(11, 30), dt_time(12, 30))
+    elif t.endswith(".HK") or any(x in e for x in ["HKEX", "HONG KONG", "HKG"]):
+        tz_name = "Asia/Hong_Kong"
+        open_time = dt_time(9, 30)
+        close_time = dt_time(16, 0)
+        lunch_break = (dt_time(12, 0), dt_time(13, 0))
+    elif t.endswith(".PA") or t.endswith(".AS") or t.endswith(".BR") or any(x in e for x in ["EURONEXT", "PARIS", "AMSTERDAM"]):
+        tz_name = "Europe/Paris"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(17, 30)
+    elif t.endswith(".DE") or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
+        tz_name = "Europe/Berlin"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(17, 30)
+    
+    # 2. Convert to Local Time
+    local_tz = pytz.timezone(tz_name)
+    local_now = now_utc.astimezone(local_tz)
+    
+    # 3. Weekend Check
+    if local_now.weekday() >= 5: # Saturday=5, Sunday=6
+        return False
+        
+    # 4. Hours Check
+    current_time = local_now.time()
+    if current_time < open_time or current_time > close_time:
+        return False
+        
+    # 5. Lunch Break Check
+    if lunch_break:
+        start, end = lunch_break
+        if current_time >= start and current_time < end:
+            return "Lunch"
+            
+    return True
+
 def fetch_ticker_data(ticker_symbol: str) -> dict:
     try:
         ticker = yf.Ticker(ticker_symbol)
@@ -108,8 +177,10 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             company_name = ''
             
         latest = None
+        last_trading_day = None
         if not hist.empty:
             latest = hist.iloc[-1]
+            last_trading_day = hist.index[-1].strftime('%Y-%m-%d')
             open_price = float(latest['Open'])
             close_price = float(latest['Close'])
             high_price = float(latest['High'])
@@ -153,6 +224,7 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
                 high_price = close_price
                 low_price = close_price
                 volume = 0
+                last_trading_day = datetime.utcnow().strftime('%Y-%m-%d')
                 
                 if prev_close and float(prev_close) != 0:
                     change_pct = ((close_price - float(prev_close)) / float(prev_close)) * 100
@@ -205,6 +277,8 @@ def fetch_ticker_data(ticker_symbol: str) -> dict:
             'company_name': company_name,
             'sparkline': sparkline,
             'currency': currency,
+            'last_trading_day': last_trading_day,
+            'is_open': is_market_open(ticker_symbol, exchange),
             'pre_market_price': pre_market_price,
             'pre_market_change': pre_market_change,
             'post_market_price': post_market_price,
@@ -271,6 +345,8 @@ def force_ingest_single_ticker(ticker: str) -> bool:
         'company_name': data.get('company_name', ''),
         'sparkline': [Decimal(str(p)) for p in data.get('sparkline', [])],
         'currency': data.get('currency', 'USD'),
+        'last_trading_day': data.get('last_trading_day'),
+        'is_open': data.get('is_open', False),
         'data_hash': data_hash,
         'ttl': ttl
     }
@@ -320,6 +396,7 @@ def ingest_market_data():
             'company_name': data.get('company_name', ''),
             'sparkline': [Decimal(str(p)) for p in data.get('sparkline', [])],
             'currency': data.get('currency', 'USD'),
+            'last_trading_day': data.get('last_trading_day'),
             'data_hash': data_hash,
             'ttl': ttl
         }

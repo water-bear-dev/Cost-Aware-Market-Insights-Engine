@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+
+## [3.2.3] - 2026-05-18
+
+### Changed
+- **International Ticker UI** — Stripped regional suffixes (e.g., `.AX`, `.T`) from ticker displays in the UI to ensure a cleaner, more readable card layout.
+- **Tokyo Exchange Hours** — Updated the `is_market_open` logic to reflect the Tokyo Stock Exchange (TSE) 2024 trading hours extension, now closing at 15:30 JST.
+- **Market Status Accuracy** — Enhanced the market status chip to explicitly display a "LUNCH" state for exchanges with midday trading halts (e.g., Tokyo, Hong Kong).
+
+### Fixed
+- **Sparkline Reversion Bug** — Resolved a UI state-drift issue where international market sparklines would revert to the default 1-Day view every 15 seconds. Replaced a flawed CSS selector (which failed on tickers containing dots like `NAB.AX`) with a reliable dictionary lookup.
+
+## [3.2.2] - 2026-05-17
+
+### Added
+- **Last Trading Day Tracking** — The ingestion service and /market API now explicitly return the `last_trading_day` for each ticker, enabling precise time-series alignment for international stocks.
+- **Real Market Timestamps** — Updated historical endpoints to return actual timestamps from the data provider, eliminating frontend date guessing.
+
+### Changed
+- **Rate Limit Scaling** — Increased rate limits for `/meta/rates` and `/market/master-history` from 5/min to **60/min** to prevent 429 errors during active development.
+- **Unified Period Mapping** — Implemented backend aliases for standard period codes (`1m`, `3m`, `6m`, `1y`) to match dashboard UI attributes.
+
+### Fixed
+- **Cross-Market Corruption (NAB.AX)** — Resolved a critical bug where Australian market data was shifted by a day due to timezone differences and trading holiday gaps.
+- **Time-Series Alignment** — Refactored backend sanitization to ensure all tickers return identical array lengths through forced forward-filling.
+- **UI Auto-Reversion** — Implemented a manual override guard and state-aware background polling to prevent automatic refreshes from resetting the user's selected chart period.
 ## [3.2.1] - 2026-05-15
 
 ### Added

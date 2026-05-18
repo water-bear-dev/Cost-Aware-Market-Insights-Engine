@@ -21,7 +21,7 @@ cached_rates = {
 last_fetch = 0
 
 @router.get("/meta/rates")
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 def get_exchange_rates(request: Request):
     global last_fetch, cached_rates
     import time

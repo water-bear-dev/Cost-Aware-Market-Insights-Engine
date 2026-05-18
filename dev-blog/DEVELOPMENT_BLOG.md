@@ -1,4 +1,44 @@
 # Development Blog
+
+## Entry 61: UI Stability & International Accuracy (2026-05-18)
+
+Today, we addressed a frustrating state-drift bug affecting our international market assets and updated our backend logic to align with recent global exchange rule changes.
+
+**The Sparkline Reversion Bug**
+
+Users noticed that after interacting with the time period selector for international markets (like ASX or Tokyo), the newly selected sparkline (e.g., 1-Year or 3-Month) would render perfectly, only to "revert" back to the default 1-Day view 15 seconds later during the background data refresh cycle. 
+
+Upon investigation, the root cause was traced to a flawed CSS selector approach in `app.js`. The background polling logic (`patchInsightsGrid`) was using `document.querySelector('#sparkline-card-' + ticker)` to find the canvas and update it. However, international tickers often contain dots (e.g., `NAB.AX`, `7974.T`). The `querySelector` interpreted these dots as CSS class selectors, failed to find the element, and inadvertently forced the UI to reset the chart. 
+
+**The Fix:** We decoupled the canvas update logic from CSS selector strings. We introduced a `sparklineInstances` dictionary that stores explicit references to each Chart.js instance keyed by the ticker symbol. When background data arrives, we simply look up the instance directly, bypassing the DOM search entirely. 
+
+**Global Market Enhancements**
+
+While refining the international user experience, we made two key updates to our market data processing:
+1. **Tokyo Market Hours:** The Tokyo Stock Exchange (TSE) recently extended its trading hours, now closing at 15:30 JST instead of 15:00. We updated the backend `is_market_open` logic to reflect this reality, preventing premature "Closed" states in the UI.
+2. **The "Lunch" State:** Asian markets like Tokyo and Hong Kong feature a midday trading halt (lunch break). Previously, our logic simply returned `False` (Closed) during this window. We updated the backend to return a specific `"Lunch"` string and added a new amber "LUNCH" status chip to the frontend, providing significantly more clarity to users.
+3. **Clean Ticker Presentation:** We implemented a regex strip in the UI to remove regional suffixes (like `.AX` and `.T`) from ticker displays. `NAB.AX` is now simply presented as `NAB`, creating a cleaner, more professional card layout without affecting the backend's precise tracking.
+
+## Entry 60: The Cross-Border Sync — Tackling Timezone Corruption (2026-05-17)
+
+Today we addressed one of the most subtle but visually destructive bugs encountered yet: **Cross-Market Data Corruption**.
+
+**The Problem: The 'NAB.AX' Shift**
+
+As we expanded our asset universe to include the Australian market (ASX), we noticed that visualizations for stocks like NAB.AX would correctly render for a few seconds before suddenly 'reverting' to a squashed or corrupted state. 
+
+After a deep-dive investigation, we identified a synchronization conflict between our manual UI requests and our background data pollers. Because Sydney is 15 hours ahead of New York, an Australian stock might be trading on a 'Monday' while the US is still in 'Sunday'. Our background sync was blindly overwriting the last item in our historical arrays, effectively 'deleting' Friday's history and shifting Australian prices backward by one day to align with US dates. This created a permanent misalignment between the data points and the calendar timestamps.
+
+**The Architectural Solution**
+
+We implemented a three-tier solution to ensure our engine is truly global:
+1.  **Date-Aware Ingestion**: We refactored `ingestion/service.py` to capture the explicit `last_trading_day` for every asset. We no longer assume that 'live price' means 'today' in the server's timezone.
+2.  **Precise Alignment**: In the backend, we refactored our sanitization logic. Instead of stripping 'empty' leading values (which shortened arrays for international markets), we now use strict index alignment via Pandas, ensuring every ticker returns an array of the exact same length as the global timestamp index.
+3.  **Frontend 'Smart Append'**: We updated `app.js` with a new synchronization guard. When a live price arrives, the frontend now compares its date against the history cache. If a new day has started in Australia, the app **appends** a new slot to the timeline and forward-fills US stocks, rather than corrupting existing data.
+
+**Scaling for Development Velocity**
+
+Finally, we scaled our API rate limits. As our dashboard polling became more sophisticated, we were hitting '429 Too Many Requests' errors during active development. We've increased our internal limits to **60 requests/minute**, backed by aggressive 24-hour server-side caching to keep our overhead low while keeping the UI snappy.
 ## Entry 59: Refining the Edge — 5-Factor QMJ and Global Sourcing (2026-05-15)
 
 Today we finalized the core quantitative engine, moving from a simplified 2-factor prototype to a robust **5-Factor QMJ Factor Model**.
