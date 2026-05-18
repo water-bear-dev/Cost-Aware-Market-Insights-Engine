@@ -18,6 +18,7 @@ While refining the international user experience, we made two key updates to our
 1. **Tokyo Market Hours:** The Tokyo Stock Exchange (TSE) recently extended its trading hours, now closing at 15:30 JST instead of 15:00. We updated the backend `is_market_open` logic to reflect this reality, preventing premature "Closed" states in the UI.
 2. **The "Lunch" State:** Asian markets like Tokyo and Hong Kong feature a midday trading halt (lunch break). Previously, our logic simply returned `False` (Closed) during this window. We updated the backend to return a specific `"Lunch"` string and added a new amber "LUNCH" status chip to the frontend, providing significantly more clarity to users.
 3. **Clean Ticker Presentation:** We implemented a regex strip in the UI to remove regional suffixes (like `.AX` and `.T`) from ticker displays. `NAB.AX` is now simply presented as `NAB`, creating a cleaner, more professional card layout without affecting the backend's precise tracking.
+4. **QMJ Screener Date Formatting:** The "Reported" date column in the Quality Minus Junk screener was displaying full ISO timestamps (e.g. `2025-12-31T00:00:00`). We updated the row-mapping template inside `static/app.js` to split the string by both spaces and `T` boundaries, ensuring the grid renders a clean calendar date (`YYYY-MM-DD`) only.
 
 ## Entry 60: The Cross-Border Sync — Tackling Timezone Corruption (2026-05-17)
 

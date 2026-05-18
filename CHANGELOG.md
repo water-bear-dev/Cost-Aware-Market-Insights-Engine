@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - **International Ticker UI** — Stripped regional suffixes (e.g., `.AX`, `.T`) from ticker displays in the UI to ensure a cleaner, more readable card layout.
 - **Tokyo Exchange Hours** — Updated the `is_market_open` logic to reflect the Tokyo Stock Exchange (TSE) 2024 trading hours extension, now closing at 15:30 JST.
 - **Market Status Accuracy** — Enhanced the market status chip to explicitly display a "LUNCH" state for exchanges with midday trading halts (e.g., Tokyo, Hong Kong).
+- **QMJ Screener Date Format** — Formatted the "Reported" date column to display only the calendar date, stripping timestamps (e.g., `T00:00:00`) for a cleaner table layout.
 
 ### Fixed
 - **Sparkline Reversion Bug** — Resolved a UI state-drift issue where international market sparklines would revert to the default 1-Day view every 15 seconds. Replaced a flawed CSS selector (which failed on tickers containing dots like `NAB.AX`) with a reliable dictionary lookup.

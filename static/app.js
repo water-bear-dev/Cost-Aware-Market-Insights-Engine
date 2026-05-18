@@ -477,7 +477,7 @@ function renderQMJScreener() {
         tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
     } else {
         tbody.innerHTML = pageData.map(row => {
-            const reportDate = row.report_date ? row.report_date.split(' ')[0] : '—';
+            const reportDate = row.report_date ? row.report_date.split(/[T ]/)[0] : '—';
             return `
                 <tr onclick="openTickerModal('${row.ticker}')" style="cursor:pointer;">
                     <td><a href="https://finance.yahoo.com/quote/${row.ticker}" target="_blank" class="screener-ticker" onclick="event.stopPropagation()">${row.ticker}</a></td>

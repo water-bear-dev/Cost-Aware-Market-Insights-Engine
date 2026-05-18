@@ -96,8 +96,9 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
 
 import pytz
 from datetime import datetime, time as dt_time
+import typing
 
-def is_market_open(ticker_symbol: str, exchange: str = "") -> 'typing.Union[bool, str]':
+def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool, str]:
     """
     Check if a market is currently open based on ticker suffix or exchange name.
     Accounts for major global exchanges and their specific timezones/hours.
