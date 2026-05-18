@@ -25,19 +25,19 @@ def clean_float(val, default=0.0):
 # ─── Index & Commodity definitions ────────────────────────────────────────────
 REGIONS = [
     {"region": "Australia",    "flag": "🇦🇺", "indices": [
-        {"name": "ASX 200",     "symbol": "^AXJO"},
+        {"name": "ASX 200",     "symbol": "^AXJO", "flag": "🇦🇺"},
     ]},
     {"region": "United States","flag": "🇺🇸", "indices": [
-        {"name": "S&P 500",     "symbol": "^GSPC"},
-        {"name": "Nasdaq",      "symbol": "^IXIC"},
+        {"name": "S&P 500",     "symbol": "^GSPC", "flag": "🇺🇸"},
+        {"name": "Nasdaq",      "symbol": "^IXIC", "flag": "🇺🇸"},
     ]},
     {"region": "Europe",       "flag": "🇪🇺", "indices": [
-        {"name": "Euro Stoxx 50","symbol": "^STOXX50E"},
-        {"name": "FTSE 100",    "symbol": "^FTSE"},
+        {"name": "Euro Stoxx 50","symbol": "^STOXX50E", "flag": "🇪🇺"},
+        {"name": "FTSE 100",    "symbol": "^FTSE", "flag": "🇬🇧"},
     ]},
     {"region": "Asia",         "flag": "🌏", "indices": [
-        {"name": "Nikkei 225",  "symbol": "^N225"},
-        {"name": "Hang Seng",   "symbol": "^HSI"},
+        {"name": "Nikkei 225",  "symbol": "^N225", "flag": "🇯🇵"},
+        {"name": "Hang Seng",   "symbol": "^HSI", "flag": "🇭🇰"},
     ]},
 ]
 
@@ -100,12 +100,21 @@ def _fetch_indices() -> dict:
                     prev  = clean_float(getattr(fi, "previous_close", 0))
                     if prev == 0: prev = price
                     change_pct = round(((price - prev) / prev * 100) if prev else 0, 2)
+                    
+                    from src.ingestion.service import get_market_status_desc
+                    status_details = get_market_status_desc(idx["symbol"])
+                    market_status = status_details["status"]
+                    market_status_msg = status_details["message"]
+
                     region_entry["indices"].append({
                         "name": idx["name"],
                         "symbol": idx["symbol"],
                         "price": round(price, 2),
                         "change_pct": change_pct,
                         "currency": getattr(fi, "currency", "USD") or "USD",
+                        "market_status": market_status,
+                        "market_status_msg": market_status_msg,
+                        "flag": idx.get("flag", ""),
                     })
                 except Exception as e:
                     logger.warning("Index fetch failed", symbol=idx["symbol"], error=str(e))

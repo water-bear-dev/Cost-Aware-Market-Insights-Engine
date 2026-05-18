@@ -251,10 +251,27 @@ function calculateChange(start, end) {
     return ((end - start) / start) * 100;
 }
 
+function initLocalClock() {
+    const clockEl = document.getElementById('local-clock-time');
+    if (!clockEl) return;
+    
+    function updateClock() {
+        const now = new Date();
+        const hrs = String(now.getHours()).padStart(2, '0');
+        const mins = String(now.getMinutes()).padStart(2, '0');
+        const secs = String(now.getSeconds()).padStart(2, '0');
+        clockEl.textContent = `${hrs}:${mins}:${secs}`;
+    }
+    
+    updateClock();
+    setInterval(updateClock, 1000);
+}
+
 /* =====================================================
    Bootstrap
    ===================================================== */
 document.addEventListener('DOMContentLoaded', () => {
+    initLocalClock();
     initTabs();
     initControls();
     initModal();
@@ -780,7 +797,7 @@ function renderManageList() {
 
     list.innerHTML = tickers.map(t => `
         <li class="manage-item">
-            <span class="manage-item-ticker">${t}</span>
+            <span class="manage-item-ticker" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(t)}', '_blank')" title="View ${t} on Yahoo Finance">${t} <span style="font-size: 0.75em; color: var(--accent); opacity: 0.7;">↗</span></span>
             <button class="manage-item-delete" onclick="handleManageDelete('${t}', this)" title="Remove ${t}">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg>
             </button>
@@ -1133,13 +1150,13 @@ async function fetchDailyPicks() {
                     </div>
 
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-                        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; flex: 1; min-width: 0;">
                             <span style="font-size: 0.65rem; color: var(--accent); text-transform: uppercase; font-weight: 800; margin-bottom: 6px; letter-spacing: 0.05em; opacity: 0.8;">${formatExchange(pick.exchange)}</span>
                             <h3 class="metric-value text-gradient-purple" style="font-size: 2.2rem; line-height: 1; letter-spacing: -1.5px; margin: 0; font-weight: 900;">${pick.actual_ticker}</h3>
-                            <span style="font-size: 0.9rem; color: var(--text-primary); margin-top: 8px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px;">${pick.company_name}</span>
+                            <span style="font-size: 0.9rem; color: var(--text-primary); margin-top: 8px; font-weight: 600; white-space: normal; word-break: break-word; max-width: 100%;">${pick.company_name}</span>
                             <span style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; font-weight: 500; opacity: 0.7;">${pick.industry}</span>
                         </div>
-                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; margin-left: 1rem;">
                             <div style="display: flex; flex-direction: column; align-items: flex-end; margin-bottom: 8px;">
                                 <span style="font-size: 0.6rem; color: var(--accent); font-weight: 800; opacity: 0.8; letter-spacing: 0.1em;">LAST CLOSE</span>
                                 <span style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1; letter-spacing: -0.5px;">${formatPrice(price, pick.currency || 'USD')}</span>
@@ -2207,7 +2224,7 @@ function renderModalContent(mkt, insight) {
     // Header
     document.getElementById('modal-ticker-title').innerHTML = `
         ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
-        ${ticker}
+        <a href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed var(--accent);" title="View ${ticker} on Yahoo Finance">${ticker} <span style="font-size: 0.8em; color: var(--accent); vertical-align: middle;">↗</span></a>
     `;
     if (!mkt.name) document.getElementById('modal-ticker-name').textContent = 'Loading company info...';
 
@@ -2693,7 +2710,7 @@ function formatInsight(text, limit = null, showOnly = null) {
    ===================================================== */
 let _discoverRefreshTimer = null;
 let _discoverNewsTimer = null;
-let currentDiscoverPeriod = '3mo';
+let currentDiscoverPeriod = '1mo';
 
 // Sparkline chart instances keyed by symbol
 
@@ -2997,9 +3014,22 @@ function _buildIndexCard(idx) {
     const isPos = idx.change_pct >= 0;
     const sign = isPos ? '+' : '';
     const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    return `<div class="discover-index-card" data-discover-symbol="${idx.symbol}">
+    const status = idx.market_status || 'Closed';
+    const statusClass = status.toLowerCase();
+    const flagHtml = idx.flag ? `<span style="margin-right: 0.4rem; font-size: 1.1rem; vertical-align: middle;">${idx.flag}</span>` : '';
+    
+    return `<div class="discover-index-card" data-discover-symbol="${idx.symbol}" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(idx.symbol)}', '_blank')">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div class="discover-index-name">${idx.name}</div>
+                    <div>
+                        <div class="discover-index-name">${flagHtml}${idx.name}</div>
+                        <div style="margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start;">
+                            <span class="market-status-badge ${statusClass}" data-status-badge style="margin-top: 0;">
+                                <span class="market-status-dot"></span>
+                                ${status}
+                            </span>
+                            <span class="market-status-msg" data-status-msg style="margin-top: 0;">${idx.market_status_msg || ''}</span>
+                        </div>
+                    </div>
                     <div style="text-align: right;">
                         <div class="discover-index-price" data-price>${priceStr}</div>
                         <span class="discover-change-badge ${isPos ? 'pos' : 'neg'}" data-badge>${sign}${idx.change_pct.toFixed(2)}%</span>
@@ -3025,10 +3055,21 @@ function renderMarketIndices(regions) {
                 const sign = isPos ? '+' : '';
                 const priceEl = card.querySelector('[data-price]');
                 const badgeEl = card.querySelector('[data-badge]');
+                const statusEl = card.querySelector('[data-status-badge]');
+                const statusMsgEl = card.querySelector('[data-status-msg]');
+                
                 if (priceEl) priceEl.textContent = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
                 if (badgeEl) {
                     badgeEl.textContent = `${sign}${idx.change_pct.toFixed(2)}%`;
                     badgeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
+                }
+                if (statusEl) {
+                    const status = idx.market_status || 'Closed';
+                    statusEl.className = `market-status-badge ${status.toLowerCase()}`;
+                    statusEl.innerHTML = `<span class="market-status-dot"></span>${status}`;
+                }
+                if (statusMsgEl) {
+                    statusMsgEl.textContent = idx.market_status_msg || '';
                 }
             });
         });
@@ -3056,7 +3097,7 @@ function _buildCommodityCard(c) {
         else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
         else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
     }
-    return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}">
+    return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(c.symbol)}', '_blank')">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div class="discover-region-label" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">${c.icon} ${c.name}</div>
                 <div style="text-align: right;">
@@ -3136,7 +3177,7 @@ function renderMovers(tableId, movers, isGainer) {
         // Remove truncation, allow wrapping in CSS
         const name = m.company_name || m.ticker;
 
-        return `<tr>
+        return `<tr style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(m.ticker)}', '_blank')" title="View ${m.ticker} on Yahoo Finance">
             <td style="vertical-align: top;"><strong>${m.ticker}</strong></td>
             <td style="vertical-align: top;">
                 <div class="movers-company-name">${name}</div>

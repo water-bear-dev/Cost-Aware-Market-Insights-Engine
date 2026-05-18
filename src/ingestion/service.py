@@ -95,8 +95,121 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
 
 
 import pytz
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 import typing
+
+def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
+    """
+    Determine the current status of a market (Open, Lunch, Closed) and calculate
+    descriptive text indicating time remaining until the next state transition.
+    """
+    now_utc = datetime.now(pytz.utc)
+    
+    # 1. Map timezone & schedule
+    tz_name = "US/Eastern"
+    open_time = dt_time(9, 30)
+    close_time = dt_time(16, 0)
+    lunch_break = None
+    
+    t = ticker_symbol.upper()
+    e = (exchange or "").upper()
+    
+    if t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
+        tz_name = "Australia/Sydney"
+        open_time = dt_time(10, 0)
+        close_time = dt_time(16, 0)
+    elif t.endswith(".L") or t == "^FTSE" or any(x in e for x in ["LSE", "LONDON", "FTSE"]):
+        tz_name = "Europe/London"
+        open_time = dt_time(8, 0)
+        close_time = dt_time(16, 30)
+    elif t.endswith(".T") or t == "^N225" or any(x in e for x in ["TSE", "TOKYO", "TYO"]):
+        tz_name = "Asia/Tokyo"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(15, 30)
+        lunch_break = (dt_time(11, 30), dt_time(12, 30))
+    elif t.endswith(".HK") or t == "^HSI" or any(x in e for x in ["HKEX", "HONG KONG", "HKG"]):
+        tz_name = "Asia/Hong_Kong"
+        open_time = dt_time(9, 30)
+        close_time = dt_time(16, 0)
+        lunch_break = (dt_time(12, 0), dt_time(13, 0))
+    elif t.endswith(".PA") or t.endswith(".AS") or t.endswith(".BR") or t == "^STOXX50E" or any(x in e for x in ["EURONEXT", "PARIS", "AMSTERDAM"]):
+        tz_name = "Europe/Paris"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(17, 30)
+    elif t.endswith(".DE") or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
+        tz_name = "Europe/Berlin"
+        open_time = dt_time(9, 0)
+        close_time = dt_time(17, 30)
+        
+    local_tz = pytz.timezone(tz_name)
+    local_now = now_utc.astimezone(local_tz)
+    
+    weekday = local_now.weekday()
+    current_time = local_now.time()
+    is_weekend = weekday >= 5
+    
+    def format_diff(delta: timedelta) -> str:
+        total_seconds = int(delta.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        if hours > 0:
+            hr_str = "hour" if hours == 1 else "hours"
+            min_str = "minute" if minutes == 1 else "minutes"
+            if minutes > 0:
+                return f"{hours} {hr_str} and {minutes} {min_str}"
+            return f"{hours} {hr_str}"
+        else:
+            min_str = "minute" if minutes == 1 else "minutes"
+            display_mins = max(1, minutes)
+            return f"{display_mins} {min_str}"
+
+    # Check if LUNCH
+    if not is_weekend and lunch_break:
+        l_start, l_end = lunch_break
+        if current_time >= l_start and current_time < l_end:
+            target_dt = local_now.replace(hour=l_end.hour, minute=l_end.minute, second=0, microsecond=0)
+            diff = target_dt - local_now
+            return {
+                "status": "Lunch",
+                "message": f"re-opening in {format_diff(diff)}"
+            }
+
+    # Check if OPEN
+    is_open_time = (current_time >= open_time and current_time < close_time)
+    if not is_weekend and is_open_time:
+        if lunch_break and current_time < lunch_break[0]:
+            l_start = lunch_break[0]
+            target_dt = local_now.replace(hour=l_start.hour, minute=l_start.minute, second=0, microsecond=0)
+            diff = target_dt - local_now
+            return {
+                "status": "Open",
+                "message": f"closing for lunch in {format_diff(diff)}"
+            }
+        else:
+            target_dt = local_now.replace(hour=close_time.hour, minute=close_time.minute, second=0, microsecond=0)
+            diff = target_dt - local_now
+            return {
+                "status": "Open",
+                "message": f"closing in {format_diff(diff)}"
+            }
+
+    # Market is CLOSED.
+    check_date = local_now
+    if current_time >= close_time:
+        check_date += timedelta(days=1)
+        check_date = check_date.replace(hour=open_time.hour, minute=open_time.minute, second=0, microsecond=0)
+    else:
+        check_date = check_date.replace(hour=open_time.hour, minute=open_time.minute, second=0, microsecond=0)
+        
+    while check_date.weekday() >= 5:
+        check_date += timedelta(days=1)
+        check_date = check_date.replace(hour=open_time.hour, minute=open_time.minute, second=0, microsecond=0)
+        
+    diff = check_date - local_now
+    return {
+        "status": "Closed",
+        "message": f"opening in {format_diff(diff)}"
+    }
 
 def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool, str]:
     """
@@ -116,25 +229,25 @@ def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool,
     e = (exchange or "").upper()
     
     # Precise Exchange Matching
-    if t.endswith(".AX") or any(x in e for x in ["ASX", "AUSTRALIA"]):
+    if t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
         tz_name = "Australia/Sydney"
         open_time = dt_time(10, 0)
         close_time = dt_time(16, 0)
-    elif t.endswith(".L") or any(x in e for x in ["LSE", "LONDON", "FTSE"]):
+    elif t.endswith(".L") or t == "^FTSE" or any(x in e for x in ["LSE", "LONDON", "FTSE"]):
         tz_name = "Europe/London"
         open_time = dt_time(8, 0)
         close_time = dt_time(16, 30)
-    elif t.endswith(".T") or any(x in e for x in ["TSE", "TOKYO", "TYO"]):
+    elif t.endswith(".T") or t == "^N225" or any(x in e for x in ["TSE", "TOKYO", "TYO"]):
         tz_name = "Asia/Tokyo"
         open_time = dt_time(9, 0)
         close_time = dt_time(15, 30)
         lunch_break = (dt_time(11, 30), dt_time(12, 30))
-    elif t.endswith(".HK") or any(x in e for x in ["HKEX", "HONG KONG", "HKG"]):
+    elif t.endswith(".HK") or t == "^HSI" or any(x in e for x in ["HKEX", "HONG KONG", "HKG"]):
         tz_name = "Asia/Hong_Kong"
         open_time = dt_time(9, 30)
         close_time = dt_time(16, 0)
         lunch_break = (dt_time(12, 0), dt_time(13, 0))
-    elif t.endswith(".PA") or t.endswith(".AS") or t.endswith(".BR") or any(x in e for x in ["EURONEXT", "PARIS", "AMSTERDAM"]):
+    elif t.endswith(".PA") or t.endswith(".AS") or t.endswith(".BR") or t == "^STOXX50E" or any(x in e for x in ["EURONEXT", "PARIS", "AMSTERDAM"]):
         tz_name = "Europe/Paris"
         open_time = dt_time(9, 0)
         close_time = dt_time(17, 30)

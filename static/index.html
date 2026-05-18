@@ -21,30 +21,36 @@
 
     <div class="dashboard-container">
 
-        <header class="header" style="margin-bottom: 2rem;">
-            <div class="header-logo">
-                <div class="logo-icon"></div>
-                <h1>Market Insights Engine</h1>
-            </div>
-            <div class="header-actions">
-                <div class="health-status">
-                    <div class="dot pulse-animation" id="db-health-dot" style="background-color: var(--positive); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></div>
-                    <span id="db-health-text">System Healthy</span>
+        <div class="sticky-header-wrapper">
+            <header class="header">
+                <div class="header-logo">
+                    <div class="logo-icon"></div>
+                    <h1>Market Insights Engine</h1>
                 </div>
-                <button id="force-refresh-btn" class="refresh-btn">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
-                    <span>Refresh</span>
-                </button>
-            </div>
-        </header>
+                <div class="header-actions">
+                    <div class="local-clock" id="local-clock-container" title="Local Time">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span id="local-clock-time">--:--:--</span>
+                    </div>
+                    <div class="health-status">
+                        <div class="dot pulse-animation" id="db-health-dot" style="background-color: var(--positive); box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);"></div>
+                        <span id="db-health-text">System Healthy</span>
+                    </div>
+                    <button id="force-refresh-btn" class="refresh-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </header>
 
-        <div class="tab-navigation">
-            <button class="tab-btn active" data-tab="manage-view">Manage</button>
-            <button class="tab-btn" data-tab="discover-view">Discover</button>
-            <button class="tab-btn" data-tab="screener-view">Screener</button>
-            <span class="tab-nav-spacer"></span>
-            <button class="tab-btn" data-tab="finops-view">Costs</button>
-            <button class="tab-btn" data-tab="how-view">How it works</button>
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="manage-view">Manage</button>
+                <button class="tab-btn" data-tab="discover-view">Discover</button>
+                <button class="tab-btn" data-tab="screener-view">Screener</button>
+                <span class="tab-nav-spacer"></span>
+                <button class="tab-btn" data-tab="finops-view">Costs</button>
+                <button class="tab-btn" data-tab="how-view">How it works</button>
+            </div>
         </div>
 
         <!-- Manage Section -->
@@ -193,8 +199,8 @@
                 <h2 class="discover-section-title" style="margin: 0;">🌍 Global Markets</h2>
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                     <div class="discover-period-selector" id="discover-period-selector">
-                        <button class="discover-period-btn" data-period="1mo">1M</button>
-                        <button class="discover-period-btn active" data-period="3mo">3M</button>
+                        <button class="discover-period-btn active" data-period="1mo">1M</button>
+                        <button class="discover-period-btn" data-period="3mo">3M</button>
                         <button class="discover-period-btn" data-period="6mo">6M</button>
                         <button class="discover-period-btn" data-period="ytd">YTD</button>
                         <button class="discover-period-btn" data-period="1y">1Y</button>
@@ -209,8 +215,8 @@
                 <h2 class="discover-section-title" style="margin: 0;">⚡ Commodities</h2>
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                     <div class="discover-period-selector" id="commodity-period-selector">
-                        <button class="discover-period-btn" data-period="1mo">1M</button>
-                        <button class="discover-period-btn active" data-period="3mo">3M</button>
+                        <button class="discover-period-btn active" data-period="1mo">1M</button>
+                        <button class="discover-period-btn" data-period="3mo">3M</button>
                         <button class="discover-period-btn" data-period="6mo">6M</button>
                         <button class="discover-period-btn" data-period="ytd">YTD</button>
                         <button class="discover-period-btn" data-period="1y">1Y</button>
