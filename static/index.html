@@ -103,6 +103,7 @@
                                 <div style="display: flex; align-items: center; gap: 0.75rem;">
                                     <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em;">Currency</span>
                                     <select id="currency-selector" class="glass-input" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(15,23,42,0.6);">
+                                        <option value="DEFAULT" selected>Default Currency</option>
                                         <option value="USD">USD ($)</option>
                                         <option value="EUR">EUR (€)</option>
                                         <option value="GBP">GBP (£)</option>
@@ -145,7 +146,7 @@
                     <option value="AU">🇦🇺 Australia</option>
                     <option value="US">🇺🇸 United States</option>
                     <option value="EU">🇪🇺 Europe</option>
-                    <option value="ASIA">🌏 Asia</option>
+                    <option value="ASIA">🌏 Asia Pacific</option>
                 </select>
                 <select id="filter-exchange" class="glass-input" style="width: auto;">
                     <option value="">All Exchanges</option>
@@ -254,6 +255,7 @@
                         <button class="discover-period-btn" data-period="5y">5Y</button>
                     </div>
                     <select id="discover-currency-main" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;">
+                        <option value="DEFAULT" selected>Default Currency</option>
                         <option value="USD">USD ($)</option>
                         <option value="AUD">AUD (A$)</option>
                         <option value="EUR">EUR (€)</option>
@@ -276,7 +278,7 @@
                     <button class="discover-period-btn active" data-filter="all">All</button>
                     <button class="discover-period-btn" data-filter="americas">Americas</button>
                     <button class="discover-period-btn" data-filter="europe">Europe</button>
-                    <button class="discover-period-btn" data-filter="asia">Asia</button>
+                    <button class="discover-period-btn" data-filter="asia">Asia Pacific</button>
                 </div>
             </div>
             <div class="discover-movers-row">
@@ -347,6 +349,7 @@
                 <div style="display: flex; gap: 1rem; align-items: center;">
                     <input type="text" id="qmj-search" class="glass-input" placeholder="Search Ticker/Industry..." style="flex: 1; min-width: 200px;" />
                     <select id="screener-currency" class="glass-input" style="width: auto;">
+                        <option value="DEFAULT" selected>Default Currency</option>
                         <option value="USD">USD ($)</option>
                         <option value="AUD">AUD (A$)</option>
                         <option value="EUR">EUR (€)</option>

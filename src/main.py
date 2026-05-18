@@ -100,15 +100,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
 
     # Startup: trigger it once on startup to ensure it populates immediately for the user
-    def _warm_caches_task():
-        try:
-            logger.info("Startup Discover pre-warm thread started...")
-            from src.routes.discover import refresh_discover_caches
-            refresh_discover_caches()
-        except Exception as e:
-            logger.error("Startup Discover pre-warm failed", error=str(e))
-
-    def _daily_picks_task():
+    def _startup_tasks():
         from src.clients.dynamo import get_table
         from boto3.dynamodb.conditions import Key
         time.sleep(5) # Let uvicorn settle
@@ -138,11 +130,14 @@ async def lifespan(app: FastAPI):
                 logger.info("Daily picks are fresh.")
         except Exception as e:
             logger.error("Startup Discovery check failed", error=str(e))
-
-    # Spin up cache warming instantly!
-    threading.Thread(target=_warm_caches_task, daemon=True).start()
-    # Spin up deferred daily discovery checker
-    threading.Thread(target=_daily_picks_task, daemon=True).start()
+        # Pre-warm all Discover caches so the tab is populated on first load
+        try:
+            from src.routes.discover import refresh_discover_caches
+            refresh_discover_caches()
+        except Exception as e:
+            logger.error("Startup Discover pre-warm failed", error=str(e))
+        
+    threading.Thread(target=_startup_tasks, daemon=True).start()
 
     yield
     # Shutdown

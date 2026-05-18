@@ -70,7 +70,7 @@ let lastInsightsData = {};
 let dailyPicksData = {};
 let lastDiscoverCommodities = [];
 
-let currentCurrency = 'USD';
+let currentCurrency = 'DEFAULT';
 let currentCommodityUnit = 'Metric';
 let EXCHANGE_RATES = {
     'USD': { rate: 1.0, symbol: '$' },
@@ -102,15 +102,33 @@ function formatExchange(code) {
     if (!code) return '';
     const upper = code.toUpperCase();
     const map = {
-        'NMS': 'NASDAQ',
-        'NGM': 'NASDAQ',
-        'NCM': 'NASDAQ',
-        'NYQ': 'NYSE',
-        'ASE': 'AMEX',
-        'PNK': 'OTC',
-        'BTS': 'BATS',
-        'ASX': 'ASX',
-        'LSE': 'LSE'
+        'NMS': '🇺🇸 NASDAQ',
+        'NGM': '🇺🇸 NASDAQ',
+        'NCM': '🇺🇸 NASDAQ',
+        'NASDAQ': '🇺🇸 NASDAQ',
+        'NYQ': '🇺🇸 NYSE',
+        'NYSE': '🇺🇸 NYSE',
+        'ASE': '🇺🇸 AMEX',
+        'AMEX': '🇺🇸 AMEX',
+        'PNK': '🇺🇸 OTC',
+        'OTC': '🇺🇸 OTC',
+        'BTS': '🇺🇸 BATS',
+        'BATS': '🇺🇸 BATS',
+        'ASX': '🇦🇺 ASX',
+        'LSE': '🇬🇧 LSE',
+        'JPX': '🇯🇵 JPX',
+        'TSE': '🇯🇵 TSE',
+        'TYO': '🇯🇵 TYO',
+        'TSX': '🇨🇦 TSX',
+        'TOR': '🇨🇦 TSX',
+        'DAX': '🇩🇪 DAX',
+        'GER': '🇩🇪 GER',
+        'FRA': '🇩🇪 FRA',
+        'PAR': '🇫🇷 PAR',
+        'AMS': '🇳🇱 AMS',
+        'MIL': '🇮🇹 MIL',
+        'MAD': '🇪🇸 MAD',
+        'SWX': '🇨🇭 SWX'
     };
     return map[upper] || upper;
 }
@@ -132,10 +150,9 @@ function formatPrice(value, tickerCurrency = 'USD', forceLocal = false, ticker =
     if (tc === 'GBp') tc = 'GBP'; // Convert British Pence to Pounds for rate lookup
     if (!EXCHANGE_RATES[tc]) tc = 'USD';
 
-    // If we're in the default USD view, we prefer to see the LOCAL price
-    // for international stocks to avoid misleading symbols (e.g. $6424 for a JPY stock)
-    const isDefaultView = currentCurrency === 'USD';
-    const useLocal = forceLocal || (isDefaultView && tc !== 'USD');
+    // If currentCurrency is DEFAULT, show local currency. Otherwise convert to currentCurrency.
+    const isDefaultView = currentCurrency === 'DEFAULT';
+    const useLocal = forceLocal || isDefaultView;
 
     const targetCurrency = useLocal ? tc : currentCurrency;
 
@@ -169,8 +186,8 @@ function formatLargePrice(value, tickerCurrency = 'USD', ticker = null) {
     let tc = tickerCurrency === 'GBp' ? 'GBP' : tickerCurrency;
     if (!EXCHANGE_RATES[tc]) tc = 'USD';
 
-    const isDefaultView = currentCurrency === 'USD';
-    const targetCurrency = (isDefaultView && tc !== 'USD') ? tc : currentCurrency;
+    const isDefaultView = currentCurrency === 'DEFAULT';
+    const targetCurrency = isDefaultView ? tc : currentCurrency;
 
     // 1. Convert Ticker Price -> USD
     let valInTickerBase = value;
@@ -1242,12 +1259,17 @@ async function fetchDailyPicks() {
                                 <div class="discovery-catalysts">
                                     <div class="catalyst-label">Recent News</div>
                                     <div class="catalyst-list">
-                                        ${news.map(n => `
-                                            <div class="catalyst-item">
-                                                <span class="catalyst-publisher">${n.publisher || 'NEWS'}</span>
-                                                <a href="${n.link}" target="_blank" class="catalyst-link" onclick="event.stopPropagation()">${n.title}</a>
-                                            </div>
-                                        `).join('')}
+                                        ${news.map(n => {
+                                            const pubSource = n.publisher || n.source || 'NEWS';
+                                            const pubDateRaw = (n.provider_publish_time * 1000) || n.published;
+                                            const pubDate = pubDateRaw ? new Date(pubDateRaw).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                                            return `
+                                                <div class="catalyst-item">
+                                                    <span class="catalyst-publisher">${pubSource}${pubDate ? ` · ${pubDate}` : ''}</span>
+                                                    <a href="${n.link || n.url}" target="_blank" class="catalyst-link" onclick="event.stopPropagation()">${n.title}</a>
+                                                </div>
+                                            `;
+                                        }).join('')}
                                     </div>
                                 </div>
                             `;
@@ -1265,7 +1287,7 @@ async function fetchDailyPicks() {
                         <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; letter-spacing: 0.1em; color: ${categoryColor}; font-weight: 800;">${pick.category}</span>
                         <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <span style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600;">Daily Pick</span>
-                            <button class="glass-btn primary" style="padding: 0.3rem 0.8rem; font-size: 0.65rem; border-radius: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
+                            <button class="glass-btn primary" style="padding: 0.25rem 0.75rem; font-size: 0.65rem; border-radius: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;"
                                     onclick="event.stopPropagation(); handleAddFeatured('${pick.actual_ticker}', this)">
                                 + Track Ticker
                             </button>
@@ -1806,38 +1828,50 @@ function buildNewsHtml(mkt) {
     const links = mkt.headline_links || [];
     const headlines = mkt.headlines || [];
 
+    let itemsHtml = '';
+
     if (links.length > 0) {
-        const items = links.slice(0, 5);
-        let html = '<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">';
-        for (const h of items) {
-            if (!h.title) continue;
-            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        itemsHtml = links.slice(0, 5).map(h => {
+            if (!h.title) return '';
+            const pubDate = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            const pubSource = h.source || 'NEWS';
             if (h.url) {
-                html += `
-                    <a class="news-article-card" href="${h.url}" target="_blank" rel="noopener noreferrer">
-                        <div class="news-article-source">${h.source || 'News'}${pub ? ` · ${pub}` : ''}</div>
-                        <div class="news-article-title">${h.title}</div>
-                        <svg class="news-article-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg>
-                    </a>
+                return `
+                    <div class="catalyst-item">
+                        <span class="catalyst-publisher">${pubSource}${pubDate ? ` · ${pubDate}` : ''}</span>
+                        <a href="${h.url}" target="_blank" class="catalyst-link" onclick="event.stopPropagation()">${h.title}</a>
+                    </div>
                 `;
             } else {
-                html += `<div class="news-article-card no-link"><div class="news-article-title">${h.title}</div></div>`;
+                return `
+                    <div class="catalyst-item">
+                        <span class="catalyst-publisher">${pubSource}${pubDate ? ` · ${pubDate}` : ''}</span>
+                        <span class="catalyst-link" style="color:var(--text-secondary); text-decoration:none; cursor:default;">${h.title}</span>
+                    </div>
+                `;
             }
-        }
-        html += '</div>';
-        return html;
+        }).join('');
+    } else if (headlines.length > 0) {
+        itemsHtml = headlines.slice(0, 3).map(h => `
+            <div class="catalyst-item">
+                <span class="catalyst-publisher">NEWS</span>
+                <span class="catalyst-link" style="color:var(--text-secondary); text-decoration:none; cursor:default;">${h}</span>
+            </div>
+        `).join('');
     }
 
-    if (headlines.length > 0) {
-        let html = '<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">';
-        headlines.slice(0, 3).forEach(h => { 
-            html += `<div class="news-article-card no-link"><div class="news-article-title">${h}</div></div>`; 
-        });
-        html += '</div>';
-        return html;
+    if (!itemsHtml) {
+        return `<div class="discovery-catalysts" style="margin-top: 1rem;"><div class="catalyst-label">Recent News</div><div class="catalyst-list"><div class="catalyst-item"><span style="color:var(--text-secondary);font-size:0.85rem;">No recent headlines found.</span></div></div></div>`;
     }
 
-    return `<div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; color:var(--text-secondary); font-size: 0.85rem;">No recent headlines found.</div>`;
+    return `
+        <div class="discovery-catalysts" style="margin-top: 1rem;">
+            <div class="catalyst-label">Recent News</div>
+            <div class="catalyst-list">
+                ${itemsHtml}
+            </div>
+        </div>
+    `;
 }
 
 function buildCard(mkt, insight, index) {
@@ -1912,7 +1946,7 @@ function updateCard(wrapper, mkt, insight) {
         // For dashboard cards, only show 'WhatsHappening'
         const newText = formatInsight(insight.insight_text, null, ['WhatsHappening']);
         if (insightEl.innerHTML.length !== newText.length) {
-            insightEl.innerHTML = newText + (insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : '');
+            insightEl.innerHTML = newText + (insight ? '<div style="font-size:0.82rem; color:var(--accent); margin-top:0.6rem; opacity:0.9; text-align:right; font-weight:500;">Click to expand full analysis →</div>' : '');
         }
     }
 
@@ -2019,9 +2053,9 @@ function cardInnerHtml(mkt, insight) {
             </div>
         </div>
         <div id="sparkline-card-${mkt.ticker}" class="card-sparkline-bg"></div>
-        <div class="insight-text" style="margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.75rem;">
+        <div class="insight-text" style="margin-top: 0; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.25rem;">
             ${insight ? formatInsight(insight.insight_text, null, ['WhatsHappening']) : 'Awaiting AI synthesis — click to view history.'}
-            ${insight ? '<div style="font-size:0.7rem; color:var(--accent); margin-top:0.4rem; opacity:0.8;">Click to expand full analysis →</div>' : ''}
+            ${insight ? '<div style="font-size:0.82rem; color:var(--accent); margin-top:0.6rem; opacity:0.9; text-align:right; font-weight:500;">Click to expand full analysis →</div>' : ''}
         </div>
         ${buildNewsHtml(mkt)}
     `;
@@ -2076,12 +2110,15 @@ async function updatePortfolioChart(marketData, isBackground = false) {
     let combined = [];
     let labels = [];
 
-    const { rate, symbol } = EXCHANGE_RATES[currentCurrency];
+    const targetCurr = currentCurrency === 'DEFAULT' ? 'USD' : currentCurrency;
+    const { rate, symbol } = EXCHANGE_RATES[targetCurr] || EXCHANGE_RATES['USD'];
 
     if (currentPortfolioPeriod === '1d') {
         const sparklines = active.map(d => {
             const pts = d.sparkline || [];
-            const tickerUsdRate = EXCHANGE_RATES[d.currency] ? EXCHANGE_RATES[d.currency].rate : 1.0;
+            let tc = d.currency || 'USD';
+            if (tc === 'GBp') tc = 'GBP';
+            const tickerUsdRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
             return pts.map(v => (parseFloat(v) / tickerUsdRate) * rate);
         }).filter(s => s.length > 0);
 
@@ -2158,7 +2195,9 @@ async function updatePortfolioChart(marketData, isBackground = false) {
                 } else {
                     lastPrices[m.ticker] = val;
                 }
-                const tickerUsdRate = EXCHANGE_RATES[m.currency] ? EXCHANGE_RATES[m.currency].rate : 1.0;
+                let tc = m.currency || 'USD';
+                if (tc === 'GBp') tc = 'GBP';
+                const tickerUsdRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
                 total += (val / tickerUsdRate) * rate;
             });
             return total;
@@ -3071,8 +3110,12 @@ async function loadModalChart(ticker, period) {
                                 if (isIndex) {
                                     return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
                                 }
-                                const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
-                                return `${symbol}${(v * rate).toFixed(0)}`;
+                                const tc = (currentModalMkt && currentModalMkt.currency) ? (currentModalMkt.currency === 'GBp' ? 'GBP' : currentModalMkt.currency) : 'USD';
+                                const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
+                                const usdValue = v / tickerRate;
+                                const targetCurr = currentCurrency === 'DEFAULT' ? tc : currentCurrency;
+                                const { symbol, rate } = EXCHANGE_RATES[targetCurr] || EXCHANGE_RATES['USD'];
+                                return `${symbol}${(usdValue * rate).toFixed(0)}`;
                             }
                         },
                         grid: { color: 'rgba(255,255,255,0.04)' }
@@ -3628,9 +3671,20 @@ function _buildCommodityCard(c) {
     let displayPrice = c.price;
     let displayUnit = c.unit;
     if (currentCommodityUnit === 'Metric') {
-        if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
-        else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
-        else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
+        if (c.unit === 'oz') {
+            if (c.symbol === 'SI=F' || c.name.toLowerCase().includes('silver')) {
+                displayPrice = displayPrice / 0.0283495;
+                displayUnit = 'kg';
+            } else {
+                displayPrice = displayPrice / 28.3495;
+                displayUnit = 'g';
+            }
+        }
+        else if (c.unit === 'lb') {
+            displayPrice = displayPrice * 2.20462;
+            displayUnit = 'kg';
+        }
+        // Oil ('bbl') stays barrel unit unchanged
     }
     return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}" style="cursor: pointer;" onclick="openDiscoverAssetModal('${c.symbol}')">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -3662,9 +3716,20 @@ function renderCommodities(commodities) {
             let displayPrice = c.price;
             let displayUnit = c.unit;
             if (currentCommodityUnit === 'Metric') {
-                if (c.unit === 'oz') { displayPrice = displayPrice / 28.3495; displayUnit = 'g'; }
-                else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
-                else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
+                if (c.unit === 'oz') {
+                    if (c.symbol === 'SI=F' || c.name.toLowerCase().includes('silver')) {
+                        displayPrice = displayPrice / 0.0283495;
+                        displayUnit = 'kg';
+                    } else {
+                        displayPrice = displayPrice / 28.3495;
+                        displayUnit = 'g';
+                    }
+                }
+                else if (c.unit === 'lb') {
+                    displayPrice = displayPrice * 2.20462;
+                    displayUnit = 'kg';
+                }
+                // Oil ('bbl') stays barrel unit unchanged
             }
             const priceEl = card.querySelector('[data-price]');
             const unitEl = card.querySelector('[data-unit]');

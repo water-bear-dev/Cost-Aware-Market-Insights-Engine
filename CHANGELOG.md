@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.2.6] - 2026-05-18
+
+### Added
+- **Default Currency View Option** — Introduced a new "Default Currency" option as the out-of-the-box setting across all currency selectors. This preserves and shows the native currency of each asset (e.g., USD for US stocks, JPY for SoftBank, AUD for ASX, EUR for European assets) while providing full, accurate cross-currency FX conversion to USD, EUR, GBP, AUD, or JPY upon manual dropdown selection.
+- **Premium Regional Exchange Flags** — Enhanced the market stock cards by prefixing exchange labels with their official regional flag emojis (e.g., `🇺🇸 NASDAQ`, `🇺🇸 NYSE`, `🇯🇵 JPX`, `🇨🇦 TSX`, `🇦🇺 ASX`, `🇬🇧 LSE`, `🇩🇪 DAX`).
+
+### Changed
+- **Asia Pacific Region Renaming** — Symmetrically renamed the "Asia" regions to "Asia Pacific" across both the watchlists country filters and the Top Movers geographical button selectors.
+- **Robust Multi-Currency Chart Formatting** — Upgraded the details modal historical chart ticks, converting raw values from the asset's native base currency to USD and then to the target selected currency for absolute accuracy under any currency setting.
+
 ## [3.2.5] - 2026-05-18
 
 ### Changed
