@@ -449,7 +449,7 @@ body {
 /* New: wrapper groups indices by region */
 .discover-indices-wrapper {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
 }
 
@@ -1916,14 +1916,36 @@ body {
 }
 
 .modal-panel {
-    width: 100%;
-    max-width: 800px;
-    max-height: 90vh;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 92vh;
     overflow-y: auto;
     border-radius: 20px;
-    padding: 2rem;
+    padding: 2.2rem 2.5rem;
     transform: none;
     animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Premium custom scrollbar styling for the modal panel */
+.modal-panel::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.modal-panel::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.2);
+    border-radius: 4px;
+}
+
+.modal-panel::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.2s ease;
+}
+
+.modal-panel::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .modal-header {
@@ -2792,3 +2814,124 @@ input[type=number] {
 .toast.warning {
     border-left: 4px solid var(--warning);
 }
+
+/* =====================================================
+   Market Exchange Timeline (Discover Asset Details Modal)
+   ===================================================== */
+.market-timeline-wrap {
+    position: relative;
+    width: 100%;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    overflow: visible;
+    margin-top: 1.25rem;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(8px);
+}
+
+/* Background segment of active session hours */
+.timeline-segment {
+    position: absolute;
+    top: 5px;
+    height: calc(100% - 10px);
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.timeline-segment.active {
+    background: linear-gradient(90deg, rgba(56, 189, 248, 0.12) 0%, rgba(14, 165, 233, 0.22) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.08);
+}
+
+.timeline-segment.lunch {
+    background: linear-gradient(90deg, rgba(234, 179, 8, 0.06) 0%, rgba(234, 179, 8, 0.12) 100%);
+    border: 1px solid rgba(234, 179, 8, 0.18);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.04);
+}
+
+/* 24h markings (00:00, 06:00, 12:00, 18:00, 24:00) */
+.timeline-marker {
+    position: absolute;
+    top: 100%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: monospace;
+}
+
+/* Vertical grid line for each marker */
+.timeline-grid-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.03);
+    pointer-events: none;
+}
+
+/* Current local time vertical indicator marker */
+.timeline-current-indicator {
+    position: absolute;
+    top: -3px;
+    height: calc(100% + 6px);
+    width: 2px;
+    background: #06b6d4;
+    box-shadow: 0 0 8px #06b6d4, 0 0 16px #0891b2;
+    z-index: 50;
+    pointer-events: none;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Current time glowing horizontal pin top-dot */
+.timeline-current-indicator::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22d3ee;
+    box-shadow: 0 0 6px #22d3ee, 0 0 12px #06b6d4;
+    border: 2px solid #0f172a;
+}
+
+/* Current time local tooltip pill bubble */
+.timeline-current-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -6px);
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    color: #22d3ee;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4), 0 0 6px rgba(6, 182, 212, 0.12);
+    font-family: monospace;
+    z-index: 60;
+}
+
+/* Arrow for the current time tooltip bubble */
+.timeline-current-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 3px;
+    border-style: solid;
+    border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+}
+

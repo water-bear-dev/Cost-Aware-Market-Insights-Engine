@@ -23,6 +23,14 @@ let currentModalInsight = null;
 // All symbols we need sparklines for (indices + commodities)
 const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI'];
 const DISCOVER_COMMODITY_SYMBOLS = ['GC=F', 'SI=F', 'HG=F', 'PL=F', 'PA=F', 'CL=F'];
+const COMMODITY_NAMES = {
+    'GC=F': 'Gold',
+    'SI=F': 'Silver',
+    'HG=F': 'Copper',
+    'PL=F': 'Platinum',
+    'PA=F': 'Palladium',
+    'CL=F': 'Crude Oil'
+};
 const ALL_DISCOVER_SYMBOLS = [...DISCOVER_INDEX_SYMBOLS, ...DISCOVER_COMMODITY_SYMBOLS];
 
 // Track starting price for the selected trend period
@@ -107,8 +115,17 @@ function formatExchange(code) {
     return map[upper] || upper;
 }
 
-function formatPrice(value, tickerCurrency = 'USD', forceLocal = false) {
+function formatPrice(value, tickerCurrency = 'USD', forceLocal = false, ticker = null) {
     if (value === null || value === undefined) return 'N/A';
+
+    // If it's an index/exchange, format as raw points (no currency symbol, no FX conversion)
+    const isIndex = ticker && (ticker.startsWith('^') || DISCOVER_INDEX_SYMBOLS.includes(ticker));
+    if (isIndex) {
+        return value.toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
 
     // Normalize ticker currency
     let tc = tickerCurrency;
@@ -140,8 +157,13 @@ function formatPrice(value, tickerCurrency = 'USD', forceLocal = false) {
     })}`;
 }
 
-function formatLargePrice(value, tickerCurrency = 'USD') {
+function formatLargePrice(value, tickerCurrency = 'USD', ticker = null) {
     if (value === null || value === undefined || value === 0) return '—';
+
+    const isIndex = ticker && (ticker.startsWith('^') || DISCOVER_INDEX_SYMBOLS.includes(ticker));
+    if (isIndex) {
+        return formatPrice(value, tickerCurrency, false, ticker);
+    }
 
     // Normalize ticker currency for symbol lookup
     let tc = tickerCurrency === 'GBp' ? 'GBP' : tickerCurrency;
@@ -164,7 +186,7 @@ function formatLargePrice(value, tickerCurrency = 'USD') {
     if (v >= 1e9) return `${symbol}${(v / 1e9).toFixed(2)}B`;
     if (v >= 1e6) return `${symbol}${(v / 1e6).toFixed(2)}M`;
     if (v >= 1e3) return `${symbol}${(v / 1e3).toFixed(1)}K`;
-    return formatPrice(value, tickerCurrency);
+    return formatPrice(value, tickerCurrency, false, ticker);
 }
 
 function debounce(func, wait) {
@@ -377,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initBudgetControls();
     initDiscoverEvents();
     initDefinitionModal();
+    initDiscoverTiming();
 });
 
 function initDiscoverEvents() {
@@ -1845,7 +1868,7 @@ function updateCard(wrapper, mkt, insight) {
 
     // Targeted updates to preserve canvas/sparklines
     const priceEl = inner.querySelector('.card-price');
-    if (priceEl) priceEl.textContent = formatPrice(mkt.close_price, mkt.currency);
+    if (priceEl) priceEl.textContent = formatPrice(mkt.close_price, mkt.currency, false, mkt.ticker);
 
     // Update status chip
     const priceBox = inner.querySelector('.card-price-box div:first-child');
@@ -1979,7 +2002,7 @@ function cardInnerHtml(mkt, insight) {
                     <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 2px;">
                         ${statusChip(mkt.is_open)}
                     </div>
-                    <span class="card-price">${formatPrice(mkt.close_price, mkt.currency)}</span>
+                    <span class="card-price">${formatPrice(mkt.close_price, mkt.currency, false, mkt.ticker)}</span>
                 </div>
                 ${renderExtendedHours(mkt)}
                 <span class="${cClass} card-change ${changeClass}">${sign}${displayPct.toFixed(2)}%</span>
@@ -2312,21 +2335,351 @@ async function openDailyPickModal(ticker) {
 }
 window.openDailyPickModal = openDailyPickModal;
 
+async function openDiscoverAssetModal(ticker) {
+    currentModalTicker = ticker;
+    currentPeriod = '1mo';
+    document.querySelectorAll('.period-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.period === '1mo');
+    });
+
+    currentModalMkt = {
+        ticker: ticker,
+        status: 'pending_data',
+        news: null
+    };
+
+    currentModalInsight = null;
+
+    // Reset standard layout elements and render skeleton
+    renderModalContent(currentModalMkt, null);
+
+    // Hide AI analysis, Watchlist button, Analyst recommendations, and Signal badges
+    document.getElementById('modal-ai-section').style.display = 'none';
+    document.getElementById('modal-analyst-section').style.display = 'none';
+    document.getElementById('modal-watchlist-btn').style.display = 'none';
+    const sigBadge = document.getElementById('modal-signal-badge');
+    if (sigBadge) sigBadge.style.display = 'none';
+
+    // Clear and hide the timeline until fetched
+    document.getElementById('modal-timeline-section').style.display = 'none';
+
+    // Load full history chart + details (news, fallback business summaries, and timeline calculations)
+    await loadModalChart(ticker, '1mo');
+}
+window.openDiscoverAssetModal = openDiscoverAssetModal;
+
+function renderMarketTimeline(timeline) {
+    const section = document.getElementById('modal-timeline-section');
+    const wrapper = document.getElementById('modal-timeline-wrapper');
+    const statusBadge = document.getElementById('modal-timeline-status-badge');
+    
+    if (!timeline || !timeline.segments || timeline.segments.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    
+    // Set timezone and open/closed status badge
+    const status = timeline.status || 'Closed';
+    statusBadge.className = `badge ${status.toLowerCase()}`;
+    statusBadge.textContent = `${status} (${timeline.timezone_name})`;
+    
+    let segmentsHtml = '';
+    
+    // Add 24-hour grid lines and markings (00:00, 06:00, 12:00, 18:00, 24:00)
+    const gridMarkings = [
+        { pct: 0, label: '00:00' },
+        { pct: 25, label: '06:00' },
+        { pct: 50, label: '12:00' },
+        { pct: 75, label: '18:00' },
+        { pct: 100, label: '24:00' }
+    ];
+    
+    gridMarkings.forEach(m => {
+        segmentsHtml += `<div class="timeline-grid-line" style="left: ${m.pct}%;"></div>`;
+        segmentsHtml += `<div class="timeline-marker" style="left: ${m.pct}%;">${m.label}</div>`;
+    });
+    
+    // Draw session/active segments and lunch breaks
+    timeline.segments.forEach(seg => {
+        const start = seg.start_pct;
+        const end = seg.end_pct;
+        const width = end - start;
+        const typeClass = seg.type === 'active' ? 'active' : 'lunch';
+        const title = seg.type === 'active' ? 'Trading Session' : 'Lunch Break';
+        
+        segmentsHtml += `<div class="timeline-segment ${typeClass}" style="left: ${start}%; width: ${width}%;" title="${title}"></div>`;
+    });
+    
+    // Draw vertical timeline indicator current local time indicator with tooltip
+    const currPct = timeline.current_pct;
+    segmentsHtml += `
+        <div class="timeline-current-indicator" style="left: ${currPct}%;">
+            <div class="timeline-current-tooltip">${timeline.current_local_time}</div>
+        </div>
+    `;
+    
+    wrapper.innerHTML = segmentsHtml;
+}
+
+function getMarketStatusDetails(ticker) {
+    const t = (ticker || '').toUpperCase();
+    const isFutures = t.endsWith('=F');
+    
+    let tzName = "America/New_York";
+    let openHour = 9, openMin = 30;
+    let closeHour = 16, closeMin = 0;
+    let lunchStart = null, lunchEnd = null;
+    
+    if (isFutures) {
+        tzName = "America/New_York";
+        openHour = 18; openMin = 0;
+        closeHour = 17; closeMin = 0;
+    } else if (t.endsWith('.AX') || t === '^AXJO') {
+        tzName = "Australia/Sydney";
+        openHour = 10; openMin = 0;
+        closeHour = 16; closeMin = 0;
+    } else if (t.endsWith('.L') || t === '^FTSE') {
+        tzName = "Europe/London";
+        openHour = 8; openMin = 0;
+        closeHour = 16; closeMin = 30;
+    } else if (t.endsWith('.T') || t === '^N225') {
+        tzName = "Asia/Tokyo";
+        openHour = 9; openMin = 0;
+        closeHour = 15; closeMin = 30;
+        lunchStart = { hour: 11, minute: 30 };
+        lunchEnd = { hour: 12, minute: 30 };
+    } else if (t.endsWith('.HK') || t === '^HSI') {
+        tzName = "Asia/Hong_Kong";
+        openHour = 9; openMin = 30;
+        closeHour = 16; closeMin = 0;
+        lunchStart = { hour: 12, minute: 0 };
+        lunchEnd = { hour: 13, minute: 0 };
+    } else if (t.endsWith('.PA') || t.endsWith('.AS') || t.endsWith('.BR') || t === '^STOXX50E') {
+        tzName = "Europe/Paris";
+        openHour = 9; openMin = 0;
+        closeHour = 17; closeMin = 30;
+    } else if (t.endsWith('.DE') || t === '^GDAXI') {
+        tzName = "Europe/Berlin";
+        openHour = 9; openMin = 0;
+        closeHour = 17; closeMin = 30;
+    } else if (t.endsWith('.TO') || t === '^GSPTSE') {
+        tzName = "America/Toronto";
+        openHour = 9; openMin = 30;
+        closeHour = 16; closeMin = 0;
+    }
+    
+    const now = new Date();
+    let localTime;
+    try {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: tzName,
+            year: 'numeric', month: 'numeric', day: 'numeric',
+            hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false
+        });
+        const parts = formatter.formatToParts(now);
+        const dict = {};
+        parts.forEach(p => dict[p.type] = p.value);
+        localTime = new Date(`${dict.year}-${String(dict.month).padStart(2, '0')}-${String(dict.day).padStart(2, '0')}T${String(dict.hour).padStart(2, '0')}:${String(dict.minute).padStart(2, '0')}:${String(dict.second).padStart(2, '0')}`);
+    } catch (e) {
+        localTime = new Date();
+    }
+    
+    const weekday = localTime.getDay(); // 0 Sunday, 1 Monday, etc.
+    const isWeekend = (weekday === 0 || weekday === 6);
+    
+    const currentMins = localTime.getHours() * 60 + localTime.getMinutes();
+    const openMins = openHour * 60 + openMin;
+    const closeMins = closeHour * 60 + closeMin;
+    
+    const timeToMins = (h, m) => h * 60 + m;
+    
+    function formatDiff(mins) {
+        const hours = Math.floor(mins / 60);
+        const minutes = mins % 60;
+        if (hours > 0) {
+            const hr_str = hours === 1 ? 'hour' : 'hours';
+            const min_str = minutes === 1 ? 'minute' : 'minutes';
+            return `${hours} ${hr_str}${minutes > 0 ? ` and ${minutes} ${min_str}` : ''}`;
+        }
+        const min_str = minutes === 1 ? 'minute' : 'minutes';
+        return `${Math.max(1, minutes)} ${min_str}`;
+    }
+    
+    if (isFutures) {
+        const isClosed = (weekday === 5 && currentMins >= timeToMins(17, 0)) ||
+                         (weekday === 6) ||
+                         (weekday === 0 && currentMins < timeToMins(18, 0));
+        const isMaintenance = (!isClosed && currentMins >= timeToMins(17, 0) && currentMins < timeToMins(18, 0));
+        
+        if (isClosed) {
+            let daysToSunday = 0;
+            if (weekday === 5) daysToSunday = 2;
+            else if (weekday === 6) daysToSunday = 1;
+            
+            const totalRemaining = daysToSunday * 1440 + (timeToMins(18, 0) - currentMins);
+            return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        } else if (isMaintenance) {
+            const totalRemaining = timeToMins(18, 0) - currentMins;
+            return { status: "Closed", message: `re-opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        } else {
+            let remaining = timeToMins(17, 0) - currentMins;
+            if (remaining < 0) remaining += 1440;
+            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        }
+    }
+    
+    if (!isWeekend && lunchStart && lunchEnd) {
+        const startMins = timeToMins(lunchStart.hour, lunchStart.minute);
+        const endMins = timeToMins(lunchEnd.hour, lunchEnd.minute);
+        if (currentMins >= startMins && currentMins < endMins) {
+            const remaining = endMins - currentMins;
+            return { status: "Lunch", message: `re-opening in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        }
+    }
+    
+    const isOpen = !isWeekend && (currentMins >= openMins && currentMins < closeMins);
+    if (isOpen) {
+        if (lunchStart && currentMins < timeToMins(lunchStart.hour, lunchStart.minute)) {
+            const lStartMins = timeToMins(lunchStart.hour, lunchStart.minute);
+            const remaining = lStartMins - currentMins;
+            return { status: "Open", message: `closing for lunch in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        } else {
+            const remaining = closeMins - currentMins;
+            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+        }
+    }
+    
+    let daysToAdd = 0;
+    if (currentMins >= closeMins) {
+        daysToAdd = 1;
+    }
+    let checkDay = (weekday + daysToAdd) % 7;
+    while (checkDay === 0 || checkDay === 6) {
+        daysToAdd++;
+        checkDay = (weekday + daysToAdd) % 7;
+    }
+    
+    const totalRemaining = daysToAdd * 1440 + (openMins - currentMins);
+    return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+}
+
+function getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins) {
+    const open_pct = parseFloat(((openMins / 1440) * 100).toFixed(2));
+    const close_pct = parseFloat(((closeMins / 1440) * 100).toFixed(2));
+    const segments = [];
+    if (isFutures) {
+        segments.push({ start_pct: 0, end_pct: parseFloat(((1020 / 1440) * 100).toFixed(2)), type: "active" });
+        segments.push({ start_pct: parseFloat(((1080 / 1440) * 100).toFixed(2)), end_pct: 100, type: "active" });
+    } else if (lunchStart && lunchEnd) {
+        const l_start_mins = lunchStart.hour * 60 + lunchStart.minute;
+        const l_end_mins = lunchEnd.hour * 60 + lunchEnd.minute;
+        segments.push({ start_pct: open_pct, end_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), type: "active" });
+        segments.push({ start_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), end_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), type: "lunch" });
+        segments.push({ start_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), end_pct: close_pct, type: "active" });
+    } else {
+        segments.push({ start_pct: open_pct, end_pct: close_pct, type: "active" });
+    }
+    return segments;
+}
+
+function initDiscoverTiming() {
+    setInterval(() => {
+        // 1. Tick visible index cards countdown
+        document.querySelectorAll('[data-discover-symbol]').forEach(card => {
+            const sym = card.dataset.discoverSymbol;
+            const details = getMarketStatusDetails(sym);
+            
+            const badge = card.querySelector('[data-status-badge]');
+            if (badge) {
+                badge.className = `market-status-badge ${details.status.toLowerCase()}`;
+                badge.innerHTML = `<span class="market-status-dot"></span>${details.status}`;
+            }
+            
+            const msgEl = card.querySelector('[data-status-msg]');
+            if (msgEl) {
+                msgEl.textContent = details.message || '';
+            }
+        });
+
+        // 2. Tick details modal timeline
+        const modal = document.getElementById('market-modal');
+        if (currentModalMkt && modal && modal.style.display === 'flex') {
+            const sym = currentModalMkt.ticker;
+            const details = getMarketStatusDetails(sym);
+            
+            const statusBadge = document.getElementById('modal-timeline-status-badge');
+            if (statusBadge) {
+                statusBadge.className = `badge ${details.status.toLowerCase()}`;
+                statusBadge.textContent = `${details.status} (${details.tzName})`;
+            }
+            
+            const wrapper = document.getElementById('modal-timeline-wrapper');
+            if (wrapper) {
+                const currentMins = details.localTime.getHours() * 60 + details.localTime.getMinutes();
+                const currentPct = parseFloat(((currentMins / 1440) * 100).toFixed(2));
+                const formattedTime = details.localTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                
+                const indicator = wrapper.querySelector('.timeline-current-indicator');
+                if (indicator) {
+                    indicator.style.left = `${currentPct}%`;
+                    const tooltip = indicator.querySelector('.timeline-current-tooltip');
+                    if (tooltip) {
+                        tooltip.textContent = formattedTime;
+                    }
+                }
+            }
+        }
+    }, 10000);
+}
+
 function renderModalContent(mkt, insight) {
     const ticker = mkt.ticker || currentModalTicker;
 
+    // Reset standard layout visibility defaults
+    document.getElementById('modal-ai-section').style.display = 'block';
+    document.getElementById('modal-analyst-section').style.display = 'block';
+    const sigBadge = document.getElementById('modal-signal-badge');
+    if (sigBadge) sigBadge.style.display = 'inline-block';
+    document.getElementById('modal-timeline-section').style.display = 'none';
+
+    // Show/hide Quick Stats section depending on whether it's a Discover/Exchange asset
+    const isDiscover = !insight || ALL_DISCOVER_SYMBOLS.includes(ticker);
+    if (isDiscover) {
+        document.getElementById('modal-stats-section').style.display = 'none';
+    } else {
+        document.getElementById('modal-stats-section').style.display = 'block';
+    }
+
     // Header
-    document.getElementById('modal-ticker-title').innerHTML = `
-        ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
-        <a href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed var(--accent);" title="View ${ticker} on Yahoo Finance">${ticker} <span style="font-size: 0.8em; color: var(--accent); vertical-align: middle;">↗</span></a>
-    `;
-    if (!mkt.name) document.getElementById('modal-ticker-name').textContent = 'Loading company info...';
+    const commodityName = COMMODITY_NAMES[ticker];
+    if (commodityName) {
+        document.getElementById('modal-ticker-title').innerHTML = `
+            ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
+            <a href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed var(--accent);" title="View ${ticker} on Yahoo Finance">${commodityName} <span style="font-size: 0.8em; color: var(--accent); vertical-align: middle;">↗</span></a>
+        `;
+        document.getElementById('modal-ticker-name').style.display = 'none';
+        document.getElementById('modal-ticker-name').textContent = '';
+    } else {
+        document.getElementById('modal-ticker-name').style.display = 'block';
+        document.getElementById('modal-ticker-title').innerHTML = `
+            ${mkt.exchange ? `<span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 2px; letter-spacing: 0.05em;">${formatExchange(mkt.exchange)}</span>` : ''}
+            <a href="https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}" target="_blank" style="color: inherit; text-decoration: none; border-bottom: 1px dashed var(--accent);" title="View ${ticker} on Yahoo Finance">${ticker} <span style="font-size: 0.8em; color: var(--accent); vertical-align: middle;">↗</span></a>
+        `;
+        if (mkt.name) {
+            document.getElementById('modal-ticker-name').textContent = mkt.name;
+        } else {
+            document.getElementById('modal-ticker-name').textContent = 'Loading company info...';
+        }
+    }
 
     // Signal badge
     const signal = insight ? (insight.signal || 'HOLD') : 'HOLD';
-    const sigBadge = document.getElementById('modal-signal-badge');
-    sigBadge.className = `signal-badge ${signal.toLowerCase()}`;
-    sigBadge.textContent = signal;
+    if (sigBadge) {
+        sigBadge.className = `signal-badge ${signal.toLowerCase()}`;
+        sigBadge.textContent = signal;
+    }
 
     // Watchlist button
     const watchBtn = document.getElementById('modal-watchlist-btn');
@@ -2369,13 +2722,17 @@ function renderModalContent(mkt, insight) {
 }
 
 function renderHeroStats(mkt) {
+    const isDiscover = !currentModalInsight || ALL_DISCOVER_SYMBOLS.includes(mkt.ticker);
+    const highLabel = isDiscover ? "52W HIGH" : "HIGH";
+    const lowLabel = isDiscover ? "52W LOW" : "LOW";
+
     if (mkt.status === 'pending_data') {
         document.getElementById('modal-hero-stats').innerHTML = `
             <div class="hero-stat main"><div class="hero-stat-label">LAST PRICE</div><div class="hero-stat-value main">--</div></div>
             <div class="hero-stat main"><div class="hero-stat-label">DAY CHANGE</div><div class="hero-stat-value main">--</div></div>
             <div class="hero-stat"><div class="hero-stat-label">OPEN</div><div class="hero-stat-value">--</div></div>
-            <div class="hero-stat"><div class="hero-stat-label">HIGH</div><div class="hero-stat-value">--</div></div>
-            <div class="hero-stat"><div class="hero-stat-label">LOW</div><div class="hero-stat-value">--</div></div>
+            <div class="hero-stat"><div class="hero-stat-label">${highLabel}</div><div class="hero-stat-value">--</div></div>
+            <div class="hero-stat"><div class="hero-stat-label">${lowLabel}</div><div class="hero-stat-value">--</div></div>
         `;
         return;
     }
@@ -2394,10 +2751,31 @@ function renderHeroStats(mkt) {
         if (modalPanel) modalPanel.classList.remove('trend-negative');
     }
 
+    let highValue = mkt.high_price ? formatPrice(mkt.high_price, mkt.currency, false, mkt.ticker) : "--";
+    let lowValue = mkt.low_price ? formatPrice(mkt.low_price, mkt.currency, false, mkt.ticker) : "--";
+
+    if (isDiscover) {
+        if (mkt.info && mkt.info['52w_high'] !== undefined && mkt.info['52w_high'] !== null) {
+            highValue = formatPrice(mkt.info['52w_high'], mkt.currency, false, mkt.ticker);
+        } else if (mkt.high_52w !== undefined && mkt.high_52w !== null) {
+            highValue = formatPrice(mkt.high_52w, mkt.currency, false, mkt.ticker);
+        } else {
+            highValue = "--";
+        }
+
+        if (mkt.info && mkt.info['52w_low'] !== undefined && mkt.info['52w_low'] !== null) {
+            lowValue = formatPrice(mkt.info['52w_low'], mkt.currency, false, mkt.ticker);
+        } else if (mkt.low_52w !== undefined && mkt.low_52w !== null) {
+            lowValue = formatPrice(mkt.low_52w, mkt.currency, false, mkt.ticker);
+        } else {
+            lowValue = "--";
+        }
+    }
+
     statsBox.innerHTML = `
         <div class="hero-stat main">
             <div class="hero-stat-label">CLOSE PRICE</div>
-            <div class="hero-stat-value main">${formatPrice(mkt.close_price, mkt.currency)}</div>
+            <div class="hero-stat-value main">${formatPrice(mkt.close_price, mkt.currency, false, mkt.ticker)}</div>
             ${renderExtendedHours(mkt)}
         </div>
         <div class="hero-stat main">
@@ -2406,15 +2784,15 @@ function renderHeroStats(mkt) {
         </div>
         <div class="hero-stat">
             <div class="hero-stat-label">OPEN</div>
-            <div class="hero-stat-value">${formatPrice(mkt.open_price, mkt.currency)}</div>
+            <div class="hero-stat-value">${formatPrice(mkt.open_price, mkt.currency, false, mkt.ticker)}</div>
         </div>
         <div class="hero-stat">
-            <div class="hero-stat-label">HIGH</div>
-            <div class="hero-stat-value">${formatPrice(mkt.high_price, mkt.currency)}</div>
+            <div class="hero-stat-label">${highLabel}</div>
+            <div class="hero-stat-value">${highValue}</div>
         </div>
         <div class="hero-stat">
-            <div class="hero-stat-label">LOW</div>
-            <div class="hero-stat-value">${formatPrice(mkt.low_price, mkt.currency)}</div>
+            <div class="hero-stat-label">${lowLabel}</div>
+            <div class="hero-stat-value">${lowValue}</div>
         </div>
     `;
 }
@@ -2466,13 +2844,13 @@ function updateModalPerformance(closes, period) {
 function renderKeyStats(info, mkt) {
     const fmt = (v, isPrice, dec) => {
         if (v === null || v === undefined || v === '—') return '—';
-        if (isPrice) return formatPrice(parseFloat(v), mkt.currency);
+        if (isPrice) return formatPrice(parseFloat(v), mkt.currency, false, mkt.ticker);
         return parseFloat(v).toFixed(dec || 2);
     };
     const fmtVol = v => v ? (v >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `${(v / 1e6).toFixed(2)}M` : `${(v / 1e3).toFixed(1)}K`) : '—';
 
-    const stats = [
-        { label: 'Market Cap', value: formatLargePrice(info.market_cap, mkt.currency) },
+    let stats = [
+        { label: 'Market Cap', value: formatLargePrice(info.market_cap, mkt.currency, mkt.ticker) },
         { label: 'P/E Ratio', value: fmt(info.pe_ratio, false, 1) },
         { label: 'Fwd P/E', value: fmt(info.forward_pe, false, 1) },
         { label: 'EPS (TTM)', value: fmt(info.eps, true) },
@@ -2484,6 +2862,11 @@ function renderKeyStats(info, mkt) {
         { label: 'Volume', value: fmtVol(mkt.volume) },
         { label: 'Avg Volume', value: fmtVol(info.avg_volume) },
     ];
+
+    // Only display 52W High and 52W Low for Discover Assets (which don't have AI insight)
+    if (!currentModalInsight) {
+        stats = stats.filter(s => s.label === '52W High' || s.label === '52W Low');
+    }
 
     document.getElementById('modal-key-stats').innerHTML = stats.map(s => `
         <div class="key-stat-item">
@@ -2579,7 +2962,13 @@ async function loadModalChart(ticker, period) {
 
         // Update company name
         if (data.info && data.info.name) {
-            document.getElementById('modal-ticker-name').textContent = data.info.name;
+            if (COMMODITY_NAMES[ticker]) {
+                document.getElementById('modal-ticker-name').style.display = 'none';
+                document.getElementById('modal-ticker-name').textContent = '';
+            } else {
+                document.getElementById('modal-ticker-name').style.display = 'block';
+                document.getElementById('modal-ticker-name').textContent = data.info.name;
+            }
         }
 
         // Color based on trend - use current day change if available, else period trend
@@ -2659,7 +3048,7 @@ async function loadModalChart(ticker, period) {
                         bodyColor: '#f8fafc',
                         borderColor: 'rgba(255,255,255,0.1)',
                         borderWidth: 1,
-                        callbacks: { label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y)}` }
+                        callbacks: { label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y, currentModalMkt ? currentModalMkt.currency : 'USD', false, currentModalTicker)}` }
                     }
                 },
                 scales: {
@@ -2668,6 +3057,10 @@ async function loadModalChart(ticker, period) {
                         beginAtZero: false,
                         ticks: {
                             color: '#94a3b8', callback: v => {
+                                const isIndex = currentModalTicker && (currentModalTicker.startsWith('^') || DISCOVER_INDEX_SYMBOLS.includes(currentModalTicker));
+                                if (isIndex) {
+                                    return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                                }
                                 const { symbol, rate } = EXCHANGE_RATES[currentCurrency];
                                 return `${symbol}${(v * rate).toFixed(0)}`;
                             }
@@ -2683,6 +3076,42 @@ async function loadModalChart(ticker, period) {
             currentModalMkt.info = data.info; // Cache for currency refreshes
             renderKeyStats(data.info, currentModalMkt);
             renderAboutSection(data.info);
+        }
+
+        // Populating dynamic news headlines retrieved from backend
+        if (data.news && data.news.length > 0) {
+            currentModalMkt.headline_links = data.news.map(n => ({
+                title: n.title,
+                url: n.link || n.url,
+                source: n.publisher || n.source,
+                published: (n.provider_publish_time * 1000) || n.published
+            }));
+            renderModalNews(currentModalMkt);
+        } else {
+            renderModalNews(currentModalMkt);
+        }
+
+        // Render schedule timeline progress bar
+        let timeline = data.market_timeline;
+        if (!timeline) {
+            const details = getMarketStatusDetails(ticker);
+            const currentMins = details.localTime.getHours() * 60 + details.localTime.getMinutes();
+            const currentPct = parseFloat(((currentMins / 1440) * 100).toFixed(2));
+            const formattedTime = details.localTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            
+            timeline = {
+                status: details.status,
+                message: details.message,
+                segments: details.segments,
+                current_pct: currentPct,
+                current_local_time: formattedTime
+            };
+        }
+
+        if (timeline && timeline.segments && timeline.segments.length > 0) {
+            renderMarketTimeline(timeline);
+        } else {
+            document.getElementById('modal-timeline-section').style.display = 'none';
         }
 
         // Analyst ratings
@@ -3105,14 +3534,15 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
 }
 
 function _buildIndexCard(idx) {
+    const details = getMarketStatusDetails(idx.symbol);
+    const status = details.status;
+    const statusClass = status.toLowerCase();
     const isPos = idx.change_pct >= 0;
     const sign = isPos ? '+' : '';
     const priceStr = idx.price.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const status = idx.market_status || 'Closed';
-    const statusClass = status.toLowerCase();
     const flagHtml = idx.flag ? `<span style="margin-right: 0.4rem; font-size: 1.1rem; vertical-align: middle;">${idx.flag}</span>` : '';
     
-    return `<div class="discover-index-card" data-discover-symbol="${idx.symbol}" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(idx.symbol)}', '_blank')">
+    return `<div class="discover-index-card" data-discover-symbol="${idx.symbol}" style="cursor: pointer;" onclick="openDiscoverAssetModal('${idx.symbol}')">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <div class="discover-index-name">${flagHtml}${idx.name}</div>
@@ -3121,7 +3551,7 @@ function _buildIndexCard(idx) {
                                 <span class="market-status-dot"></span>
                                 ${status}
                             </span>
-                            <span class="market-status-msg" data-status-msg style="margin-top: 0;">${idx.market_status_msg || ''}</span>
+                            <span class="market-status-msg" data-status-msg style="margin-top: 0;">${details.message || ''}</span>
                         </div>
                     </div>
                     <div style="text-align: right;">
@@ -3157,13 +3587,14 @@ function renderMarketIndices(regions) {
                     badgeEl.textContent = `${sign}${idx.change_pct.toFixed(2)}%`;
                     badgeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
                 }
+                
+                const details = getMarketStatusDetails(idx.symbol);
                 if (statusEl) {
-                    const status = idx.market_status || 'Closed';
-                    statusEl.className = `market-status-badge ${status.toLowerCase()}`;
-                    statusEl.innerHTML = `<span class="market-status-dot"></span>${status}`;
+                    statusEl.className = `market-status-badge ${details.status.toLowerCase()}`;
+                    statusEl.innerHTML = `<span class="market-status-dot"></span>${details.status}`;
                 }
                 if (statusMsgEl) {
-                    statusMsgEl.textContent = idx.market_status_msg || '';
+                    statusMsgEl.textContent = details.message || '';
                 }
             });
         });
@@ -3191,7 +3622,7 @@ function _buildCommodityCard(c) {
         else if (c.unit === 'bbl') { displayPrice = displayPrice / 158.987; displayUnit = 'L'; }
         else if (c.unit === 'lb') { displayPrice = displayPrice * 2.20462; displayUnit = 'kg'; }
     }
-    return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}" style="cursor: pointer;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(c.symbol)}', '_blank')">
+    return `<div class="discover-index-card" data-discover-symbol="${c.symbol}" data-commodity-icon="${c.icon}" data-commodity-name="${c.name}" data-commodity-unit="${c.unit}" data-commodity-currency="${c.currency || 'USD'}" style="cursor: pointer;" onclick="openDiscoverAssetModal('${c.symbol}')">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                 <div class="discover-region-label" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">${c.icon} ${c.name}</div>
                 <div style="text-align: right;">

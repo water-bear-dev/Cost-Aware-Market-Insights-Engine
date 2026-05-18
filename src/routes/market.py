@@ -184,10 +184,30 @@ def get_market_data(request: Request):
 @router.get("/market/history/{ticker}")
 @limiter.limit("60/minute")
 def get_ticker_history(request: Request, ticker: str, period: str = Query(default="3mo")):
-    """Return OHLCV history + analyst recommendations for a ticker."""
+    """Return OHLCV history + analyst recommendations + real-time headlines + timeline status."""
     ticker = ticker.upper().strip()
     yf_period = PERIOD_MAP.get(period, "3mo")
     
+    from src.ingestion.service import get_market_status_desc, fetch_headlines
+
+    CURATED_DESCRIPTIONS = {
+        "^AXJO": "The S&P/ASX 200 index is Australia's premier stock market benchmark, measuring the performance of the 200 largest index-eligible stocks listed on the Australian Securities Exchange (ASX).",
+        "^GSPC": "The S&P 500 is a widely regarded benchmark index tracking the stock performance of 500 of the largest publicly traded companies listed on stock exchanges in the United States.",
+        "^IXIC": "The Nasdaq Composite is a major stock market index that tracks more than 2,500 common equities listed on the Nasdaq stock exchange, with a heavy weighting toward technology and growth sectors.",
+        "^STOXX50E": "The EURO STOXX 50 is a blue-chip stock index for eurozone companies, designed to provide a representation of the leading supersector leaders in the region.",
+        "^FTSE": "The FTSE 100 Index is a share index of the 100 highly capitalized blue-chip companies listed on the London Stock Exchange, serving as a key barometer for the UK economy.",
+        "^GDAXI": "The DAX is a blue-chip stock market index consisting of 40 major German companies trading on the Frankfurt Stock Exchange, serving as the primary benchmark for the German equity market.",
+        "^GSPTSE": "The S&P/TSX Composite Index is the premier benchmark index for the Canadian equity market, tracking the performance of the largest and most liquid companies listed on the Toronto Stock Exchange (TSX).",
+        "^N225": "The Nikkei 225 is the leading and most-watched stock market index for the Tokyo Stock Exchange in Japan, featuring a price-weighted measure of 225 premier Japanese companies.",
+        "^HSI": "The Hang Seng Index is a freefloat-adjusted market-capitalization-weighted stock market index in Hong Kong, tracking the performance of the largest and most liquid companies on the Hong Kong Stock Exchange.",
+        "GC=F": "Gold futures are liquid financial contracts traded on COMEX, representing an agreement to buy or sell physical gold at a specified price and date. Gold is widely recognized as a safe-haven asset and inflation hedge.",
+        "SI=F": "Silver futures are standardized exchange-traded contracts on COMEX, allowing market participants to trade silver. Silver is valued both as a precious metal and as a vital industrial material in electronics and solar energy.",
+        "HG=F": "Copper futures trade on COMEX, serving as a global benchmark for industrial metals. Often referred to as 'Dr. Copper' due to its ability to diagnose the health of the global economy, copper is essential in construction, wiring, and electronics.",
+        "PL=F": "Platinum futures are traded on NYMEX. Platinum is an exceptionally rare precious metal with major industrial applications, particularly in automotive catalytic converters and hydrogen fuel cell technologies.",
+        "PA=F": "Palladium futures trade on NYMEX, representing a rare precious metal primarily utilized in automobile catalytic converters to control emissions, as well as in chemical and electronic industries.",
+        "CL=F": "West Texas Intermediate (WTI) Crude Oil futures are the world's most actively traded energy contracts, trading on NYMEX. WTI is a light, sweet crude oil serving as a primary global benchmark for energy pricing."
+    }
+
     try:
         t = yf.Ticker(ticker)
         
@@ -238,7 +258,6 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
         # Analyst recommendations — handle modern yfinance structure
         analyst_summary = {"buy": 0, "hold": 0, "sell": 0, "strong_buy": 0, "strong_sell": 0}
         try:
-            # Try getting specific counts first
             recs = t.recommendations
             if recs is not None and not recs.empty:
                 latest_rec = recs.iloc[-1]
@@ -250,7 +269,6 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                     "strong_sell": int(latest_rec.get('strongSell', 0))
                 }
             else:
-                # Fallback: Many tickers now provide these in t.info
                 raw_info = t.info
                 analyst_summary = {
                     "strong_buy": int(raw_info.get('recommendationCount', {}).get('strongBuy', 0) or 0),
@@ -294,13 +312,32 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
             }
         except Exception:
             info = {"name": ticker}
+
+        # Apply curated fallbacks for indices and commodities if business summary is empty
+        if "business_summary" not in info or not info["business_summary"] or info["business_summary"].strip() == "":
+            if ticker in CURATED_DESCRIPTIONS:
+                info["business_summary"] = CURATED_DESCRIPTIONS[ticker]
+            else:
+                info["business_summary"] = ""
+
+        # Fetch market open time and timeline percentages
+        status_info = get_market_status_desc(ticker, info.get("exchange", ""))
+        market_timeline = status_info.get("market_timeline", None)
+        if market_timeline:
+            market_timeline["status"] = status_info.get("status", "Closed")
+            market_timeline["message"] = status_info.get("message", "")
+
+        # Fetch latest news headlines
+        news = fetch_headlines(ticker, max_count=5)
         
         return {
             "ticker": ticker,
             "period": period,
             "ohlcv": ohlcv,
             "analyst_summary": analyst_summary,
-            "info": info
+            "info": info,
+            "market_timeline": market_timeline,
+            "news": news
         }
     except HTTPException:
         raise

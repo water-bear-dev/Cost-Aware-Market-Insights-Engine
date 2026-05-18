@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.2.5] - 2026-05-18
+
+### Changed
+- **Global Market Index Regions Overhaul** — Restructured and balanced the global markets panel in the Discover tab into a symmetrical 3-column region grid. Moved **ASX 200** (`^AXJO`) under **Asia Pacific** (renamed from "Asia" with flag `🌏`), added **Toronto Exchange** (`^GSPTSE`) under **Americas** (renamed from "United States" with flag `🌎`), and added **DAX** (`^GDAXI`) under **Europe** (flag `🇪🇺`).
+- **Balanced 3-Column Grid Layout** — Updated the CSS selector `.discover-indices-wrapper` to stretch elements using `repeat(3, 1fr)`, making columns beautifully proportional and filling the screen space flawlessly.
+- **Accurate Market Timezone & Ingestion Sync** — Fully mapped the exchange timezones and trading hours for `^GDAXI` (XETRA, `Europe/Berlin`, `9:00 - 17:30`) and `^GSPTSE` (Toronto, `America/Toronto`, `9:30 - 16:00`) in both server-side ingestion and client-side countdown tickers.
+- **Detailed Asset Summaries** — Integrated professional, high-fidelity curated descriptions and Google News RSS search term routing for the DAX Index and TSX Composite Index in the details modal view.
+
+## [3.2.4] - 2026-05-18
+
+### Added
+- **Dynamic Frontend Countdown Timers** — Implemented a client-side ticking loop running every 10 seconds, which calculates regional market open, close, and lunch countdowns in real-time. This eliminates server polling and ensures that the timezone status tags and countdown messages update live on the dashboard without manual page refreshes.
+- **Interactive Session Timeline Animation** — Connected the horizontal modal progress timeline to the client-side ticker, dynamically animating the glowing vertical current-time cursor and updating the clock tooltip in real-time.
+- **Rich Discover Asset Modals** — Replaced external Yahoo Finance links on global indices and commodities in the **Discover** tab with an immersive, native details modal, providing free-of-cost charts, headlines, and descriptions without consuming AI token budgets.
+- **Visual Trading Session Timeline** — Designed and integrated a horizontal 24-hour progress timeline showing active trading sessions (green neon) and midday lunch breaks (amber), along with a glowing vertical cursor mapping the exchange's current local time.
+- **Custom Premium Scrollbars** — Implemented custom, dark-glass WebKit scrollbars for the details modal panel, providing a seamless and highly premium scroll experience.
+
+### Changed
+- **Regional Mover Categories (Americas, Europe, Asia)** — Overhauled the Top Movers filter options from "All | US | Internationals" to "All | Americas | Europe | Asia". Grouped raw tickers by geographic regions in the backend using precise ticker suffixes and parsed them dynamically in the frontend client logic.
+- **Commodity Exact Name Titles & Subtitle Hiding** — Mapped commodity symbols (`GC=F`, `CL=F`, `SI=F`, etc.) to their exact names (e.g. "Gold", "Crude Oil", "Silver") in the details modal header title, and completely removed the redundant subtitle to clean up the visual hierarchy.
+- **Wider Modal Container & In-built Scroll** — Expanded the details modal `max-width` from `1050px` to `1200px` (and width to `95%`) and improved custom scrollbar visibility to prevent overflow and wrapping of long regional prices or point numbers.
+- **High-Density Statistics Row & Clean Raw Points** — Moved 52-week High and 52-week Low metrics directly into the top hero stats row alongside Close Price, Day Change, and Open for Discover/Exchange assets. Fully hid the remaining redundant corporate stats grid ("Quick Stats").
+- **Exchange Point Value Formatting** — Removed currency symbols and FX conversions for global exchanges and indices (e.g., S&P 500, Nikkei, Nasdaq), displaying raw point values in card displays, modal headers, stats bars, and Chart.js tooltips.
+
+### Fixed
+- **Timeline Status Timing Bug** — Copied the computed parent `status` ("Open" or "Closed") and `message` properties directly into the `market_timeline` payload returned by `/api/v1/market/history/{ticker}`, ensuring timezone badges correctly reflect active market status (e.g. `Open`) instead of defaulting to `Closed`.
+
 ## [3.2.3] - 2026-05-18
 
 ### Changed

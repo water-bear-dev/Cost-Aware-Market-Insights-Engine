@@ -274,8 +274,9 @@
                 <h2 class="discover-section-title" style="margin: 0;">🚀 Top Movers <span id="movers-as-of" style="font-size:0.7rem;color:var(--text-secondary);font-weight:400;"></span></h2>
                 <div class="discover-period-selector" id="movers-filter-selector">
                     <button class="discover-period-btn active" data-filter="all">All</button>
-                    <button class="discover-period-btn" data-filter="us">US</button>
-                    <button class="discover-period-btn" data-filter="international">Internationals</button>
+                    <button class="discover-period-btn" data-filter="americas">Americas</button>
+                    <button class="discover-period-btn" data-filter="europe">Europe</button>
+                    <button class="discover-period-btn" data-filter="asia">Asia</button>
                 </div>
             </div>
             <div class="discover-movers-row">
@@ -789,20 +790,29 @@
 
             <div class="modal-body">
 
+                <!-- Market Schedule Visual Timeline -->
+                <div id="modal-timeline-section" class="modal-section" style="display: none; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0;">Market Session Timeline</h4>
+                        <span id="modal-timeline-status-badge" class="badge"></span>
+                    </div>
+                    <div id="modal-timeline-wrapper" class="market-timeline-wrap"></div>
+                </div>
+
                 <!-- TradingView-style Key Statistics -->
-                <div class="modal-section">
+                <div class="modal-section" id="modal-stats-section">
                     <h4>Quick Stats</h4>
                     <div id="modal-key-stats" class="modal-key-stats-grid"></div>
                 </div>
 
                 <!-- Analyst Ratings -->
-                <div class="modal-section">
+                <div class="modal-section" id="modal-analyst-section">
                     <h4>What Experts Say</h4>
                     <div id="modal-analyst" class="analyst-bar-container"></div>
                 </div>
 
                 <!-- AI Synthesis -->
-                <div class="modal-section">
+                <div class="modal-section" id="modal-ai-section">
                     <h4>Latest AI Take</h4>
                     <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.8; font-size: 0.95rem;"></p>
                     <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>

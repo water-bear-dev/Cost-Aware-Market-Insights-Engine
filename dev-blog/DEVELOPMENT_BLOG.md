@@ -1,5 +1,54 @@
 # Development Blog
 
+## Entry 63: Balanced 3-Column Global Market Grid & High-Fidelity Timezones (2026-05-18)
+
+Today, we continued to polish the high-density Discover research portal, focusing on geographical organization, symmetry, and accurate exchange timezones.
+
+**Symmetrical 3-Column Region Grid**
+To optimize space utilization on large monitors and eliminate visual asymmetry, we restructured the global markets panel. Previously, Australia lived in a lonely, single-item row, leaving a massive empty space in our 4-column layout. 
+1. **Reorganization**: We retired the isolated Australia section, moving the **ASX 200** (`^AXJO`) under a newly named **Asia Pacific** group (alongside Tokyo's Nikkei 225 and Hong Kong's Hang Seng).
+2. **Expansion**: We added the **Toronto Exchange** (`^GSPTSE`) underneath Nasdaq inside the renamed **Americas** group, and introduced Germany's **DAX** (`^GDAXI`) under **Europe**.
+3. **Symmetry**: This creates exactly three regional columns—**Americas**, **Europe**, and **Asia Pacific**—each containing exactly three indices. We modified the CSS grid wrapper from `repeat(4, 1fr)` to `repeat(3, 1fr)`. The columns now stretch to fill the screen flawlessly with a highly premium, balanced look.
+
+**Timezone and Ingestion Routing Sync**
+With the inclusion of the Toronto and Frankfurt exchanges, we synced our server-side ingestion and client-side countdown tickers:
+- **DAX Index**: Fully mapped `^GDAXI` to the XETRA exchange rules in the backend and client loops (`Europe/Berlin`, `9:00 - 17:30`). Mapped Google News RSS searching to `"DAX+Index"`.
+- **Toronto Exchange**: Mapped `^GSPTSE` to `America/Toronto` (`9:30 - 16:00`), utilizing identical hours to NYSE but correctly attributing the Canadian timezone. Mapped Google News RSS searching to `"TSX+Composite"`.
+- **Curated Descriptions**: Added high-fidelity professional descriptions for both benchmarks, ensuring that the native modal details view is rich, informative, and complete.
+
+These adjustments bring maximum visual elegance, complete data coverage, and outstanding operational accuracy to our Cost-Aware Insights Engine.
+
+## Entry 62: Immersive Native Discover Modals & Live Session Timelines (2026-05-18)
+
+Today, we completely overhauled the visual experience for our global market indices and commodities in the **Discover** tab. By breaking the reliance on external Yahoo Finance links, we created a fully unified, zero-cost research environment that fits perfectly into our high-density Bloomberg-style interface.
+
+**The Native Modal Pivot**
+Previously, clicking an index or commodity card on the Discover tab would route the user away to external Yahoo Finance pages. We replaced this jarring experience with an immersive, native details modal matching our Tracked Assets. It displays rich interactive charts, key financials, and the latest aggregated news. Best of all, because these assets utilize standard market feeds without running LLM synthesis, this high-fidelity research hub operates completely free-of-cost, consuming **zero percent** of our daily AI token budget!
+
+**Designing the Session Timeline**
+To solve the cognitive load of tracking global market hours across disparate timezones (New York, London, Tokyo, Sydney), we built a visual **Trading Session Timeline** directly into the details modal:
+1. **Interactive Time Mapping**: A premium horizontal progress bar maps out the full 24-hour day in the exchange's local time, dividing the day into clear active sessions (glowing neon green), lunch halts (amber), and closed periods (glassy dark).
+2. **Current Time Cursor**: We mapped the exchange's current localized time to a glowing, pulse-animated vertical indicator that slides across the timeline dynamically, showing exactly where we are in the trading day.
+3. **Open/Close Threshold Markers**: Explicit text chips label the precise local open and close times, allowing a user to instantly see how much trading time remains.
+
+**Dynamic Client-Side Ticking & Countdown Loops**
+To make the dashboard feel completely alive, dynamic, and responsive, we decoupled the countdown evaluation from the static backend. Instead of requiring manual page refreshes to update the "opening in..." or "closing in..." status messages, we implemented a robust **client-side ticking loop**:
+1. **Frontend Timezone Evaluation**: Using the browser's native `Intl.DateTimeFormat` with precise timezone parameters (`Australia/Sydney`, `Europe/London`, `Asia/Tokyo`, `Asia/Hong_Kong`, `Europe/Paris`, `Europe/Berlin`, `America/New_York`), we compute localized times, weekends, lunch breaks, and futures market maintenance gaps on the fly directly from the user's system clock.
+2. **Dynamic Background Ticking**: We registered a persistent 10-second scheduler (`initDiscoverTiming()`). Every tick, the scheduler updates all visible index card badges and messages dynamically in the background without hitches.
+3. **Real-time Timeline Sweeping**: If the details modal is open, the background scheduler sweeps the vertical cursor along the 24-hour session bar and updates the glowing time indicator and its tooltip clock to reflect current time progress live.
+4. **Resilient Local Fallback**: If the backend does not return timeline segments for an asset, the frontend dynamically constructs and renders a perfect timeline layout on the fly, guaranteeing 100% display uptime under all circumstances.
+
+**Preventing State Drift, Point Formatting, and Layout Wrapping**
+During the implementation, we solved several critical layout, timezone synchronization, and formatting challenges:
+- **Geographical Top Movers Overhaul**: Transitioned the Top Movers filtering options from "All | US | Internationals" to "All | Americas | Europe | Asia". Tickers in our global movers universe are parsed dynamically in the Python backend using localized suffix endings (e.g. `.TO` for Canadian TSX, `.AX` for Australian ASX, `.HK` for Hong Kong, `.L`/`.PA`/`.AS`/`.DE` for Europe) to build isolated regional data payloads. In the frontend, the dynamic buttons automatically filter the dataset on click, providing instant geographical segmentation of global market volatility.
+- **Commodity Exact Name Titles & Subtitle Hiding**: Mapped commodity tickers (`GC=F`, `CL=F`, etc.) to their exact names (e.g. "Gold", "Crude Oil", "Silver") in the details modal header title, and completely removed the redundant subtitle to clean up the visual hierarchy.
+- **Timezone Status Desync**: We discovered that when rendering international indices like the FTSE or Nikkei, the timezone badge would occasionally desync and display "Closed" during active hours due to empty timeline arrays. We hardened `/api/v1/market/history/{ticker}` to copy the computed parent `status` and `message` directly into the history payload, ensuring absolute synchronization between the timeline and status badges.
+- **Raw Exchange Points (No Currency/FX Conversion)**: Global indices and exchanges are measured in raw *points*, not standard monetary currency. We modified the formatting pipeline (`formatPrice` and `formatLargePrice`) to accept the `ticker` parameter. If the asset is an index, we format it as raw numeric points, completely bypassing currency symbol prefixing and exchange rate calculations across the cards, modal header, stats bars, and Chart.js tooltips.
+- **High-Density Statistics Relocation**: We streamlined the visual workspace by completely hiding the "Quick Stats" section for Discover assets (removing redundant corporate figures like P/E or Market Cap). Instead, we moved the highly critical **52-week High** and **52-week Low** metrics directly into the prominent top hero stats bar next to Close Price, Day Change, and Open.
+- **Visual Overflow Protection**: We expanded the details modal container's `max-width` from `1050px` to `1200px` (and `95%` width) to ensure large numbers never wrap or overflow. Furthermore, we improved custom glassy WebKit scrollbar thumb opacity (from `0.12` to `0.2` and up to `0.35` on hover) to make the vertical scrolling indicator perfectly legible.
+
+This moves our Discover tab into a state-of-the-art research portal, perfectly balancing visual magic with strict FinOps principles.
+
 ## Entry 61: UI Stability & International Accuracy (2026-05-18)
 
 Today, we addressed a frustrating state-drift bug affecting our international market assets and updated our backend logic to align with recent global exchange rule changes.

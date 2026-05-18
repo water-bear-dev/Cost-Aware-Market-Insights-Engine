@@ -37,7 +37,28 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
     results = []
 
     try:
-        url = f"https://news.google.com/rss/search?q={ticker}+stock&hl=en-US&gl=US&ceid=US:en"
+        # Search query optimization for regional indices and commodities
+        search_term = ticker
+        t_upper = ticker.upper()
+        if t_upper == "^GSPC": search_term = "S%26P+500"
+        elif t_upper == "^IXIC": search_term = "Nasdaq+Composite"
+        elif t_upper == "^AXJO": search_term = "ASX+200"
+        elif t_upper == "^N225": search_term = "Nikkei+225"
+        elif t_upper == "^HSI": search_term = "Hang+Seng+Index"
+        elif t_upper == "^STOXX50E": search_term = "Euro+Stoxx+50"
+        elif t_upper == "^FTSE": search_term = "FTSE+100"
+        elif t_upper == "^GDAXI": search_term = "DAX+Index"
+        elif t_upper == "^GSPTSE": search_term = "TSX+Composite"
+        elif t_upper == "GC=F": search_term = "Gold+price"
+        elif t_upper == "SI=F": search_term = "Silver+price"
+        elif t_upper == "HG=F": search_term = "Copper+price"
+        elif t_upper == "PL=F": search_term = "Platinum+price"
+        elif t_upper == "PA=F": search_term = "Palladium+price"
+        elif t_upper == "CL=F": search_term = "Crude+Oil+price"
+        else:
+            search_term = f"{ticker}+stock"
+
+        url = f"https://news.google.com/rss/search?q={search_term}&hl=en-US&gl=US&ceid=US:en"
         response = httpx.get(url, timeout=5.0)
         response.raise_for_status()
         
@@ -102,6 +123,7 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
     """
     Determine the current status of a market (Open, Lunch, Closed) and calculate
     descriptive text indicating time remaining until the next state transition.
+    Also returns rich pre-calculated timeline segments in percentage points.
     """
     now_utc = datetime.now(pytz.utc)
     
@@ -113,8 +135,14 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
     
     t = ticker_symbol.upper()
     e = (exchange or "").upper()
+    is_futures = t.endswith("=F") or any(x in e for x in ["NYMEX", "COMEX", "CME"])
     
-    if t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
+    if is_futures:
+        tz_name = "US/Eastern"
+        # Futures are generally traded 23 hours/day Monday-Friday
+        open_time = dt_time(18, 0) # 6:00 PM (Start of trading day on previous calendar day)
+        close_time = dt_time(17, 0) # 5:00 PM
+    elif t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
         tz_name = "Australia/Sydney"
         open_time = dt_time(10, 0)
         close_time = dt_time(16, 0)
@@ -136,10 +164,14 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
         tz_name = "Europe/Paris"
         open_time = dt_time(9, 0)
         close_time = dt_time(17, 30)
-    elif t.endswith(".DE") or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
+    elif t.endswith(".DE") or t == "^GDAXI" or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
         tz_name = "Europe/Berlin"
         open_time = dt_time(9, 0)
         close_time = dt_time(17, 30)
+    elif t.endswith(".TO") or t == "^GSPTSE" or any(x in e for x in ["TSX", "TORONTO", "CANADA"]):
+        tz_name = "America/Toronto"
+        open_time = dt_time(9, 30)
+        close_time = dt_time(16, 0)
         
     local_tz = pytz.timezone(tz_name)
     local_now = now_utc.astimezone(local_tz)
@@ -163,6 +195,79 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
             display_mins = max(1, minutes)
             return f"{display_mins} {min_str}"
 
+    # Calculate pre-calculated timeline segments in percentage points
+    def time_to_mins(tm) -> int:
+        return tm.hour * 60 + tm.minute
+
+    open_mins = time_to_mins(open_time)
+    close_mins = time_to_mins(close_time)
+    current_mins = time_to_mins(current_time)
+    
+    open_pct = round((open_mins / 1440) * 100, 2)
+    close_pct = round((close_mins / 1440) * 100, 2)
+    current_pct = round((current_mins / 1440) * 100, 2)
+    
+    segments = []
+    if is_futures:
+        # Standard futures: open 00:00 to 17:00 and 18:00 to 24:00 daily
+        segments.append({"start_pct": 0.0, "end_pct": round((1020 / 1440) * 100, 2), "type": "active"}) # 17:00
+        segments.append({"start_pct": round((1080 / 1440) * 100, 2), "end_pct": 100.0, "type": "active"}) # 18:00
+    elif lunch_break:
+        l_start, l_end = lunch_break
+        l_start_mins = time_to_mins(l_start)
+        l_end_mins = time_to_mins(l_end)
+        segments.append({"start_pct": open_pct, "end_pct": round((l_start_mins / 1440) * 100, 2), "type": "active"})
+        segments.append({"start_pct": round((l_start_mins / 1440) * 100, 2), "end_pct": round((l_end_mins / 1440) * 100, 2), "type": "lunch"})
+        segments.append({"start_pct": round((l_end_mins / 1440) * 100, 2), "end_pct": close_pct, "type": "active"})
+    else:
+        segments.append({"start_pct": open_pct, "end_pct": close_pct, "type": "active"})
+
+    timeline_data = {
+        "timezone_name": tz_name,
+        "current_local_time": local_now.strftime("%H:%M"),
+        "current_pct": current_pct,
+        "segments": segments
+    }
+
+    # Futures Specific Evaluation
+    if is_futures:
+        # Closed from Friday 5:00 PM EST to Sunday 6:00 PM EST
+        is_closed = (weekday == 4 and current_time >= dt_time(17, 0)) or \
+                    (weekday == 5) or \
+                    (weekday == 6 and current_time < dt_time(18, 0))
+        is_maintenance = (not is_closed and current_time >= dt_time(17, 0) and current_time < dt_time(18, 0))
+        
+        if is_closed:
+            days_to_sunday = 6 - weekday
+            if weekday == 6:
+                days_to_sunday = 0
+            reopen_date = local_now + timedelta(days=days_to_sunday)
+            reopen_date = reopen_date.replace(hour=18, minute=0, second=0, microsecond=0)
+            diff = reopen_date - local_now
+            return {
+                "status": "Closed",
+                "message": f"opening in {format_diff(diff)}",
+                "market_timeline": timeline_data
+            }
+        elif is_maintenance:
+            reopen_date = local_now.replace(hour=18, minute=0, second=0, microsecond=0)
+            diff = reopen_date - local_now
+            return {
+                "status": "Closed",
+                "message": f"re-opening in {format_diff(diff)}",
+                "market_timeline": timeline_data
+            }
+        else:
+            close_date = local_now.replace(hour=17, minute=0, second=0, microsecond=0)
+            if current_time >= dt_time(17, 0):
+                close_date += timedelta(days=1)
+            diff = close_date - local_now
+            return {
+                "status": "Open",
+                "message": f"closing in {format_diff(diff)}",
+                "market_timeline": timeline_data
+            }
+
     # Check if LUNCH
     if not is_weekend and lunch_break:
         l_start, l_end = lunch_break
@@ -171,7 +276,8 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
             diff = target_dt - local_now
             return {
                 "status": "Lunch",
-                "message": f"re-opening in {format_diff(diff)}"
+                "message": f"re-opening in {format_diff(diff)}",
+                "market_timeline": timeline_data
             }
 
     # Check if OPEN
@@ -183,14 +289,16 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
             diff = target_dt - local_now
             return {
                 "status": "Open",
-                "message": f"closing for lunch in {format_diff(diff)}"
+                "message": f"closing for lunch in {format_diff(diff)}",
+                "market_timeline": timeline_data
             }
         else:
             target_dt = local_now.replace(hour=close_time.hour, minute=close_time.minute, second=0, microsecond=0)
             diff = target_dt - local_now
             return {
                 "status": "Open",
-                "message": f"closing in {format_diff(diff)}"
+                "message": f"closing in {format_diff(diff)}",
+                "market_timeline": timeline_data
             }
 
     # Market is CLOSED.
@@ -208,7 +316,8 @@ def get_market_status_desc(ticker_symbol: str, exchange: str = "") -> dict:
     diff = check_date - local_now
     return {
         "status": "Closed",
-        "message": f"opening in {format_diff(diff)}"
+        "message": f"opening in {format_diff(diff)}",
+        "market_timeline": timeline_data
     }
 
 def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool, str]:
@@ -217,6 +326,9 @@ def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool,
     Accounts for major global exchanges and their specific timezones/hours.
     """
     now_utc = datetime.now(pytz.utc)
+    t = ticker_symbol.upper()
+    e = (exchange or "").upper()
+    is_futures = t.endswith("=F") or any(x in e for x in ["NYMEX", "COMEX", "CME"])
     
     # 1. Map Ticker Suffix/Exchange to Timezone & Hours
     # Default: US Markets (NYSE/NASDAQ)
@@ -225,11 +337,9 @@ def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool,
     close_time = dt_time(16, 0)
     lunch_break = None # (start, end)
     
-    t = ticker_symbol.upper()
-    e = (exchange or "").upper()
-    
-    # Precise Exchange Matching
-    if t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
+    if is_futures:
+        tz_name = "US/Eastern"
+    elif t.endswith(".AX") or t == "^AXJO" or any(x in e for x in ["ASX", "AUSTRALIA"]):
         tz_name = "Australia/Sydney"
         open_time = dt_time(10, 0)
         close_time = dt_time(16, 0)
@@ -251,21 +361,36 @@ def is_market_open(ticker_symbol: str, exchange: str = "") -> typing.Union[bool,
         tz_name = "Europe/Paris"
         open_time = dt_time(9, 0)
         close_time = dt_time(17, 30)
-    elif t.endswith(".DE") or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
+    elif t.endswith(".DE") or t == "^GDAXI" or any(x in e for x in ["XETRA", "GERMANY", "DAX", "BERLIN"]):
         tz_name = "Europe/Berlin"
         open_time = dt_time(9, 0)
         close_time = dt_time(17, 30)
+    elif t.endswith(".TO") or t == "^GSPTSE" or any(x in e for x in ["TSX", "TORONTO", "CANADA"]):
+        tz_name = "America/Toronto"
+        open_time = dt_time(9, 30)
+        close_time = dt_time(16, 0)
     
     # 2. Convert to Local Time
     local_tz = pytz.timezone(tz_name)
     local_now = now_utc.astimezone(local_tz)
+    weekday = local_now.weekday()
+    current_time = local_now.time()
+    
+    if is_futures:
+        # Closed from Friday 5:00 PM EST to Sunday 6:00 PM EST
+        is_closed = (weekday == 4 and current_time >= dt_time(17, 0)) or \
+                    (weekday == 5) or \
+                    (weekday == 6 and current_time < dt_time(18, 0))
+        is_maintenance = (not is_closed and current_time >= dt_time(17, 0) and current_time < dt_time(18, 0))
+        if is_closed or is_maintenance:
+            return False
+        return True
     
     # 3. Weekend Check
-    if local_now.weekday() >= 5: # Saturday=5, Sunday=6
+    if weekday >= 5: # Saturday=5, Sunday=6
         return False
         
     # 4. Hours Check
-    current_time = local_now.time()
     if current_time < open_time or current_time > close_time:
         return False
         

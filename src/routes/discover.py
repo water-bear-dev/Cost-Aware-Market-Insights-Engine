@@ -24,20 +24,20 @@ def clean_float(val, default=0.0):
 
 # ─── Index & Commodity definitions ────────────────────────────────────────────
 REGIONS = [
-    {"region": "Australia",    "flag": "🇦🇺", "indices": [
-        {"name": "ASX 200",     "symbol": "^AXJO", "flag": "🇦🇺"},
-    ]},
-    {"region": "United States","flag": "🇺🇸", "indices": [
+    {"region": "Americas",     "flag": "🌎", "indices": [
         {"name": "S&P 500",     "symbol": "^GSPC", "flag": "🇺🇸"},
         {"name": "Nasdaq",      "symbol": "^IXIC", "flag": "🇺🇸"},
+        {"name": "Toronto Exchange", "symbol": "^GSPTSE", "flag": "🇨🇦"},
     ]},
     {"region": "Europe",       "flag": "🇪🇺", "indices": [
         {"name": "Euro Stoxx 50","symbol": "^STOXX50E", "flag": "🇪🇺"},
         {"name": "FTSE 100",    "symbol": "^FTSE", "flag": "🇬🇧"},
+        {"name": "DAX",         "symbol": "^GDAXI", "flag": "🇩🇪"},
     ]},
-    {"region": "Asia",         "flag": "🌏", "indices": [
+    {"region": "Asia Pacific", "flag": "🌏", "indices": [
         {"name": "Nikkei 225",  "symbol": "^N225", "flag": "🇯🇵"},
         {"name": "Hang Seng",   "symbol": "^HSI", "flag": "🇭🇰"},
+        {"name": "ASX 200",     "symbol": "^AXJO", "flag": "🇦🇺"},
     ]},
 ]
 
@@ -203,13 +203,27 @@ def _fetch_movers() -> dict:
 
         # Categorize
         movers_all = raw_movers
-        movers_us  = [m for m in raw_movers if "." not in m["ticker"]]
-        movers_int = [m for m in raw_movers if "." in m["ticker"]]
+        movers_americas = []
+        movers_europe = []
+        movers_asia = []
+        
+        for m in raw_movers:
+            ticker = m["ticker"]
+            # Americas: US tickers (no suffix) or Canada (.TO)
+            if "." not in ticker or ticker.endswith(".TO"):
+                movers_americas.append(m)
+            # Europe: UK (.L), France (.PA), Netherlands (.AS), Germany (.DE)
+            elif any(ticker.endswith(sfx) for sfx in [".L", ".PA", ".AS", ".DE"]):
+                movers_europe.append(m)
+            # Asia / APAC: Japan (.T), Hong Kong (.HK), India (.NS), Australia (.AX)
+            elif any(ticker.endswith(sfx) for sfx in [".T", ".HK", ".NS", ".AX"]):
+                movers_asia.append(m)
 
         # Get top 10s for each
         all_gain, all_lose = get_category_movers(movers_all)
-        us_gain,  us_lose  = get_category_movers(movers_us)
-        int_gain, int_lose = get_category_movers(movers_int)
+        americas_gain, americas_lose = get_category_movers(movers_americas)
+        europe_gain, europe_lose = get_category_movers(movers_europe)
+        asia_gain, asia_lose = get_category_movers(movers_asia)
 
         # Enrichment helper using Parallel Processing
         def enrich_single(m):
@@ -235,7 +249,12 @@ def _fetch_movers() -> dict:
 
         # Parallelize the network-heavy enrichment calls
         from concurrent.futures import ThreadPoolExecutor
-        all_to_enrich = all_gain + all_lose + us_gain + us_lose + int_gain + int_lose
+        all_to_enrich = (
+            all_gain + all_lose + 
+            americas_gain + americas_lose + 
+            europe_gain + europe_lose + 
+            asia_gain + asia_lose
+        )
         
         # Filter unique tickers to avoid duplicate calls
         unique_tickers = {}
@@ -248,16 +267,18 @@ def _fetch_movers() -> dict:
 
         return {
             "all": {"gainers": all_gain, "losers": all_lose},
-            "us":  {"gainers": us_gain,  "losers": us_lose},
-            "international": {"gainers": int_gain, "losers": int_lose},
+            "americas": {"gainers": americas_gain, "losers": americas_lose},
+            "europe": {"gainers": europe_gain, "losers": europe_lose},
+            "asia": {"gainers": asia_gain, "losers": asia_lose},
             "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
     except Exception as e:
         logger.error("Failed to fetch movers", error=str(e))
         return {
             "all": {"gainers": [], "losers": []},
-            "us":  {"gainers": [], "losers": []},
-            "international": {"gainers": [], "losers": []},
+            "americas": {"gainers": [], "losers": []},
+            "europe": {"gainers": [], "losers": []},
+            "asia": {"gainers": [], "losers": []},
             "as_of": None
         }
 
