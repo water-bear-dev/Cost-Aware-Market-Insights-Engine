@@ -13,12 +13,15 @@ let portfolioChartInstance = null;
 let currentPortfolioPeriod = '1d';
 
 let modalChartInstance = null;
+let modalFinancialsChartInstance = null;
+let modalForecastChartInstance = null;
 const sparklineInstances = {};
 let currentZoom = 1.0;
 let currentModalTicker = null;
 let currentPeriod = '1d'; // Start with 1D as default for live change
 let currentModalMkt = {};
 let currentModalInsight = null;
+let currentModalFundamentals = null;
 
 // All symbols we need sparklines for (indices + commodities)
 const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI', '^GDAXI', '^GSPTSE'];
@@ -2576,11 +2579,55 @@ function initModal() {
         if (!currentModalTicker) return;
         await handleAddFeatured(currentModalTicker, document.getElementById('modal-watchlist-btn'));
     });
+
+    document.querySelector('.modal-internal-tabs').addEventListener('click', e => {
+        const btn = e.target.closest('.modal-tab-btn');
+        if (!btn) return;
+        
+        // Update active tab button
+        document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Hide all panes
+        document.querySelectorAll('.modal-tab-pane').forEach(p => {
+            p.classList.remove('active');
+            p.style.display = 'none';
+        });
+        
+        const targetTab = btn.dataset.modaltab;
+        const targetPane = document.getElementById(`modal-tab-${targetTab}`);
+        targetPane.classList.add('active');
+        targetPane.style.display = 'block';
+        
+        // Trigger data fetch if needed
+        if ((targetTab === 'financials' || targetTab === 'forecasts') && !currentModalFundamentals) {
+            fetchAndRenderFundamentals(currentModalTicker);
+        }
+    });
 }
 
 function openModal(ticker) {
     currentModalTicker = ticker;
     currentPeriod = '1mo';
+    currentModalFundamentals = null;
+    
+    // Reset tabs
+    document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.modaltab === 'overview'));
+    document.querySelectorAll('.modal-tab-pane').forEach(p => {
+        const isActive = p.id === 'modal-tab-overview';
+        p.classList.toggle('active', isActive);
+        p.style.display = isActive ? 'block' : 'none';
+    });
+
+    // Reset fundamental UI
+    document.getElementById('modal-financials-loader').style.display = 'block';
+    document.getElementById('modal-financials-loader').textContent = 'Fetching financial statements...';
+    document.getElementById('modal-financials-chart-wrapper').style.display = 'none';
+    document.getElementById('modal-ownership-section').style.display = 'none';
+    document.getElementById('modal-dividends-section').style.display = 'none';
+    document.getElementById('modal-target-section').style.display = 'none';
+    document.getElementById('modal-analyst-gauge').innerHTML = '';
+
     document.querySelectorAll('.period-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.period === '1mo');
     });
@@ -3262,7 +3309,16 @@ function closeModal() {
         modalChartInstance.destroy();
         modalChartInstance = null;
     }
+    if (modalFinancialsChartInstance) {
+        modalFinancialsChartInstance.destroy();
+        modalFinancialsChartInstance = null;
+    }
+    if (modalForecastChartInstance) {
+        modalForecastChartInstance.destroy();
+        modalForecastChartInstance = null;
+    }
     currentModalTicker = null;
+    currentModalFundamentals = null;
 }
 
 async function loadModalChart(ticker, period) {
@@ -4265,3 +4321,302 @@ function initPortfolioPeriodSelector() {
         }
     });
 }
+
+/* =====================================================
+   Ticker Fundamentals & Forecasts Fetch & Render
+   ===================================================== */
+async function fetchAndRenderFundamentals(ticker) {
+    if (currentModalFundamentals) return;
+    
+    const loader = document.getElementById('modal-financials-loader');
+    if (loader) {
+        loader.style.display = 'block';
+        loader.textContent = 'Fetching financial statements...';
+    }
+    
+    try {
+        const res = await fetch(`/api/v1/market/fundamentals/${ticker}`);
+        if (!res.ok) throw new Error('Failed to fetch fundamentals');
+        const data = await res.json();
+        
+        currentModalFundamentals = data;
+        if (loader) loader.style.display = 'none';
+        
+        // Render all segments
+        renderModalFinancialsChart(data);
+        renderModalOwnership(data);
+        renderModalDividends(data);
+        renderModalForecasts(data);
+        
+    } catch (e) {
+        console.error("Error fetching fundamentals:", e);
+        if (loader) loader.textContent = 'Failed to load fundamental data.';
+    }
+}
+
+function renderModalFinancialsChart(data) {
+    const wrapper = document.getElementById('modal-financials-chart-wrapper');
+    if (!wrapper) return;
+    
+    if (!data.financials || !data.financials.periods || data.financials.periods.length === 0) {
+        wrapper.style.display = 'none';
+        return;
+    }
+    
+    wrapper.style.display = 'block';
+    
+    // Data is ordered oldest to newest from the backend
+    const labels = data.financials.periods;
+    const revenue = data.financials.revenue;
+    const grossProfit = data.financials.gross_profit;
+    const operatingIncome = data.financials.operating_income;
+    const netIncome = data.financials.net_income;
+
+    if (modalFinancialsChartInstance) {
+        modalFinancialsChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById('modal-financials-chart').getContext('2d');
+    
+    // Bar styling
+    const formatter = (value) => {
+        if (value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+        if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+        return value;
+    };
+
+    modalFinancialsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: revenue,
+                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Gross Profit',
+                    data: grossProfit,
+                    backgroundColor: 'rgba(129, 140, 248, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Operating Income',
+                    data: operatingIncome,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Net Income',
+                    data: netIncome,
+                    backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    labels: { color: 'rgba(255, 255, 255, 0.7)', font: { size: 11 } }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.9)',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.dataset.label}: $${formatter(ctx.raw)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: 'rgba(255, 255, 255, 0.5)' }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        callback: function(value) { return '$' + formatter(value); }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderModalOwnership(data) {
+    const section = document.getElementById('modal-ownership-section');
+    const bar = document.getElementById('modal-ownership-bar');
+    if (!section || !bar) return;
+    
+    if (!data.ownership) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    
+    const instPct = data.ownership.institutions || 0;
+    const insPct = data.ownership.insiders || 0;
+    let pubPct = data.ownership.public || 0;
+    if (pubPct < 0) pubPct = 0;
+    
+    bar.innerHTML = `
+        <div class="ownership-segment institutions" style="width: ${instPct}%">${instPct > 5 ? instPct.toFixed(1) + '%' : ''}</div>
+        <div class="ownership-segment insiders" style="width: ${insPct}%">${insPct > 5 ? insPct.toFixed(1) + '%' : ''}</div>
+        <div class="ownership-segment public" style="width: ${pubPct}%">${pubPct > 5 ? pubPct.toFixed(1) + '%' : ''}</div>
+    `;
+    
+    document.getElementById('modal-ownership-legend').innerHTML = `
+        <div class="legend-item"><div class="legend-dot institutions"></div>Institutions (${instPct.toFixed(1)}%)</div>
+        <div class="legend-item"><div class="legend-dot insiders"></div>Insiders (${insPct.toFixed(1)}%)</div>
+        <div class="legend-item"><div class="legend-dot public"></div>Public/Other (${pubPct.toFixed(1)}%)</div>
+    `;
+}
+
+function renderModalDividends(data) {
+    const section = document.getElementById('modal-dividends-section');
+    const tbody = document.querySelector('#modal-dividends-table tbody');
+    if (!section || !tbody) return;
+    
+    if (!data.dividends || data.dividends.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'block';
+    
+    tbody.innerHTML = data.dividends.map(div => {
+        // Date comes in as string 'YYYY-MM-DD'
+        const d = new Date(div.date);
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        const monthStr = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+        const year = d.getUTCFullYear();
+        
+        return `
+            <tr>
+                <td>${day} ${monthStr} ${year}</td>
+                <td style="font-weight:600; color:var(--positive);">$${div.amount.toFixed(3)}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function renderModalForecasts(data) {
+    const info = currentModalMkt?.info || {};
+
+    // 1. Analyst Rating Gauge
+    const gaugeWrapper = document.getElementById('modal-analyst-gauge');
+    if (gaugeWrapper && info.recommendation) {
+        const rec = info.recommendation.replace('_', ' ').toUpperCase();
+        gaugeWrapper.innerHTML = `<div class="analyst-gauge-label">${rec}</div>`;
+        
+        // Also show the mean target if available in text
+        if (info.target_price) {
+            gaugeWrapper.innerHTML += `<div style="margin-left: 2rem; display: flex; flex-direction: column;">
+                <span style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase;">Mean Target</span>
+                <span style="font-size: 1.2rem; font-weight: 700; color: var(--positive);">$${info.target_price.toFixed(2)}</span>
+            </div>`;
+        }
+    } else if (gaugeWrapper) {
+        gaugeWrapper.innerHTML = `<div class="analyst-gauge-label" style="font-size: 1rem; color: var(--text-secondary);">NO RATING AVAILABLE</div>`;
+    }
+
+    // 2. Target Price Chart
+    const targetSection = document.getElementById('modal-target-section');
+    if (!targetSection) return;
+
+    if (!info.target_low || !info.target_high || !info.target_price) {
+        targetSection.style.display = 'none';
+        return;
+    }
+    
+    targetSection.style.display = 'block';
+
+    if (modalForecastChartInstance) {
+        modalForecastChartInstance.destroy();
+    }
+
+    const ctx = document.getElementById('modal-forecast-chart').getContext('2d');
+    
+    // We'll plot Current Price vs Low, Mean, High Targets as a categorical bar chart
+    const currentPrice = currentModalMkt?.close_price || info.target_low;
+    
+    const labels = ['Low Target', 'Current Price', 'Mean Target', 'High Target'];
+    const values = [
+        info.target_low,
+        currentPrice, // fallback
+        info.target_price,
+        info.target_high
+    ];
+    
+    // Determine colors
+    const getBgColor = (val, isCurrent) => {
+        if (isCurrent) return 'rgba(56, 189, 248, 0.8)'; // accent
+        if (val > currentPrice) return 'rgba(16, 185, 129, 0.8)'; // green
+        if (val < currentPrice) return 'rgba(244, 63, 94, 0.8)'; // red
+        return 'rgba(255,255,255,0.4)'; // same
+    };
+    
+    const colors = [
+        getBgColor(values[0], false),
+        getBgColor(values[1], true),
+        getBgColor(values[2], false),
+        getBgColor(values[3], false),
+    ];
+
+    modalForecastChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors,
+                borderRadius: 6,
+                barThickness: 40
+            }]
+        },
+        options: {
+            indexAxis: 'y', // horizontal bar
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.9)',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (ctx) => ` $${ctx.raw.toFixed(2)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        callback: (v) => '$' + v
+                    },
+                    min: Math.min(...values) * 0.9, // start slightly below minimum
+                    max: Math.max(...values) * 1.1
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: { color: 'rgba(255, 255, 255, 0.7)' }
+                }
+            }
+        }
+    });
+}
+

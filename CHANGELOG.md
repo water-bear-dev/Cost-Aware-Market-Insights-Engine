@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.4.0] - 2026-05-19
+
+### Added
+- **Ticker Fundamentals Tabbed Interface** — Extended the interactive ticker details modal with a multi-tab view (Overview, Financials, and Forecasts) to support immersive financial statement exploration.
+- **Dynamic Lazy-Loading for Tab Content** — Integrated smart lazy-loading logic so that heavy corporate financial statements and forecast chart data are only requested when their respective tabs are actively opened by the user, saving resources and maintaining responsive chart rendering.
+- **FastAPI Fundamentals Aggregator** — Developed a backend API endpoint `/api/v1/market/fundamentals/{ticker}` caching (24h) balance sheets, historical dividends, institutional/insider ownership ratios, and multi-year income statements.
+- **Exposed Forecast Metrics in Metadata** — Hardened the market routing engine to extract consensus analyst indicators (`recommendation`, `target_low`, `target_high`, and `target_price`) from `yfinance` to feed the frontend forecast dashboard.
+- **Visual Pricing Target Chart & Rating Gauge** — Designed a custom horizontal forecast scale and gauge indicator rendering consensus analyst buy/sell ratings, alongside target low-to-high intervals in a glassmorphic frame.
+
+### Fixed
+- **Frontend Variable Data-Schema Sync** — Resolved a variable mismatch error where the frontend looked for `currentModalMkt.metadata` instead of `.info` for analyst ratings and price targets.
+- **Fundamentals Payload Mappings** — Aligned data keys between frontend Chart.js parsing logic and the new backend JSON structures (`financials`, `ownership`, `dividends`), eliminating all console fetch errors.
+- **In-Memory Cache Recalibration** — Hard-reloaded uvicorn servers to clean cached schemas, ensuring fresh analyst rating records are populated immediately.
+
 ## [3.3.0] - 2026-05-18
 
 ### Added

@@ -2967,3 +2967,162 @@ input[type=number] {
     border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
 }
 
+
+/* =====================================================
+   Modal Internal Tabs
+   ===================================================== */
+.modal-internal-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin: 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.modal-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.modal-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.modal-tab-btn.active {
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.15);
+}
+
+.modal-tab-pane {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.modal-tab-pane.active {
+    display: block;
+}
+
+/* =====================================================
+   Ownership Breakdown Bars
+   ===================================================== */
+.ownership-bar-container {
+    display: flex;
+    height: 1.5rem;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ownership-segment {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ownership-segment.institutions { background: linear-gradient(90deg, #38bdf8, #818cf8); }
+.ownership-segment.insiders { background: linear-gradient(90deg, #10b981, #059669); }
+.ownership-segment.public { background: linear-gradient(90deg, #64748b, #475569); }
+
+.ownership-legend {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.institutions { background: #818cf8; }
+.legend-dot.insiders { background: #10b981; }
+.legend-dot.public { background: #64748b; }
+
+
+/* =====================================================
+   Dividends Table
+   ===================================================== */
+.dividends-table-container {
+    max-height: 250px;
+    overflow-y: auto;
+    margin-top: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+}
+
+.dividends-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.dividends-table th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(8px);
+}
+
+.dividends-table td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--glass-border);
+    color: var(--text-primary);
+}
+
+.dividends-table tr:hover td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* =====================================================
+   Analyst Rating Gauge
+   ===================================================== */
+.analyst-gauge-wrapper {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 1rem;
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+}
+
+.analyst-gauge-label {
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: linear-gradient(90deg, #fff, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}

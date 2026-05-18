@@ -308,6 +308,9 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "currency":        raw_info.get("currency", "USD"),
                 "avg_volume":      raw_info.get("averageVolume", None),
                 "target_price":    raw_info.get("targetMeanPrice", None),
+                "target_low":      raw_info.get("targetLowPrice", None),
+                "target_high":     raw_info.get("targetHighPrice", None),
+                "recommendation":  raw_info.get("recommendationKey", None),
                 "business_summary": (raw_info.get("longBusinessSummary", "") or "")[:3000],
             }
         except Exception:
@@ -506,3 +509,102 @@ def get_master_history(
     _master_history_cache[cache_key] = {"data": result, "last_fetch": time.time()}
     return result
 
+
+# ─── Fundamentals cache ───────────────────────────────────────────────────────
+_fundamentals_cache: dict = {}
+_FUNDAMENTALS_CACHE_TTL = 86400  # 24 hours
+
+@router.get("/market/fundamentals/{ticker}")
+@limiter.limit("30/minute")
+def get_ticker_fundamentals(request: Request, ticker: str):
+    """
+    Fetch heavy quantitative data (Financials, Ownership, Dividends) 
+    decoupled from the fast history chart endpoint.
+    """
+    global _fundamentals_cache
+    ticker = ticker.upper().strip()
+    
+    # Check cache
+    cached = _fundamentals_cache.get(ticker)
+    if cached and time.time() - cached["last_fetch"] < _FUNDAMENTALS_CACHE_TTL:
+        return cached["data"]
+        
+    try:
+        t = yf.Ticker(ticker)
+        
+        # 1. Financial Statements
+        financials = {"periods": [], "revenue": [], "gross_profit": [], "operating_income": [], "net_income": []}
+        try:
+            inc = t.income_stmt
+            if not inc.empty:
+                # yfinance returns dates as columns, newest first. Let's take up to 4 years and reverse for chronological order
+                cols = list(inc.columns)[:4]
+                cols.reverse()
+                
+                for col in cols:
+                    financials["periods"].append(col.strftime('%Y'))
+                    
+                    # Extract rows safely
+                    def get_val(keys):
+                        for k in keys:
+                            if k in inc.index:
+                                val = inc.loc[k, col]
+                                if not pd.isna(val):
+                                    return float(val)
+                        return 0.0
+                        
+                    financials["revenue"].append(get_val(["Total Revenue", "Operating Revenue"]))
+                    financials["gross_profit"].append(get_val(["Gross Profit"]))
+                    financials["operating_income"].append(get_val(["Operating Income", "EBIT"]))
+                    financials["net_income"].append(get_val(["Net Income", "Net Income Common Stockholders"]))
+        except Exception as e:
+            logger.warning("Fundamentals: Failed to fetch income stmt", ticker=ticker, error=str(e))
+            
+        # 2. Ownership
+        ownership = {"institutions": 0.0, "insiders": 0.0, "public": 100.0}
+        try:
+            holders = t.major_holders
+            if holders is not None and not holders.empty:
+                # Structure: index 'Breakdown', col 'Value'
+                if 'Value' in holders.columns:
+                    val_col = holders['Value']
+                    insiders = float(val_col.get('insidersPercentHeld', 0.0)) * 100
+                    institutions = float(val_col.get('institutionsPercentHeld', 0.0)) * 100
+                    public = max(0.0, 100.0 - insiders - institutions)
+                    
+                    ownership = {
+                        "institutions": round(institutions, 2),
+                        "insiders": round(insiders, 2),
+                        "public": round(public, 2)
+                    }
+        except Exception as e:
+            logger.warning("Fundamentals: Failed to fetch ownership", ticker=ticker, error=str(e))
+            
+        # 3. Dividends
+        dividends = []
+        try:
+            divs = t.dividends
+            if divs is not None and not divs.empty:
+                # Get last 12 dividends
+                recent_divs = divs.tail(12).iloc[::-1] # latest first
+                for dt, amount in recent_divs.items():
+                    dividends.append({
+                        "date": dt.strftime('%Y-%m-%d'),
+                        "amount": round(float(amount), 4)
+                    })
+        except Exception as e:
+            logger.warning("Fundamentals: Failed to fetch dividends", ticker=ticker, error=str(e))
+            
+        result = {
+            "ticker": ticker,
+            "financials": financials,
+            "ownership": ownership,
+            "dividends": dividends
+        }
+        
+        _fundamentals_cache[ticker] = {"data": result, "last_fetch": time.time()}
+        return result
+        
+    except Exception as e:
+        logger.error("Failed to fetch fundamentals", ticker=ticker, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,5 +1,30 @@
 # Development Blog
 
+## Entry 66: Immersive Ticker Fundamentals, Analyst Forecasts Visualizations & Data Sync Hardening (2026-05-19)
+
+Today, we successfully integrated an enterprise-grade financial analytics and forecast layer directly into the glassmorphic Ticker Detail Modal. This bridges the gap between simple technical market tracking and deep corporate fundamental research.
+
+**Multi-Tab Corporate Intelligence Panel**
+To prevent cluttering the main detail view while exposing granular balance sheet and analyst projections, we implemented a sleek tabbed interface containing **Overview**, **Financials**, and **Forecasts** views:
+- **Financials Tab**: Displays a multi-year interactive bar chart utilizing Chart.js to map Total Revenue vs. Net Income, dynamic CSS-based segment bars mapping corporate ownership ratios (Institutions, Insiders, Public float), and a clean table showing historical dividend payouts.
+- **Forecasts Tab**: Renders a dedicated consensus analyst recommendation gauge (BUY, SELL, HOLD, etc.) and a horizontal price target cone chart plotting current trading price against analyst Low, Mean, and High price targets.
+
+**Dynamic Lazy-Loading & Performance Optimization**
+Parsing multi-year balance sheets, cash flows, and major holder percentages from `yfinance` on every single click would incur severe latency and redundant database queries. 
+- **The Optimization**: We designed a lazy-loading protocol where the frontend details modal opens instantly with a lightweight history chart. Corporate financials and forecast projections are only requested on-demand when the user explicitly clicks the **Financials** or **Forecasts** tab, reducing structural payload sizes significantly.
+
+**Backend Aggregations & API Caching**
+We developed the `/api/v1/market/fundamentals/{ticker}` route in `market.py`. 
+- **Aggregations**: The endpoint extracts and structures dynamic corporate profiles, institutional/insider holding data, dividend histories, and annual financial statements.
+- **Caching Layer**: Applied a global 24-hour cache TTL for fundamentals, shielding yfinance from rate limits during concurrent active sessions.
+- **Forecast Enrichment**: Expanded standard historical response metadata inside `market.py` to extract `target_low`, `target_high`, `target_price`, and `recommendation` from yfinance dynamically, enabling the frontend to compile targets seamlessly.
+
+**The Data-Schema Mismatch & Cache Recovery**
+During rollout, we identified and resolved two critical blockers:
+1. **Frontend Schema Pointer Bug**: In `app.js`, we initially parsed analyst ratings and targets by reading from `currentModalMkt.metadata`. However, the backend packages this block as `.info` (which gets cached on the client as `currentModalMkt.info`). This resulted in `undefined` targets, falling back to showing "NO RATING AVAILABLE" and hiding the forecast targets entirely. We corrected all pointers to reference `currentModalMkt.info`.
+2. **Data-Key Consistency**: Standardized payload keys returned by the Python server (e.g. `financials`, `ownership`, `dividends`) to align perfectly with JavaScript chart-compilers.
+3. **In-Memory Cache Recalibration**: We restarted the uvicorn Docker container, instantly flushing standard cached schemas to ensure all refreshed ticker items load the new forecast targets on click.
+
 ## Entry 65: Direct Grid Card Drag-and-Drop, Watchlist Manager Reordering, & Safety Warning Modals (2026-05-18)
 
 Today, we implemented a massive set of usability enhancements for watchlist reordering, grid management, deletion safety, and layout density inside our glassmorphic financial insights dashboard.

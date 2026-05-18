@@ -774,67 +774,121 @@
             <!-- Hero Stats: Price, Change, Open, High, Low -->
             <div id="modal-hero-stats" class="modal-hero-stats"></div>
 
-            <!-- Period Selector: 1D 1W 1M 3M 6M YTD 1Y 5Y MAX -->
-            <div class="period-selector" id="period-selector">
-                <button class="period-btn active" data-period="1d">1D</button>
-                <button class="period-btn" data-period="1w">1W</button>
-                <button class="period-btn" data-period="1mo">1M</button>
-                <button class="period-btn" data-period="3mo">3M</button>
-                <button class="period-btn" data-period="6mo">6M</button>
-                <button class="period-btn" data-period="ytd">YTD</button>
-                <button class="period-btn" data-period="1y">1Y</button>
-                <button class="period-btn" data-period="5y">5Y</button>
+            <!-- Modal Internal Tabs -->
+            <div class="modal-internal-tabs">
+                <button class="modal-tab-btn active" data-modaltab="overview">Overview</button>
+                <button class="modal-tab-btn" data-modaltab="financials">Financials</button>
+                <button class="modal-tab-btn" data-modaltab="forecasts">Forecasts</button>
             </div>
 
-            <!-- History Chart -->
-            <div style="position: relative; height: 300px; margin: 1rem 0;">
-                <canvas id="modal-history-chart"></canvas>
-                <div id="modal-chart-loading" class="chart-loading">Loading chart...</div>
-            </div>
+            <!-- TAB 1: OVERVIEW -->
+            <div id="modal-tab-overview" class="modal-tab-pane active">
+                <!-- Period Selector: 1D 1W 1M 3M 6M YTD 1Y 5Y MAX -->
+                <div class="period-selector" id="period-selector">
+                    <button class="period-btn active" data-period="1d">1D</button>
+                    <button class="period-btn" data-period="1w">1W</button>
+                    <button class="period-btn" data-period="1mo">1M</button>
+                    <button class="period-btn" data-period="3mo">3M</button>
+                    <button class="period-btn" data-period="6mo">6M</button>
+                    <button class="period-btn" data-period="ytd">YTD</button>
+                    <button class="period-btn" data-period="1y">1Y</button>
+                    <button class="period-btn" data-period="5y">5Y</button>
+                </div>
 
-            <div class="modal-body">
+                <!-- History Chart -->
+                <div style="position: relative; height: 300px; margin: 1rem 0;">
+                    <canvas id="modal-history-chart"></canvas>
+                    <div id="modal-chart-loading" class="chart-loading">Loading chart...</div>
+                </div>
 
-                <!-- Market Schedule Visual Timeline -->
-                <div id="modal-timeline-section" class="modal-section" style="display: none; margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <h4 style="margin: 0;">Market Session Timeline</h4>
-                        <span id="modal-timeline-status-badge" class="badge"></span>
+                <div class="modal-body">
+                    <!-- Market Schedule Visual Timeline -->
+                    <div id="modal-timeline-section" class="modal-section" style="display: none; margin-bottom: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <h4 style="margin: 0;">Market Session Timeline</h4>
+                            <span id="modal-timeline-status-badge" class="badge"></span>
+                        </div>
+                        <div id="modal-timeline-wrapper" class="market-timeline-wrap"></div>
                     </div>
-                    <div id="modal-timeline-wrapper" class="market-timeline-wrap"></div>
-                </div>
 
-                <!-- TradingView-style Key Statistics -->
-                <div class="modal-section" id="modal-stats-section">
-                    <h4>Quick Stats</h4>
-                    <div id="modal-key-stats" class="modal-key-stats-grid"></div>
-                </div>
+                    <!-- TradingView-style Key Statistics -->
+                    <div class="modal-section" id="modal-stats-section">
+                        <h4>Quick Stats</h4>
+                        <div id="modal-key-stats" class="modal-key-stats-grid"></div>
+                    </div>
 
-                <!-- Analyst Ratings -->
-                <div class="modal-section" id="modal-analyst-section">
-                    <h4>What Experts Say</h4>
-                    <div id="modal-analyst" class="analyst-bar-container"></div>
-                </div>
+                    <!-- AI Synthesis -->
+                    <div class="modal-section" id="modal-ai-section">
+                        <h4>Latest AI Take</h4>
+                        <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.8; font-size: 0.95rem;"></p>
+                        <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>
+                    </div>
 
-                <!-- AI Synthesis -->
-                <div class="modal-section" id="modal-ai-section">
-                    <h4>Latest AI Take</h4>
-                    <p id="modal-insight-text" style="color: #e2e8f0; line-height: 1.8; font-size: 0.95rem;"></p>
-                    <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>
-                </div>
+                    <!-- About the Company -->
+                    <div class="modal-section" id="modal-about-section" style="display:none;">
+                        <h4>About</h4>
+                        <p id="modal-about-text" style="color: #cbd5e1; line-height: 1.7; font-size: 0.875rem;"></p>
+                        <div id="modal-about-meta" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;"></div>
+                    </div>
 
-                <!-- About the Company -->
-                <div class="modal-section" id="modal-about-section" style="display:none;">
-                    <h4>About</h4>
-                    <p id="modal-about-text" style="color: #cbd5e1; line-height: 1.7; font-size: 0.875rem;"></p>
-                    <div id="modal-about-meta" style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;"></div>
+                    <!-- Recent News Articles -->
+                    <div class="modal-section" id="modal-news-section">
+                        <h4>Recent News</h4>
+                        <div id="modal-news-list" class="modal-news-articles"></div>
+                    </div>
                 </div>
+            </div>
 
-                <!-- Recent News Articles -->
-                <div class="modal-section" id="modal-news-section">
-                    <h4>Recent News</h4>
-                    <div id="modal-news-list" class="modal-news-articles"></div>
+            <!-- TAB 2: FINANCIALS -->
+            <div id="modal-tab-financials" class="modal-tab-pane" style="display: none;">
+                <div class="modal-body">
+                    <!-- Financial Charts -->
+                    <div class="modal-section">
+                        <h4>Income Statement (Annual)</h4>
+                        <div id="modal-financials-loader" style="color:var(--text-secondary); font-size:0.85rem; padding: 1rem 0;">Fetching financial statements...</div>
+                        <div id="modal-financials-chart-wrapper" style="position: relative; height: 250px; margin-top: 1rem; display:none;">
+                            <canvas id="modal-financials-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Ownership -->
+                    <div class="modal-section" id="modal-ownership-section" style="display:none;">
+                        <h4>Ownership Breakdown</h4>
+                        <div id="modal-ownership-bar" class="ownership-bar-container"></div>
+                        <div id="modal-ownership-legend" class="ownership-legend"></div>
+                    </div>
+
+                    <!-- Dividends -->
+                    <div class="modal-section" id="modal-dividends-section" style="display:none;">
+                        <h4>Recent Dividends</h4>
+                        <div class="dividends-table-container custom-scrollbar">
+                            <table class="dividends-table" id="modal-dividends-table">
+                                <thead><tr><th>Ex-Dividend Date</th><th>Amount</th></tr></thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
+            <!-- TAB 3: FORECASTS -->
+            <div id="modal-tab-forecasts" class="modal-tab-pane" style="display: none;">
+                <div class="modal-body">
+                    <!-- Analyst Ratings (Moved from overview) -->
+                    <div class="modal-section" id="modal-analyst-section">
+                        <h4>Consensus Rating</h4>
+                        <div id="modal-analyst-gauge" class="analyst-gauge-wrapper"></div>
+                        <div id="modal-analyst" class="analyst-bar-container" style="margin-top: 1rem;"></div>
+                    </div>
+
+                    <!-- Price Target Cone -->
+                    <div class="modal-section" id="modal-target-section" style="display:none;">
+                        <h4>1-Year Price Target vs Current Price</h4>
+                        <div style="position: relative; height: 250px; margin-top: 1rem;">
+                            <canvas id="modal-forecast-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
