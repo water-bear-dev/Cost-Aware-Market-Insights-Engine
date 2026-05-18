@@ -344,11 +344,18 @@ function initLocalClock() {
             timeZoneName: 'short'
         }).formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
         
-        let displayText = `${localDateStr} · ${localTimeStr} ${localTzPart}`;
+        let htmlText = `<div>${localDateStr} · ${localTimeStr} ${localTzPart}</div>`;
         
         // 2. Render Modified Clock next to it if active
         if (selectedTimezone && selectedTimezone !== 'auto') {
             const meta = tzMeta[selectedTimezone] || { flag: '🌐', name: 'TZ' };
+            const targetDateStr = now.toLocaleDateString(undefined, {
+                timeZone: selectedTimezone,
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
             const targetTimeStr = now.toLocaleTimeString('en-US', {
                 timeZone: selectedTimezone,
                 hour: '2-digit',
@@ -361,10 +368,21 @@ function initLocalClock() {
                 timeZoneName: 'short'
             }).formatToParts(now).find(p => p.type === 'timeZoneName')?.value || '';
             
-            displayText += ` | ${meta.flag} ${meta.name}: ${targetTimeStr} ${targetTzPart}`;
+            htmlText += `<div style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem; display:flex; align-items:center; gap:0.25rem; font-weight: 500;">
+                ${meta.flag} ${meta.name}: ${targetDateStr} · ${targetTimeStr} ${targetTzPart}
+            </div>`;
+            clockEl.style.display = 'flex';
+            clockEl.style.flexDirection = 'column';
+            clockEl.style.alignItems = 'flex-start';
+            clockEl.style.justifyContent = 'center';
+        } else {
+            clockEl.style.display = '';
+            clockEl.style.flexDirection = '';
+            clockEl.style.alignItems = '';
+            clockEl.style.justifyContent = '';
         }
         
-        clockEl.textContent = displayText;
+        clockEl.innerHTML = htmlText;
     }
 
     // Toggle Dropdown when clicking clock
@@ -1261,8 +1279,20 @@ async function fetchDailyPicks() {
                                     <div class="catalyst-list">
                                         ${news.map(n => {
                                             const pubSource = n.publisher || n.source || 'NEWS';
-                                            const pubDateRaw = (n.provider_publish_time * 1000) || n.published;
-                                            const pubDate = pubDateRaw ? new Date(pubDateRaw).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+                                            let pubDateRaw = n.provider_publish_time || n.published;
+                                            if (pubDateRaw && typeof pubDateRaw === 'number' && pubDateRaw < 10000000000) {
+                                                pubDateRaw *= 1000;
+                                            }
+                                            let pubDate = '';
+                                            if (pubDateRaw) {
+                                                const d = new Date(pubDateRaw);
+                                                if (!isNaN(d.getTime())) {
+                                                    const day = String(d.getDate()).padStart(2, '0');
+                                                    const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
+                                                    const year = d.getFullYear();
+                                                    pubDate = `${day} ${monthStr} ${year}`;
+                                                }
+                                            }
                                             return `
                                                 <div class="catalyst-item">
                                                     <span class="catalyst-publisher">${pubSource}${pubDate ? ` · ${pubDate}` : ''}</span>
@@ -1833,7 +1863,14 @@ function buildNewsHtml(mkt) {
     if (links.length > 0) {
         itemsHtml = links.slice(0, 5).map(h => {
             if (!h.title) return '';
-            const pubDate = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            let pubDate = '';
+            if (h.published) {
+                const d = new Date(h.published);
+                const day = String(d.getDate()).padStart(2, '0');
+                const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
+                const year = d.getFullYear();
+                pubDate = `${day} ${monthStr} ${year}`;
+            }
             const pubSource = h.source || 'NEWS';
             if (h.url) {
                 return `
@@ -2935,12 +2972,18 @@ function renderModalNews(mkt) {
         try {
             const parsedNews = JSON.parse(mkt.news);
             if (parsedNews && parsedNews.length > 0) {
-                links = parsedNews.map(n => ({
-                    title: n.title,
-                    url: n.link || n.url,
-                    source: n.publisher || n.source,
-                    published: (n.provider_publish_time * 1000) || n.published
-                }));
+                links = parsedNews.map(n => {
+                    let pubVal = n.provider_publish_time || n.published;
+                    if (pubVal && typeof pubVal === 'number' && pubVal < 10000000000) {
+                        pubVal *= 1000;
+                    }
+                    return {
+                        title: n.title,
+                        url: n.link || n.url,
+                        source: n.publisher || n.source,
+                        published: pubVal
+                    };
+                });
             }
         } catch (e) { console.error("Modal news parse failed", e); }
     }
@@ -2948,7 +2991,14 @@ function renderModalNews(mkt) {
     if (links.length > 0) {
         container.innerHTML = links.slice(0, 5).map(h => {
             if (!h.title) return '';
-            const pub = h.published ? new Date(h.published).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+            let pub = '';
+            if (h.published) {
+                const d = new Date(h.published);
+                const day = String(d.getDate()).padStart(2, '0');
+                const monthStr = d.toLocaleDateString('en-US', { month: 'short' });
+                const year = d.getFullYear();
+                pub = `${day} ${monthStr} ${year}`;
+            }
             return `
                 <a class="news-article-card" href="${h.url || '#'}" target="_blank" rel="noopener noreferrer">
                     <div class="news-article-source">${h.source || 'News'}${pub ? ` · ${pub}` : ''}</div>
@@ -3133,12 +3183,18 @@ async function loadModalChart(ticker, period) {
 
         // Populating dynamic news headlines retrieved from backend
         if (data.news && data.news.length > 0) {
-            currentModalMkt.headline_links = data.news.map(n => ({
-                title: n.title,
-                url: n.link || n.url,
-                source: n.publisher || n.source,
-                published: (n.provider_publish_time * 1000) || n.published
-            }));
+            currentModalMkt.headline_links = data.news.map(n => {
+                let pubVal = n.provider_publish_time || n.published;
+                if (pubVal && typeof pubVal === 'number' && pubVal < 10000000000) {
+                    pubVal *= 1000;
+                }
+                return {
+                    title: n.title,
+                    url: n.link || n.url,
+                    source: n.publisher || n.source,
+                    published: pubVal
+                };
+            });
             renderModalNews(currentModalMkt);
         } else {
             renderModalNews(currentModalMkt);
@@ -3798,12 +3854,12 @@ function renderTopNews(articles) {
     if (!articles.length) { el.innerHTML = '<p style="color:var(--text-secondary)">No news available yet.</p>'; return; }
     el.innerHTML = articles.map(a => {
         const d = a.published ? new Date(a.published) : null;
-        // Format: 11 May 2026, 14:30 (UTC+10)
-        const dateStr = d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        const day = d ? String(d.getDate()).padStart(2, '0') : '';
+        const monthStr = d ? d.toLocaleDateString('en-US', { month: 'short' }) : '';
+        const year = d ? d.getFullYear() : '';
+        const dateStr = d ? `${day} ${monthStr} ${year}` : '';
         const timeStr = d ? d.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' }) : '';
-        const tz = a.timezone || 'UTC';
-
-        const fullTime = d ? `${dateStr}, ${timeStr} (${tz})` : '';
+        const fullTime = d ? `${dateStr}, ${timeStr}` : '';
         const desc = a.description || '';
 
         // Remove currency symbols from news headlines (as requested)

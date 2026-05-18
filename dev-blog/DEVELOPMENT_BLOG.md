@@ -1,6 +1,23 @@
 # Development Blog
 
-## Entry 63: Balanced 3-Column Global Market Grid & High-Fidelity Timezones (2026-05-18)
+## Entry 64: Symmetrical 2-Row Clock Completeness, Timezone Selector GMT Offsets & Clean News Date Layouts (2026-05-18)
+
+Today, we continued refining the visual intelligence and layout precision of our cost-aware market dashboard, completing high-fidelity enhancements to timezone selector offsets, target timezone clocks, clean market news feeds, and dynamic date parsing.
+
+**GMT Offsets in Market Timezone Dropdown Selector**
+To improve regional time synchronization and offer intuitive indicators for global markets, we upgraded the timezone option items inside the header actions dropdown. Every regional option now explicitly displays its standard and daylight-saving GMT offsets directly next to its ticker abbreviation within the monospace `.tz-abbrev` element (e.g. `EST/EDT (GMT-5/-4)` for New York, `AEST/AEDT (GMT+10/+11)` for Sydney, `CET/CEST (GMT+1/+2)` for Frankfurt, and `JST (GMT+9)` or `HKT (GMT+8)` for non-DST exchanges). This aligns perfectly with the `Auto-Detect (GMT+10)` layout and ensures ultimate reference clarity.
+
+**Target Timezone Clock Date & Time Integration**
+Building upon the symmetrical 2-row layout, we upgraded the secondary timezone clock (displayed on Row 2 of the top header actions clock widget) to show both the target date and target time completely. A user selecting a foreign exchange timezone (e.g., New York, London, Tokyo) now sees a fully formatted regional comparison (e.g., `🇺🇸 NY: Mon, 18 May 2026 · 06:58:58 EDT` directly under the system local time). The text remains in a neat, lightweight secondary row, ensuring zero vertical stretching while providing full calendar synchronization.
+
+**Removing Timezone Suffix from Discover Market News**
+To maximize scannability and eliminate label visual clutter inside the main `MARKET NEWS` feed on the Discover tab, we removed the redundant timezone abbreviations (e.g. `(UTC)`) from publication timestamps. Timestamps now render cleanly as `18 May 2026, 08:30 pm`, improving typography layout and maintaining a sleek, minimal aesthetic across the news grid.
+
+**Upgrading Date Ingestion for Discovery Tickers**
+We identified a subtle data serialization bug in our Discovery Picks catalysts ("Recent News") where publication dates were entirely missing next to publisher names (e.g. showing `MOTLEY FOOL` instead of `MOTLEY FOOL · 18 May 2026`). The root cause was that Yahoo Finance v2 RSS news feed now returns string-based ISO dates (`Mon, 18 May 2026 12:00:00 GMT`) inside its `content.get("pubDate")` schema instead of standard numeric epoch seconds. In our JavaScript news processors, multiplying a date string by `1000` resulted in `NaN`, rendering an invalid date.
+* **The Fix**: We rewrote our news date extraction across all loaders in `app.js` (catalyst lists, watchlist cards, modal news cards, and details views) to check types defensively. If a publish value is numeric, we apply standard millisecond normalization; if it is an ISO string, we pass it directly to `new Date()`. This successfully restores perfect, clean `DD MMM YYYY` date badges for all dynamic discovery picks.
+
+## Entry 63: Balanced 3-Column Grid & High-Fidelity Timezones (2026-05-18)
 
 Today, we continued to polish the high-density Discover research portal, focusing on geographical organization, symmetry, and accurate exchange timezones.
 

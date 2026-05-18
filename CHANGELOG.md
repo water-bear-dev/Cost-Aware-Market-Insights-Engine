@@ -3,11 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.2.7] - 2026-05-18
+
+### Changed
+- **GMT Offsets in Timezone Selector** — Added explicit standard and daylight-saving GMT offset annotations (e.g. `GMT-5/-4` for New York, `GMT+10/+11` for Sydney) to all options inside the market timezone selector dropdown for intuitive regional reference.
+- **Target Timezone Date & Time Completeness** — Enhanced the secondary target timezone clock widget (row 2 in the header actions bar) to show both the target date and time (e.g., `🇺🇸 NY: Mon, 18 May 2026 · 06:58:58 EDT`) for seamless regional time comparison.
+- **Removed Timezone in Market News** — Streamlined publication timestamps in the main Discovery `MARKET NEWS` feed by omitting the redundant `(UTC)` or timezone abbreviation suffix, keeping labels highly readable and concise.
+- **Discovery Picks News Date Restoration** — Resolved an issue where publication dates were missing in the Discovery Picks cards news feed by upgrading the parser to dynamically handle string-based ISO dates from yfinance v2 RSS formats rather than failing on assumed numeric seconds.
+
 ## [3.2.6] - 2026-05-18
 
 ### Added
 - **Default Currency View Option** — Introduced a new "Default Currency" option as the out-of-the-box setting across all currency selectors. This preserves and shows the native currency of each asset (e.g., USD for US stocks, JPY for SoftBank, AUD for ASX, EUR for European assets) while providing full, accurate cross-currency FX conversion to USD, EUR, GBP, AUD, or JPY upon manual dropdown selection.
 - **Premium Regional Exchange Flags** — Enhanced the market stock cards by prefixing exchange labels with their official regional flag emojis (e.g., `🇺🇸 NASDAQ`, `🇺🇸 NYSE`, `🇯🇵 JPX`, `🇨🇦 TSX`, `🇦🇺 ASX`, `🇬🇧 LSE`, `🇩🇪 DAX`).
+- **Real-Time Global News Query Routing** — Developed a comprehensive brand translation mapping table for international assets in the Python backend news ingestion service. By translating raw tickers (e.g. `9984.T` or `CBA.AX`) to their clean corporate names (e.g. "SoftBank Group" or "Commonwealth Bank Australia") and stripping suffixes dynamically, the Google News RSS search engine now successfully bypasses yfinance limitations and retrieves real-time, daily news headlines for international listings.
+- **Standardized DD MM YYYY News Date Format** — Overhauled date formatters across the dashboard, watchlists, discovery picks, and details modals, replacing short relative dates with a clean, standardized padded `DD MM YYYY` format for ultimate consistency.
 
 ### Changed
 - **Asia Pacific Region Renaming** — Symmetrically renamed the "Asia" regions to "Asia Pacific" across both the watchlists country filters and the Top Movers geographical button selectors.

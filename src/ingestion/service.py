@@ -37,10 +37,63 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
     results = []
 
     try:
-        # Search query optimization for regional indices and commodities
+        import urllib.parse
+        
+        # Search query optimization for regional indices, commodities, and global tickers
         search_term = ticker
         t_upper = ticker.upper()
-        if t_upper == "^GSPC": search_term = "S%26P+500"
+        
+        # Translation map for international tickers
+        global_search_terms = {
+            "9984.T": "SoftBank Group",
+            "7203.T": "Toyota",
+            "6758.T": "Sony Group",
+            "0700.HK": "Tencent",
+            "9988.HK": "Alibaba",
+            "3690.HK": "Meituan",
+            "1299.HK": "AIA Group",
+            "2318.HK": "Ping An",
+            "1810.HK": "Xiaomi",
+            "CBA.AX": "Commonwealth Bank Australia",
+            "BHP.AX": "BHP Group",
+            "CSL.AX": "CSL Limited",
+            "NAB.AX": "National Australia Bank",
+            "ANZ.AX": "ANZ Bank",
+            "WBC.AX": "Westpac",
+            "RIO.AX": "Rio Tinto",
+            "WES.AX": "Wesfarmers",
+            "MQG.AX": "Macquarie Group",
+            "WOW.AX": "Woolworths Group",
+            "FMG.AX": "Fortescue",
+            "TLS.AX": "Telstra",
+            "WDS.AX": "Woodside Energy",
+            "XRO.AX": "Xero",
+            "REH.AX": "Reece Group",
+            "RELIANCE.NS": "Reliance Industries",
+            "TCS.NS": "TCS Tata Consultancy",
+            "HDFCBANK.NS": "HDFC Bank",
+            "INFY.NS": "Infosys",
+            "ICICIBANK.NS": "ICICI Bank",
+            "RY.TO": "Royal Bank of Canada",
+            "TD.TO": "TD Bank",
+            "SHOP.TO": "Shopify",
+            "CP.TO": "Canadian Pacific",
+            "CNQ.TO": "Canadian Natural",
+            "VOD.L": "Vodafone",
+            "HSBA.L": "HSBC",
+            "BP.L": "BP Energy",
+            "SHEL.L": "Shell oil",
+            "AZN.L": "AstraZeneca",
+            "GSK.L": "GSK Pharma",
+            "MC.PA": "LVMH",
+            "OR.PA": "LOreal",
+            "ASML.AS": "ASML",
+            "SAP.DE": "SAP software"
+        }
+        
+        if t_upper in global_search_terms:
+            search_term = urllib.parse.quote_plus(global_search_terms[t_upper])
+        elif t_upper == "^GSPC": search_term = "S%26P+500"
         elif t_upper == "^IXIC": search_term = "Nasdaq+Composite"
         elif t_upper == "^AXJO": search_term = "ASX+200"
         elif t_upper == "^N225": search_term = "Nikkei+225"
@@ -56,7 +109,15 @@ def fetch_headlines(ticker: str, max_count: int = 5) -> list[dict]:
         elif t_upper == "PA=F": search_term = "Palladium+price"
         elif t_upper == "CL=F": search_term = "Crude+Oil+price"
         else:
-            search_term = f"{ticker}+stock"
+            if "." in ticker:
+                parts = ticker.split(".")
+                prefix = parts[0]
+                if not prefix.isdigit():
+                    search_term = urllib.parse.quote_plus(f"{prefix} stock")
+                else:
+                    search_term = urllib.parse.quote_plus(f"{ticker} stock")
+            else:
+                search_term = f"{ticker}+stock"
 
         url = f"https://news.google.com/rss/search?q={search_term}&hl=en-US&gl=US&ceid=US:en"
         response = httpx.get(url, timeout=5.0)
