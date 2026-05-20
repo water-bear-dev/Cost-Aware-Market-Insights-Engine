@@ -888,6 +888,36 @@
                             <canvas id="modal-forecast-chart"></canvas>
                         </div>
                     </div>
+
+                    <!-- EPS Performance Section -->
+                    <div class="modal-section" id="modal-eps-section" style="display:none; margin-top: 2rem;">
+                        <div class="eps-section-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                            <h4 style="margin: 0;">Earnings Performance (EPS)</h4>
+                            <div class="eps-toggle-buttons" style="display: flex; gap: 0.5rem;">
+                                <button id="eps-toggle-quarterly" class="glass-btn active" style="padding: 0.2rem 0.8rem; font-size: 0.75rem; border-radius: 4px;">Quarterly</button>
+                                <button id="eps-toggle-annual" class="glass-btn" style="padding: 0.2rem 0.8rem; font-size: 0.75rem; border-radius: 4px;">Annual</button>
+                            </div>
+                        </div>
+                        <div style="position: relative; height: 220px; margin-top: 1rem;">
+                            <canvas id="modal-eps-chart"></canvas>
+                        </div>
+                        <!-- Surprise metrics table -->
+                        <div id="modal-eps-table-wrapper" style="margin-top: 1.5rem; overflow-x: auto; max-height: 200px; border-radius: 6px; border: 1px solid var(--glass-border);">
+                            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--glass-border); color: #94a3b8; background: rgba(15, 23, 42, 0.3); position: sticky; top: 0; z-index: 1;">
+                                        <th style="padding: 0.6rem 0.8rem;">Period End</th>
+                                        <th style="padding: 0.6rem 0.8rem;">Estimate</th>
+                                        <th style="padding: 0.6rem 0.8rem;">Reported</th>
+                                        <th style="padding: 0.6rem 0.8rem; text-align: right;">Surprise</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-eps-tbody">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

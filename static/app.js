@@ -22,6 +22,9 @@ let currentPeriod = '1d'; // Start with 1D as default for live change
 let currentModalMkt = {};
 let currentModalInsight = null;
 let currentModalFundamentals = null;
+let currentModalEPS = null;
+let modalEPSChartInstance = null;
+let currentModalHistoryData = null;
 
 // All symbols we need sparklines for (indices + commodities)
 const DISCOVER_INDEX_SYMBOLS = ['^AXJO', '^GSPC', '^IXIC', '^STOXX50E', '^FTSE', '^N225', '^HSI', '^GDAXI', '^GSPTSE'];
@@ -2610,6 +2613,8 @@ function openModal(ticker) {
     currentModalTicker = ticker;
     currentPeriod = '1mo';
     currentModalFundamentals = null;
+    currentModalEPS = null;
+    currentModalHistoryData = null;
     
     // Reset tabs
     document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.modaltab === 'overview'));
@@ -2626,6 +2631,7 @@ function openModal(ticker) {
     document.getElementById('modal-ownership-section').style.display = 'none';
     document.getElementById('modal-dividends-section').style.display = 'none';
     document.getElementById('modal-target-section').style.display = 'none';
+    document.getElementById('modal-eps-section').style.display = 'none';
     document.getElementById('modal-analyst-gauge').innerHTML = '';
 
     document.querySelectorAll('.period-btn').forEach(b => {
@@ -3317,8 +3323,14 @@ function closeModal() {
         modalForecastChartInstance.destroy();
         modalForecastChartInstance = null;
     }
+    if (modalEPSChartInstance) {
+        modalEPSChartInstance.destroy();
+        modalEPSChartInstance = null;
+    }
     currentModalTicker = null;
     currentModalFundamentals = null;
+    currentModalEPS = null;
+    currentModalHistoryData = null;
 }
 
 async function loadModalChart(ticker, period) {
@@ -3336,6 +3348,7 @@ async function loadModalChart(ticker, period) {
             return period === '1d' ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : dt.toLocaleDateString();
         });
         const closes = data.ohlcv.map(d => d.close);
+        currentModalHistoryData = { labels, closes };
 
         // Update company name
         if (data.info && data.info.name) {
@@ -4335,18 +4348,28 @@ async function fetchAndRenderFundamentals(ticker) {
     }
     
     try {
-        const res = await fetch(`/api/v1/market/fundamentals/${ticker}`);
-        if (!res.ok) throw new Error('Failed to fetch fundamentals');
-        const data = await res.json();
+        const [fundRes, epsRes] = await Promise.all([
+            fetch(`/api/v1/market/fundamentals/${ticker}`),
+            fetch(`/api/v1/market/eps/${ticker}`)
+        ]);
+        
+        if (!fundRes.ok) throw new Error('Failed to fetch fundamentals');
+        const data = await fundRes.json();
+        
+        let epsData = { ticker, eps: [] };
+        if (epsRes.ok) {
+            epsData = await epsRes.json();
+        }
         
         currentModalFundamentals = data;
+        currentModalEPS = epsData;
         if (loader) loader.style.display = 'none';
         
         // Render all segments
         renderModalFinancialsChart(data);
         renderModalOwnership(data);
         renderModalDividends(data);
-        renderModalForecasts(data);
+        renderModalForecasts(data, epsData);
         
     } catch (e) {
         console.error("Error fetching fundamentals:", e);
@@ -4510,7 +4533,7 @@ function renderModalDividends(data) {
     }).join('');
 }
 
-function renderModalForecasts(data) {
+function renderModalForecasts(data, epsData) {
     const info = currentModalMkt?.info || {};
 
     // 1. Analyst Rating Gauge
@@ -4530,93 +4553,391 @@ function renderModalForecasts(data) {
         gaugeWrapper.innerHTML = `<div class="analyst-gauge-label" style="font-size: 1rem; color: var(--text-secondary);">NO RATING AVAILABLE</div>`;
     }
 
-    // 2. Target Price Chart
+    // 2. TradingView-Style Price Target Forecast Cone
     const targetSection = document.getElementById('modal-target-section');
-    if (!targetSection) return;
+    if (targetSection) {
+        if (!info.target_low || !info.target_high || !info.target_price) {
+            targetSection.style.display = 'none';
+        } else {
+            targetSection.style.display = 'block';
+            
+            if (modalForecastChartInstance) {
+                modalForecastChartInstance.destroy();
+            }
 
-    if (!info.target_low || !info.target_high || !info.target_price) {
-        targetSection.style.display = 'none';
-        return;
-    }
-    
-    targetSection.style.display = 'block';
-
-    if (modalForecastChartInstance) {
-        modalForecastChartInstance.destroy();
-    }
-
-    const ctx = document.getElementById('modal-forecast-chart').getContext('2d');
-    
-    // We'll plot Current Price vs Low, Mean, High Targets as a categorical bar chart
-    const currentPrice = currentModalMkt?.close_price || info.target_low;
-    
-    const labels = ['Low Target', 'Current Price', 'Mean Target', 'High Target'];
-    const values = [
-        info.target_low,
-        currentPrice, // fallback
-        info.target_price,
-        info.target_high
-    ];
-    
-    // Determine colors
-    const getBgColor = (val, isCurrent) => {
-        if (isCurrent) return 'rgba(56, 189, 248, 0.8)'; // accent
-        if (val > currentPrice) return 'rgba(16, 185, 129, 0.8)'; // green
-        if (val < currentPrice) return 'rgba(244, 63, 94, 0.8)'; // red
-        return 'rgba(255,255,255,0.4)'; // same
-    };
-    
-    const colors = [
-        getBgColor(values[0], false),
-        getBgColor(values[1], true),
-        getBgColor(values[2], false),
-        getBgColor(values[3], false),
-    ];
-
-    modalForecastChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors,
-                borderRadius: 6,
-                barThickness: 40
-            }]
-        },
-        options: {
-            indexAxis: 'y', // horizontal bar
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(15,23,42,0.9)',
-                    titleColor: '#94a3b8',
-                    bodyColor: '#f8fafc',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: (ctx) => ` $${ctx.raw.toFixed(2)}`
+            const ctx = document.getElementById('modal-forecast-chart').getContext('2d');
+            
+            // Build historical context + future forecast cone
+            const currentPrice = currentModalMkt?.close_price || info.target_low;
+            
+            let histLabels = [];
+            let histValues = [];
+            
+            if (currentModalHistoryData && currentModalHistoryData.labels && currentModalHistoryData.labels.length > 0) {
+                // Take last 30 points of daily history for context
+                const count = Math.min(30, currentModalHistoryData.labels.length);
+                histLabels = currentModalHistoryData.labels.slice(-count);
+                histValues = currentModalHistoryData.closes.slice(-count);
+            } else {
+                // Fallback context if no history loaded
+                histLabels = ['Past Month', 'Current'];
+                histValues = [currentPrice * 0.98, currentPrice];
+            }
+            
+            const lastHistIndex = histValues.length - 1;
+            
+            // Create Future forecast labels (12 months ahead)
+            const futureLabels = [];
+            const currentDate = new Date();
+            for (let i = 1; i <= 12; i++) {
+                const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
+                futureLabels.push(nextMonth.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }));
+            }
+            
+            // Combine Labels
+            const allLabels = [...histLabels, ...futureLabels];
+            
+            // Build datasets for High, Mean, Low
+            // High Target dataset: starts at currentPrice, branches to target_high
+            const highData = new Array(histValues.length).fill(null);
+            highData[lastHistIndex] = currentPrice;
+            for (let i = 0; i < 12; i++) {
+                highData.push(currentPrice + ((info.target_high - currentPrice) * (i + 1) / 12));
+            }
+            
+            // Low Target dataset: starts at currentPrice, branches to target_low
+            const lowData = new Array(histValues.length).fill(null);
+            lowData[lastHistIndex] = currentPrice;
+            for (let i = 0; i < 12; i++) {
+                lowData.push(currentPrice + ((info.target_low - currentPrice) * (i + 1) / 12));
+            }
+            
+            // Mean Target dataset: starts at currentPrice, branches to target_price
+            const meanData = new Array(histValues.length).fill(null);
+            meanData[lastHistIndex] = currentPrice;
+            for (let i = 0; i < 12; i++) {
+                meanData.push(currentPrice + ((info.target_price - currentPrice) * (i + 1) / 12));
+            }
+            
+            // Historical dataset (null for future part)
+            const histDataset = [...histValues, ...new Array(12).fill(null)];
+            
+            modalForecastChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: allLabels,
+                    datasets: [
+                        {
+                            label: 'Low Forecast Bound',
+                            data: lowData,
+                            borderColor: 'rgba(239, 68, 68, 0.4)',
+                            borderWidth: 1.5,
+                            borderDash: [4, 4],
+                            fill: false,
+                            pointStyle: 'none',
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Forecast Range Area',
+                            data: highData,
+                            borderColor: 'rgba(34, 197, 94, 0.4)',
+                            borderWidth: 1.5,
+                            borderDash: [4, 4],
+                            fill: 0, // Fills space between this dataset and dataset 0 (Low Target)
+                            backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                            pointStyle: 'none',
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Consensus Target',
+                            data: meanData,
+                            borderColor: '#eab308', // Gold
+                            borderWidth: 2,
+                            borderDash: [6, 4],
+                            fill: false,
+                            pointRadius: (ctx) => ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 0,
+                            pointBackgroundColor: '#eab308',
+                            pointBorderColor: '#fff',
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Historical Close',
+                            data: histDataset,
+                            borderColor: '#38bdf8', // Accent blue
+                            borderWidth: 2.5,
+                            fill: false,
+                            pointRadius: 0,
+                            pointHoverRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                font: { size: 10 },
+                                filter: (item) => ['Consensus Target', 'Historical Close'].includes(item.text)
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: (context) => {
+                                    if (context.raw === null) return null;
+                                    return ` ${context.dataset.label}: $${context.raw.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255,255,255,0.03)' },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.4)',
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 8
+                            }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.6)',
+                                callback: (v) => '$' + v
+                            }
+                        }
                     }
                 }
-            },
-            scales: {
-                x: {
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.5)',
-                        callback: (v) => '$' + v
-                    },
-                    min: Math.min(...values) * 0.9, // start slightly below minimum
-                    max: Math.max(...values) * 1.1
-                },
-                y: {
-                    grid: { display: false },
-                    ticks: { color: 'rgba(255, 255, 255, 0.7)' }
-                }
-            }
+            });
         }
-    });
+    }
+
+    // 3. EPS Earnings Performance Panel
+    const epsSection = document.getElementById('modal-eps-section');
+    if (epsSection) {
+        if (!epsData || !epsData.eps || epsData.eps.length === 0) {
+            epsSection.style.display = 'none';
+        } else {
+            epsSection.style.display = 'block';
+            
+            // Format and display EPS Dual-Bar Chart
+            // The EPS data is returned newest-first. We want oldest-first for the chart timeline
+            let filteredEps = [...epsData.eps].reverse();
+            
+            // Limit to standard 8 quarters to prevent UI clutter
+            filteredEps = filteredEps.slice(-8);
+
+            // EPS Toggle behavior
+            let currentView = 'quarterly'; // default
+            
+            const renderEpsElements = (view) => {
+                if (modalEPSChartInstance) {
+                    modalEPSChartInstance.destroy();
+                }
+
+                const ctx = document.getElementById('modal-eps-chart').getContext('2d');
+                
+                let labels = [];
+                let estimates = [];
+                let reported = [];
+                let listData = [];
+
+                if (view === 'annual' && currentModalFundamentals && currentModalFundamentals.financials) {
+                    // Pull from Fundamentals annual metrics
+                    const fin = currentModalFundamentals.financials;
+                    labels = fin.periods || [];
+                    reported = fin.net_income || [];
+                    
+                    // In yfinance, standard estimated EPS is quarterly. 
+                    // For annual estimate we can show a nice bar of Net Income vs. Gross Profit, or simply map the annual Net Income!
+                    // Let's make it easy: if 'annual' selected, we render corporate Net Income vs. Operating Income as a custom comparative bar,
+                    // which is incredibly high-value since corporate EPS aggregates to Net Income!
+                    // Let's map net_income vs gross_profit or net_income alone:
+                    estimates = fin.operating_income || [];
+                    
+                    modalEPSChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Operating Income ($B)',
+                                    data: estimates.map(v => v / 1e9),
+                                    backgroundColor: 'rgba(148, 163, 184, 0.4)',
+                                    borderColor: 'rgba(148, 163, 184, 0.8)',
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Net Income ($B)',
+                                    data: reported.map(v => v / 1e9),
+                                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                                    borderColor: '#3b82f6',
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { color: 'rgba(255, 255, 255, 0.6)', font: { size: 10 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (ctx) => ` ${ctx.dataset.label}: $${ctx.raw.toFixed(2)}B`
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: 'rgba(255, 255, 255, 0.5)' } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255, 255, 255, 0.6)', callback: (v) => '$' + v + 'B' } }
+                            }
+                        }
+                    });
+
+                    // Render Annual table rows
+                    const tbody = document.getElementById('modal-eps-tbody');
+                    tbody.innerHTML = labels.map((p, idx) => {
+                        const netVal = reported[idx] ? `$${(reported[idx] / 1e9).toFixed(2)}B` : 'N/A';
+                        const opVal = estimates[idx] ? `$${(estimates[idx] / 1e9).toFixed(2)}B` : 'N/A';
+                        return `
+                            <tr style="border-bottom: 1px solid var(--glass-border); hover: background: rgba(255,255,255,0.02)">
+                                <td style="padding: 0.75rem 1rem; color: #fff; font-weight: 500;">FY ${p}</td>
+                                <td style="padding: 0.75rem 1rem; color: #94a3b8;">${opVal} (Oper.)</td>
+                                <td style="padding: 0.75rem 1rem; color: #3b82f6; font-weight: 600;">${netVal} (Net)</td>
+                                <td style="padding: 0.75rem 1rem; text-align: right;"><span class="surprise-pill neutral">Corporate</span></td>
+                            </tr>
+                        `;
+                    }).reverse().join('');
+
+                } else {
+                    // Render standard Quarterly EPS
+                    labels = filteredEps.map(e => {
+                        const d = new Date(e.date);
+                        return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                    });
+                    estimates = filteredEps.map(e => e.estimate);
+                    reported = filteredEps.map(e => e.reported);
+                    listData = filteredEps;
+
+                    modalEPSChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                {
+                                    label: 'Estimate EPS',
+                                    data: estimates,
+                                    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+                                    borderColor: 'rgba(148, 163, 184, 0.7)',
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                },
+                                {
+                                    label: 'Reported EPS',
+                                    data: reported,
+                                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                                    borderColor: '#3b82f6',
+                                    borderWidth: 1,
+                                    borderRadius: 4
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true,
+                                    position: 'top',
+                                    labels: { color: 'rgba(255, 255, 255, 0.6)', font: { size: 10 } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (ctx) => ` ${ctx.dataset.label}: $${ctx.raw.toFixed(2)}`
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: 'rgba(255, 255, 255, 0.5)' } },
+                                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255, 255, 255, 0.6)', callback: (v) => '$' + v } }
+                            }
+                        }
+                    });
+
+                    // Render table rows (newest first)
+                    const tbody = document.getElementById('modal-eps-tbody');
+                    const reversedList = [...listData].reverse();
+                    tbody.innerHTML = reversedList.map(e => {
+                        const est = e.estimate !== null ? `$${e.estimate.toFixed(2)}` : 'N/A';
+                        const rep = e.reported !== null ? `$${e.reported.toFixed(2)}` : 'N/A';
+                        
+                        let surpriseBadge = '';
+                        if (e.surprise !== null) {
+                            const isPositive = e.surprise >= 0;
+                            const sign = isPositive ? '+' : '';
+                            const statusClass = isPositive ? 'positive' : 'negative';
+                            surpriseBadge = `<span class="surprise-pill ${statusClass}">${sign}${e.surprise.toFixed(1)}%</span>`;
+                        } else {
+                            surpriseBadge = `<span class="surprise-pill neutral">N/A</span>`;
+                        }
+
+                        const d = new Date(e.date);
+                        const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+                        return `
+                            <tr style="border-bottom: 1px solid var(--glass-border); hover: background: rgba(255,255,255,0.02)">
+                                <td style="padding: 0.75rem 1rem; color: #fff; font-weight: 500;">${formattedDate}</td>
+                                <td style="padding: 0.75rem 1rem; color: #94a3b8;">${est}</td>
+                                <td style="padding: 0.75rem 1rem; color: #3b82f6; font-weight: 600;">${rep}</td>
+                                <td style="padding: 0.75rem 1rem; text-align: right;">${surpriseBadge}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            };
+
+            // Set up button selectors
+            const qBtn = document.getElementById('eps-toggle-quarterly');
+            const aBtn = document.getElementById('eps-toggle-annual');
+            
+            if (qBtn && aBtn) {
+                qBtn.onclick = () => {
+                    qBtn.classList.add('active');
+                    aBtn.classList.remove('active');
+                    currentView = 'quarterly';
+                    renderEpsElements('quarterly');
+                };
+
+                aBtn.onclick = () => {
+                    aBtn.classList.add('active');
+                    qBtn.classList.remove('active');
+                    currentView = 'annual';
+                    renderEpsElements('annual');
+                };
+            }
+
+            // Initial quarterly render
+            renderEpsElements('quarterly');
+        }
+    }
 }
 

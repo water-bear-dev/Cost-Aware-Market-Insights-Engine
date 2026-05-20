@@ -608,3 +608,73 @@ def get_ticker_fundamentals(request: Request, ticker: str):
     except Exception as e:
         logger.error("Failed to fetch fundamentals", ticker=ticker, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── EPS cache ─────────────────────────────────────────────────────────────
+_eps_cache: dict = {}
+_EPS_CACHE_TTL = 86400  # 24 hours
+
+@router.get("/market/eps/{ticker}")
+@limiter.limit("30/minute")
+def get_ticker_eps(request: Request, ticker: str):
+    """
+    Fetch historical EPS actual vs estimate vs surprise.
+    """
+    global _eps_cache
+    ticker = ticker.upper().strip()
+    
+    # Check cache
+    cached = _eps_cache.get(ticker)
+    if cached and time.time() - cached["last_fetch"] < _EPS_CACHE_TTL:
+        return cached["data"]
+        
+    try:
+        t = yf.Ticker(ticker)
+        eps_data = []
+        
+        try:
+            # yfinance returns pandas DataFrame for get_earnings_history
+            # It lists recent earnings first
+            df = t.get_earnings_history()
+            if df is not None and not df.empty:
+                # Handle dates in index
+                for index, row in df.iterrows():
+                    # Parse index date safely
+                    date_str = ""
+                    if hasattr(index, "strftime"):
+                        date_str = index.strftime('%Y-%m-%d')
+                    else:
+                        date_str = str(index)
+                    
+                    # Convert to float and format defensively
+                    def clean_val(val):
+                        if pd.isna(val) or val is None:
+                            return None
+                        return round(float(val), 2)
+                    
+                    raw_surprise = row.get("surprisePercent")
+                    surprise_val = None
+                    if raw_surprise is not None and not pd.isna(raw_surprise):
+                        # typically decimal (e.g. 0.05 for 5%)
+                        surprise_val = round(float(raw_surprise) * 100, 2)
+                        
+                    eps_data.append({
+                        "date": date_str,
+                        "estimate": clean_val(row.get("epsEstimate")),
+                        "reported": clean_val(row.get("epsActual")),
+                        "surprise": surprise_val
+                    })
+        except Exception as e:
+            logger.warning("EPS: Failed to fetch earnings history", ticker=ticker, error=str(e))
+            
+        result = {
+            "ticker": ticker,
+            "eps": eps_data
+        }
+        
+        _eps_cache[ticker] = {"data": result, "last_fetch": time.time()}
+        return result
+        
+    except Exception as e:
+        logger.error("Failed to fetch EPS history", ticker=ticker, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

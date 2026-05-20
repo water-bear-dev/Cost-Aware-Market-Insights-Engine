@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.4.1] - 2026-05-19
+
+### Added
+- **TradingView-Style Price Target Forecast Cone** — Designed a high-fidelity line projection chart inside the modal Forecasts tab. Integrates 30-day historical context with three distinct branching forecast paths (High target with positive green shade, Mean consensus target, and Low target) over a 12-month future timeline.
+- **Interactive EPS Performance Panel** — Built a sleek, quarterly and annual dual-bar chart mapping Reported EPS vs. Estimated EPS. Accompanied by a glassmorphic Earnings Surprise table displaying custom glowing badges for positive (green) and negative (red) surprise percentages.
+- **FastAPI /api/v1/market/eps/{ticker} Endpoint** — Created a robust backend route compiling quarterly reported and estimate earnings from Yahoo Finance, protected by a 24-hour in-memory cache to prevent external API rate-limiting.
+- **Concurrent Loader Sequence** — Configured `Promise.all` inside `fetchAndRenderFundamentals` to load company fundamentals and earnings performance in parallel, ensuring zero UI blocking.
+- **Quarterly vs. Annual Financial Toggle** — Hooked up active button selectors to dynamically toggle charts between quarterly earnings performance and annual corporate operating/net income.
+
 ## [3.4.0] - 2026-05-19
 
 ### Added
