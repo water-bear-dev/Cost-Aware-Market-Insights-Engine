@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.6.3] - 2026-05-22
+
+### Added
+- **Docker Automatic Syntax Checker** — Integrated the syntax validator (`scripts/syntax_check.sh`) directly into the container lifecycle via a new entrypoint script (`scripts/docker-entrypoint.sh`). Any syntax errors will now block container startup and fail the deployment automatically.
+- **Build-Time Validation** — Configured the Dockerfile to execute the syntax checker during `docker build`, preventing broken images from being compiled or pushed to the container registry.
+- **Node.js Installation in Docker** — Added Node.js installation to the `Dockerfile` base stage to enable JavaScript syntax validation of `static/app.js` directly within the container environment.
+
+### Changed
+- **Conditional Tool Checks** — Hardened `scripts/syntax_check.sh` to dynamically detect if `node` or `docker-compose` are installed on the target environment. If missing, it prints a warning and skips the check rather than failing, ensuring compatibility inside simple environments.
+
 ## [3.6.2] - 2026-05-22
 
 ### Changed

@@ -259,6 +259,7 @@ The application behavior is controlled via environment variables (see `src/confi
 ├── Dockerfile               # Multi-stage production environment (ARM64)
 ├── requirements.txt         # App dependencies (FastAPI, LangGraph, MCP, pytz, etc.)
 ├── scripts/                 # DevOps automation for AWS Deploy/Teardown
+│   ├── docker-entrypoint.sh # Docker startup entrypoint script running syntax check
 │   └── syntax_check.sh      # Python, JS, and Docker Compose syntax validator
 ├── static/                  # Glassmorphic frontend dashboard
 ├── src/                     # Core Alpha-DAG application logic
@@ -271,6 +272,11 @@ The application behavior is controlled via environment variables (see `src/confi
 │       └── meta.py          # Exchange rates endpoint
 └── system-design/           # Architecture diagrams and system overview
 ```
+
+### 🛡️ Automatic Syntax Checks
+The Docker configuration automatically executes `./scripts/syntax_check.sh`:
+1. **During Build (`docker build`)**: Validates the Python and JavaScript code within the image. Any syntax errors block the image creation process.
+2. **On Container Startup/Redeployment**: An entrypoint wrapper script runs validation before initiating the FastAPI server (`uvicorn`). If any file is corrupted or contains syntax errors, the container exits, preventing traffic routing and triggering rollbacks.
 
 ## Technical Constraints & Data Policy
 
