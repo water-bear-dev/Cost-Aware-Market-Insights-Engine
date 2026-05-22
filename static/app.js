@@ -139,7 +139,18 @@ function formatExchange(code) {
     return map[upper] || upper;
 }
 
-function renderSentimentBadges(sentiment_label, sentiment_score, social_volume) {
+function isGlobalOrCommodity(ticker) {
+    if (!ticker) return false;
+    const t = ticker.toUpperCase();
+    return t.startsWith('^') || t.endsWith('=F') || 
+           DISCOVER_INDEX_SYMBOLS.includes(t) || 
+           DISCOVER_COMMODITY_SYMBOLS.includes(t);
+}
+
+function renderSentimentBadges(sentiment_label, sentiment_score, social_volume, ticker = null) {
+    if (ticker && isGlobalOrCommodity(ticker)) {
+        return '';
+    }
     if (!sentiment_label && sentiment_score === undefined && social_volume === undefined) {
         return '';
     }
@@ -153,26 +164,118 @@ function renderSentimentBadges(sentiment_label, sentiment_score, social_volume) 
         html += `<span class="sentiment-badge ${sClass}">${emoji} ${label}${scoreText}</span>`;
     }
     if (social_volume !== undefined && social_volume !== null && social_volume > 0) {
-        html += `<span class="social-volume-badge">🔥 WSB: ${social_volume}</span>`;
+        html += `<span class="social-volume-badge">🔥 r/wallstreetbets: ${social_volume}</span>`;
     }
     html += '</div>';
     return html;
 }
 
-function generateSentimentExplanation(label, score, volume) {
+function generateSentimentExplanation(label, score, volume, ticker = null, changePct = null) {
     if (!label && score === undefined && volume === undefined) return '';
 
     const labelUpper = (label || '').toUpperCase();
     const isBullish = labelUpper.includes('BULL');
     const isBearish = labelUpper.includes('BEAR');
+    const tickerName = ticker ? ticker.toUpperCase() : 'this asset';
+    
+    // Hash of the ticker name to select unique comment variants
+    const hash = ticker ? (ticker.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0) >>> 0) : 0;
     
     let sentimentDescription = '';
     if (isBullish) {
-        sentimentDescription = `retail discussions show positive momentum. Buyers are currently dominant, with optimism regarding upcoming catalysts, growth expectations, or positive earnings expectations.`;
+        const bullishVariants = [
+            `retail interest in <strong>${tickerName}</strong> is surging on expectations of near-term growth catalysts and bullish options positioning. Retail traders on r/wallstreetbets are actively discussing call option sweeps and positive earnings momentum.`,
+            `momentum buyers are clustering around <strong>${tickerName}</strong>, driving a wave of retail FOMO. Discussion threads highlight strong volume spikes and retail hype, with traders targeting key resistance levels.`,
+            `retail sentiment indicates a strong belief that <strong>${tickerName}</strong> is currently undervalued or primed for a turnaround. Board discussions focus on accumulation, with long-term retail holders expressing confidence in the asset's underlying recovery story.`,
+            `chatter around <strong>${tickerName}</strong> centers on new product launches, expansion updates, and high retail popularity, causing buyers to dominate discussions with highly optimistic short-term price targets.`
+        ];
+        sentimentDescription = bullishVariants[hash % bullishVariants.length];
     } else if (isBearish) {
-        sentimentDescription = `retail discussions lean negative. Sellers are dominant, with caution driven by sector headwinds, downside risks, or negative news sentiment.`;
+        const bearishVariants = [
+            `retail traders are increasingly defensive on <strong>${tickerName}</strong>, with discussions focusing heavily on buying downside protection (puts) and hedging. Caution is driven by perceived overhead resistance and negative technical patterns.`,
+            `negative chatter dominates the forums for <strong>${tickerName}</strong>, reflecting concerns over industry-wide headwinds, margin pressures, or disappointing news flow. Active retail short-sellers are targeting support levels.`,
+            `a wave of retail disappointment or panic-selling discussions has emerged for <strong>${tickerName}</strong>. Sentiment is weighed down by recent news, with many retail accounts reporting stop-losses being triggered or de-risking positions.`,
+            `retail sentiment leans negative as discussions point to overvaluation concerns or sector rotations away from assets like <strong>${tickerName}</strong>, leading to a general consensus of cautious or bearish expectations.`
+        ];
+        sentimentDescription = bearishVariants[hash % bearishVariants.length];
     } else {
-        sentimentDescription = `retail discussions are balanced or neutral. There is no clear directional bias from retail investors, representing consolidation or mixed news signals.`;
+        const neutralVariants = [
+            `retail discussion around <strong>${tickerName}</strong> suggests a period of consolidation. Traders are generally on the sidelines, waiting for a definitive breakout or fresh fundamental news before taking new directional positions.`,
+            `the retail community is highly divided on the outlook for <strong>${tickerName}</strong>, leading to a balanced, range-bound sentiment. Debate remains active between bulls advocating for accumulation and bears arguing for further correction.`,
+            `interest in <strong>${tickerName}</strong> is relatively muted in retail forums, indicating a lack of near-term speculative hype or major retail-driven catalysts. Trading activity is primarily driven by institutional action rather than retail momentum.`,
+            `chatter regarding <strong>${tickerName}</strong> is largely macro-focused, with retail investors taking a wait-and-see approach. Discussions are centered on broader interest rate decisions, inflation data, or upcoming industry conferences rather than company-specific events.`
+        ];
+        sentimentDescription = neutralVariants[hash % neutralVariants.length];
+    }
+
+    let dynamicAnalysis = '';
+    if (ticker && changePct !== null && changePct !== undefined) {
+        const changeVal = parseFloat(changePct);
+        const percentStr = `${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(2)}%`;
+        
+        if (isBullish) {
+            if (changeVal > 1.5) {
+                const variants = [
+                    ` For <strong>${tickerName}</strong>, this retail optimism is highly correlated with the strong upward price momentum (<strong>${percentStr}</strong>) observed in today's trading session, suggesting that retail FOMO and buying pressure are supporting the rally.`,
+                    ` The price advance of <strong>${percentStr}</strong> matches the positive buzz in r/wallstreetbets, indicating that retail momentum is acting as a strong wind in the sails of today's upward movement.`,
+                    ` As <strong>${tickerName}</strong> advances by <strong>${percentStr}</strong>, the bullish retail commentary shows strong support from momentum-chasers who are targeting higher breakout levels.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            } else if (changeVal < -1.5) {
+                const variants = [
+                    ` Notably, despite <strong>${tickerName}</strong>'s price decline of <strong>${percentStr}</strong> today, the bullish retail sentiment indicates strong dip-buying behavior or options accumulation (calls) in r/wallstreetbets, pointing to a contrarian retail view.`,
+                    ` Interestingly, while the market has pushed <strong>${tickerName}</strong> down by <strong>${percentStr}</strong> today, the retail crowd is expressing high conviction, viewing the drop as a discount buy opportunity.`,
+                    ` Even with <strong>${tickerName}</strong> down <strong>${percentStr}</strong>, retail comments remain stubbornly bullish, suggesting that retail options traders are loading up on calls in anticipation of a fast bounce.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            } else {
+                const variants = [
+                    ` For <strong>${tickerName}</strong>, the optimistic retail outlook matches the relatively stable intraday price action (<strong>${percentStr}</strong>), reflecting steady accumulation and constructive expectations for the stock's near-term performance.`,
+                    ` With <strong>${tickerName}</strong>'s price consolidating near <strong>${percentStr}</strong> today, the bullish sentiment suggests that the retail community is quietly accumulating shares, anticipating a breakout.`,
+                    ` Retail chatter remains positive despite the flat intraday movement of <strong>${percentStr}</strong>, suggesting underlying support and retail patience for the next catalyst.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            }
+        } else if (isBearish) {
+            if (changeVal < -1.5) {
+                const variants = [
+                    ` For <strong>${tickerName}</strong>, this retail negativity aligns with today's sharp price decline of <strong>${percentStr}</strong>, showing that retail traders are actively pricing in negative news, de-risking positions, or purchasing downside protection (puts).`,
+                    ` The slide of <strong>${percentStr}</strong> today has reinforced the bearish view in retail channels, with many traders on r/wallstreetbets expressing concern over further downside risks.`,
+                    ` As <strong>${tickerName}</strong> drops <strong>${percentStr}</strong>, bearish discussions are surging, with retail users pointing to technical breakdowns and negative news headlines.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            } else if (changeVal > 1.5) {
+                const variants = [
+                    ` Interestingly, despite <strong>${tickerName}</strong> rallying <strong>${percentStr}</strong> today, the bearish retail sentiment indicates a significant degree of skepticism or active short-selling/put positioning among retail traders, anticipating a potential trend reversal.`,
+                    ` While <strong>${tickerName}</strong> is up <strong>${percentStr}</strong>, the retail crowd remains highly skeptical, treating this rise as a temporary rally to short rather than a sustainable breakout.`,
+                    ` The price advance of <strong>${percentStr}</strong> has been met with retail disbelief, with r/wallstreetbets threads focusing on overbought indicators and buying puts.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            } else {
+                const variants = [
+                    ` For <strong>${tickerName}</strong>, the defensive retail outlook matches the quiet or flat price movement of <strong>${percentStr}</strong>, reflecting caution and risk-reduction rather than aggressive selling.`,
+                    ` With the price consolidating near <strong>${percentStr}</strong>, the bearish sentiment suggests retail traders are slowly trimming their exposure to <strong>${tickerName}</strong>, anticipating near-term pressure.`,
+                    ` Quiet price action of <strong>${percentStr}</strong> coincides with retail caution, indicating that market participants are reluctant to enter long positions at current levels.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            }
+        } else { // Neutral
+            if (Math.abs(changeVal) > 2) {
+                const variants = [
+                    ` For <strong>${tickerName}</strong>, despite significant price volatility today (<strong>${percentStr}</strong>), retail sentiment remains neutral, indicating mixed reactions or consensus uncertainty.`,
+                    ` Although <strong>${tickerName}</strong> experienced a sharp move of <strong>${percentStr}</strong> today, retail chatter is highly divided, leaving the overall sentiment index in neutral territory as bulls and bears fight for control.`,
+                    ` The intraday swing of <strong>${percentStr}</strong> has generated balanced arguments, with retail discussions showing no clear consensus on whether the move represents a breakout or a trap.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            } else {
+                const variants = [
+                    ` This neutral sentiment aligns with the range-bound price action of <strong>${percentStr}</strong> today, indicating that retail interest is in a holding pattern awaiting clearer macro or fundamental catalysts.`,
+                    ` The quiet trading session (<strong>${percentStr}</strong>) matches the lack of retail conviction, as discussion forums focus on other market sectors instead of <strong>${tickerName}</strong>.`,
+                    ` With <strong>${tickerName}</strong> trading flat at <strong>${percentStr}</strong>, the neutral retail response highlights a lack of momentum and a general wait-and-see attitude from retail investors.`
+                ];
+                dynamicAnalysis = variants[hash % variants.length];
+            }
+        }
     }
 
     let scoreExplanation = '';
@@ -182,12 +285,54 @@ function generateSentimentExplanation(label, score, volume) {
         if (absScore > 0.6) strength = 'extreme';
         else if (absScore > 0.3) strength = 'moderate';
         
-        scoreExplanation = ` A lexical score of <strong>${score >= 0 ? '+' : ''}${parseFloat(score).toFixed(2)}</strong> indicates a <strong>${strength}</strong> density of ${isBullish ? 'positive' : (isBearish ? 'negative' : 'balanced')} keywords (like <em>${isBullish ? 'growth, calls, surge' : (isBearish ? 'risk, debt, slide' : 'hold, range')}</em>).`;
+        if (isBullish) {
+            const scoreVariants = [
+                ` A sentiment index score of <strong>+${parseFloat(score).toFixed(2)}</strong> reflects a <strong>${strength}</strong> concentration of bullish terms, particularly words like <em>growth, calls, surge, and rally</em>.`,
+                ` The positive score of <strong>${parseFloat(score).toFixed(2)}</strong> confirms a <strong>${strength}</strong> dominance of optimistic language (e.g. <em>buy, moon, profit</em>) across scanned retail comments.`,
+                ` The score stands at <strong>+${parseFloat(score).toFixed(2)}</strong>, highlighting a <strong>${strength}</strong> preference for bullish setups and long options sentiment among active traders.`
+            ];
+            scoreExplanation = scoreVariants[hash % scoreVariants.length];
+        } else if (isBearish) {
+            const scoreVariants = [
+                ` A sentiment index score of <strong>${parseFloat(score).toFixed(2)}</strong> reflects a <strong>${strength}</strong> concentration of bearish terms, particularly words like <em>risk, puts, drop, and pressure</em>.`,
+                ` The negative score of <strong>${parseFloat(score).toFixed(2)}</strong> confirms a <strong>${strength}</strong> dominance of pessimistic language (e.g. <em>sell, loss, decline</em>) across scanned retail comments.`,
+                ` The score stands at <strong>${parseFloat(score).toFixed(2)}</strong>, highlighting a <strong>${strength}</strong> preference for bearish setups and short positioning/puts among active traders.`
+            ];
+            scoreExplanation = scoreVariants[hash % scoreVariants.length];
+        } else {
+            const scoreVariants = [
+                ` The lexical score of <strong>${parseFloat(score).toFixed(2)}</strong> indicates a balanced density of positive and negative keywords, reflecting uncertainty or lack of directional bias.`,
+                ` A score of <strong>${parseFloat(score).toFixed(2)}</strong> shows keyword counts are evenly split, confirming mixed expectations and low directional conviction.`,
+                ` Standing at <strong>${parseFloat(score).toFixed(2)}</strong>, the score reveals that neither side is dominant in the current discussion stream.`
+            ];
+            scoreExplanation = scoreVariants[hash % scoreVariants.length];
+        }
     }
 
     let volumeExplanation = '';
     if (volume !== undefined && volume !== null && volume > 0) {
-        volumeExplanation = ` WSB volume of <strong>${volume}</strong> indicates an active level of discussions in retail communities (r/wallstreetbets).`;
+        if (volume > 50) {
+            const volumeVariants = [
+                ` A high r/wallstreetbets volume of <strong>${volume}</strong> mentions reveals a massive spike in retail attention, making it a highly discussed meme or high-beta candidate today.`,
+                ` The substantial volume of <strong>${volume}</strong> posts shows that <strong>${tickerName}</strong> is currently a hot topic, ranking high in trending retail discussions.`,
+                ` With <strong>${volume}</strong> active discussions, <strong>${tickerName}</strong> is attracting intense retail eyes, signifying high liquidity and retail crowd interest.`
+            ];
+            volumeExplanation = volumeVariants[hash % volumeVariants.length];
+        } else if (volume >= 10) {
+            const volumeVariants = [
+                ` The r/wallstreetbets volume of <strong>${volume}</strong> indicates an active level of discussions in retail communities.`,
+                ` Scanned retail forums show a moderate volume of <strong>${volume}</strong> mentions, showing steady interest but not a runaway retail frenzy.`,
+                ` The volume of <strong>${volume}</strong> posts indicates that <strong>${tickerName}</strong> remains on the radar of active retail option and swing traders.`
+            ];
+            volumeExplanation = volumeVariants[hash % volumeVariants.length];
+        } else {
+            const volumeVariants = [
+                ` A low volume of <strong>${volume}</strong> mentions suggests that while <strong>${tickerName}</strong> is discussed, it is not currently the primary focus of retail speculative flow.`,
+                ` The <strong>${volume}</strong> posts detected indicate sparse retail chatter, pointing to institutional or fundamental drivers rather than retail speculation.`,
+                ` Low volume (<strong>${volume}</strong> posts) shows that the stock is flying under the radar of the main r/wallstreetbets discussion boards.`
+            ];
+            volumeExplanation = volumeVariants[hash % volumeVariants.length];
+        }
     }
 
     return `
@@ -195,7 +340,7 @@ function generateSentimentExplanation(label, score, volume) {
             <span>🤖 AI Explanation</span>
         </div>
         <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;">
-            Retail sentiment is classified as <strong>${labelUpper || 'NEUTRAL'}</strong>. This means ${sentimentDescription}${scoreExplanation}${volumeExplanation}
+            Retail sentiment is classified as <strong>${labelUpper || 'NEUTRAL'}</strong>. This means ${sentimentDescription}${dynamicAnalysis}${scoreExplanation}${volumeExplanation}
         </p>
     `;
 }
@@ -502,6 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDiscoverEvents();
     initDefinitionModal();
     initDiscoverTiming();
+    initStockSearch();
 });
 
 function initDiscoverEvents() {
@@ -1570,7 +1716,7 @@ async function fetchDailyPicks() {
                     ${catalystsHtml}
 
                     <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                        ${renderSentimentBadges(pick.sentiment_label, pick.sentiment_score, pick.social_volume)}
+                        ${renderSentimentBadges(pick.sentiment_label, pick.sentiment_score, pick.social_volume, pick.actual_ticker)}
                         <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6; flex-shrink: 0;">
                             VIEW REPORT &rarr;
                         </div>
@@ -2297,7 +2443,7 @@ function updateCard(wrapper, mkt, insight) {
     // Refresh card-level sentiment badges
     const sentimentContainer = inner.querySelector('.card-sentiment-container');
     if (sentimentContainer && insight) {
-        sentimentContainer.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+        sentimentContainer.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker);
     }
 
     // Update data attributes for filtering/sorting
@@ -2404,7 +2550,7 @@ function cardInnerHtml(mkt, insight) {
         </div>
         <div id="sparkline-card-${mkt.ticker}" class="card-sparkline-bg"></div>
         <div class="card-sentiment-container">
-            ${insight ? renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume) : ''}
+            ${insight ? renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker) : ''}
         </div>
         <div class="insight-text" style="margin-top: 0; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.25rem;">
             ${insight ? formatInsight(insight.insight_text, null, ['WhatsHappening']) : 'Awaiting AI synthesis — click to view history.'}
@@ -3093,6 +3239,30 @@ function renderModalContent(mkt, insight) {
     if (sigBadge) sigBadge.style.display = 'inline-block';
     document.getElementById('modal-timeline-section').style.display = 'none';
 
+    // Show/hide tab headers depending on whether it's a global market index or commodity
+    const isGlobalComm = isGlobalOrCommodity(ticker);
+    document.querySelectorAll('.modal-tab-btn').forEach(btn => {
+        const tab = btn.dataset.modaltab;
+        if (isGlobalComm && (tab === 'financials' || tab === 'forecasts')) {
+            btn.style.display = 'none';
+        } else {
+            btn.style.display = '';
+        }
+    });
+
+    if (isGlobalComm) {
+        // Force overview tab to be active if a hidden tab is active
+        const activeTabBtn = document.querySelector('.modal-tab-btn.active');
+        if (activeTabBtn && (activeTabBtn.dataset.modaltab === 'financials' || activeTabBtn.dataset.modaltab === 'forecasts')) {
+            document.querySelectorAll('.modal-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.modaltab === 'overview'));
+            document.querySelectorAll('.modal-tab-pane').forEach(p => {
+                const isActive = p.id === 'modal-tab-overview';
+                p.classList.toggle('active', isActive);
+                p.style.display = isActive ? 'block' : 'none';
+            });
+        }
+    }
+
     // Show/hide Quick Stats section depending on whether it's a Discover/Exchange asset
     const isDiscover = !insight || ALL_DISCOVER_SYMBOLS.includes(ticker);
     if (isDiscover) {
@@ -3101,16 +3271,16 @@ function renderModalContent(mkt, insight) {
         document.getElementById('modal-stats-section').style.display = 'block';
     }
 
-    // Sentiment section — show when insight has sentiment data
+    // Sentiment section — show when insight has sentiment data (never for global markets/commodities)
     const sentimentSection = document.getElementById('modal-sentiment-section');
     const sentimentBadges = document.getElementById('modal-sentiment-badges');
     const sentimentExplanation = document.getElementById('modal-sentiment-explanation');
     if (sentimentSection && sentimentBadges) {
-        const hasSentiment = insight && (insight.sentiment_label || insight.sentiment_score !== undefined || insight.social_volume !== undefined);
+        const hasSentiment = !isGlobalComm && insight && (insight.sentiment_label || insight.sentiment_score !== undefined || insight.social_volume !== undefined);
         if (hasSentiment && !isDiscover) {
-            sentimentBadges.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+            sentimentBadges.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker);
             if (sentimentExplanation) {
-                sentimentExplanation.innerHTML = generateSentimentExplanation(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+                sentimentExplanation.innerHTML = generateSentimentExplanation(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker, mkt.change_pct);
                 const label = (insight.sentiment_label || '').toUpperCase();
                 if (label.includes('BULL')) {
                     sentimentExplanation.style.borderLeftColor = '#22c55e'; // green
@@ -5054,6 +5224,1225 @@ function renderModalForecasts(data, epsData) {
             // Initial quarterly render
             renderEpsElements('quarterly');
         }
+    }
+}
+
+/* =====================================================
+   Stock Search & Comparison Functionality
+   ===================================================== */
+let currentSearchTicker = null;
+let currentSearchPeriod = '1mo';
+let currentSearchChart = null;
+let comparisonTickers = [];
+let comparisonData = {};
+
+// Helper functions for client-side technical indicators
+function calculateSMA(prices, period) {
+    if (prices.length < period) return null;
+    let sum = 0;
+    for (let i = prices.length - period; i < prices.length; i++) {
+        sum += prices[i];
+    }
+    return sum / period;
+}
+
+function calculateEMA(prices, period) {
+    if (prices.length < period) return null;
+    const k = 2 / (period + 1);
+    let ema = prices[0];
+    for (let i = 1; i < prices.length; i++) {
+        ema = prices[i] * k + ema * (1 - k);
+    }
+    return ema;
+}
+
+function calculateEMASeries(prices, period) {
+    const emaSeries = [];
+    if (prices.length === 0) return emaSeries;
+    const k = 2 / (period + 1);
+    let ema = prices[0];
+    emaSeries.push(ema);
+    for (let i = 1; i < prices.length; i++) {
+        ema = prices[i] * k + ema * (1 - k);
+        emaSeries.push(ema);
+    }
+    return emaSeries;
+}
+
+function calculateRSI(prices, period = 20) {
+    if (prices.length < period + 1) return 50.0;
+    
+    let gains = [];
+    let losses = [];
+    for (let i = 1; i < prices.length; i++) {
+        const diff = prices[i] - prices[i - 1];
+        if (diff > 0) {
+            gains.push(diff);
+            losses.push(0);
+        } else {
+            gains.push(0);
+            losses.push(-diff);
+        }
+    }
+    
+    let avgGain = 0;
+    let avgLoss = 0;
+    for (let i = 0; i < period; i++) {
+        avgGain += gains[i];
+        avgLoss += losses[i];
+    }
+    avgGain /= period;
+    avgLoss /= period;
+    
+    for (let i = period; i < gains.length; i++) {
+        avgGain = (avgGain * (period - 1) + gains[i]) / period;
+        avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
+    }
+    
+    if (avgLoss === 0) return 100.0;
+    const rs = avgGain / avgLoss;
+    return 100.0 - (100.0 / (1.0 + rs));
+}
+
+function calculateStochastic(highs, lows, closes, period = 20) {
+    if (closes.length < period) return { k: 50.0, d: 50.0 };
+    
+    const kSeries = [];
+    const startIdx = Math.max(0, closes.length - period - 10);
+    for (let i = startIdx; i < closes.length; i++) {
+        if (i < period - 1) continue;
+        
+        let lowestLow = Infinity;
+        let highestHigh = -Infinity;
+        for (let j = i - period + 1; j <= i; j++) {
+            if (lows[j] < lowestLow) lowestLow = lows[j];
+            if (highs[j] > highestHigh) highestHigh = highs[j];
+        }
+        
+        const denom = highestHigh - lowestLow;
+        const k = denom === 0 ? 50.0 : ((closes[i] - lowestLow) / denom) * 100;
+        kSeries.push(k);
+    }
+    
+    const kVal = kSeries[kSeries.length - 1];
+    let dVal = kVal;
+    if (kSeries.length >= 3) {
+        dVal = (kSeries[kSeries.length - 1] + kSeries[kSeries.length - 2] + kSeries[kSeries.length - 3]) / 3;
+    }
+    
+    return { k: kVal, d: dVal };
+}
+
+function calculateWeightedAlpha(ohlcv) {
+    const N = ohlcv.length;
+    if (N < 5) return 0.0;
+    
+    const weeklyCloses = [];
+    for (let i = 0; i <= 52; i++) {
+        const idx = N - 1 - i * 5;
+        if (idx >= 0) {
+            weeklyCloses.push(ohlcv[idx].close);
+        } else {
+            break;
+        }
+    }
+    
+    if (weeklyCloses.length < 2) return 0.0;
+    
+    let weightedSum = 0;
+    let sumWeights = 0;
+    const numReturns = weeklyCloses.length - 1;
+    
+    for (let i = 0; i < numReturns; i++) {
+        const val_today = weeklyCloses[i];
+        const val_prev = weeklyCloses[i + 1];
+        if (val_prev <= 0) continue;
+        
+        const ret = ((val_today - val_prev) / val_prev) * 100;
+        const wt = Math.max(1, 52 - i);
+        
+        weightedSum += ret * wt;
+        sumWeights += wt;
+    }
+    
+    return sumWeights > 0 ? (weightedSum / sumWeights) : 0.0;
+}
+
+function calculateOpinion(closes, highs, lows, sma20, sma50, sma100, rsi20, stochK, stochD) {
+    const N = closes.length;
+    if (N < 20) return { score: 50, opinion: 'Neutral' };
+    
+    const currentPrice = closes[N - 1];
+    let buyRules = 0;
+    
+    if (sma20 && currentPrice > sma20) buyRules++;
+    if (sma50 && currentPrice > sma50) buyRules++;
+    if (sma100 && currentPrice > sma100) buyRules++;
+    if (sma20 && sma50 && sma20 > sma50) buyRules++;
+    if (rsi20 > 50) buyRules++;
+    if (stochK > 50) buyRules++;
+    if (stochK > stochD) buyRules++;
+    
+    const ema12Series = calculateEMASeries(closes, 12);
+    const ema26Series = calculateEMASeries(closes, 26);
+    const macdLineSeries = [];
+    for (let i = 0; i < closes.length; i++) {
+        macdLineSeries.push(ema12Series[i] - ema26Series[i]);
+    }
+    const signalLineSeries = calculateEMASeries(macdLineSeries, 9);
+    
+    const currentMacd = macdLineSeries[macdLineSeries.length - 1];
+    const currentSignal = signalLineSeries[signalLineSeries.length - 1];
+    if (currentMacd > currentSignal) buyRules++;
+    
+    const price5d = closes[N - 6] || closes[0];
+    if (currentPrice > price5d) buyRules++;
+    
+    const price20d = closes[N - 21] || closes[0];
+    if (currentPrice > price20d) buyRules++;
+    
+    const percentage = buyRules * 10;
+    let opinion = 'Neutral';
+    if (buyRules >= 8) opinion = 'Strong Buy';
+    else if (buyRules >= 6) opinion = 'Buy';
+    else if (buyRules <= 2) opinion = 'Strong Sell';
+    else if (buyRules <= 4) opinion = 'Sell';
+    
+    return { score: percentage, opinion: opinion };
+}
+
+function calculateAllIndicatorsForTicker(ticker) {
+    const data = comparisonData[ticker];
+    if (!data || !data.ohlcv || data.ohlcv.length === 0) return null;
+    
+    const closes = data.ohlcv.map(d => d.close);
+    const highs = data.ohlcv.map(d => d.high);
+    const lows = data.ohlcv.map(d => d.low);
+    
+    const sma20 = calculateSMA(closes, 20);
+    const sma50 = calculateSMA(closes, 50);
+    const sma100 = calculateSMA(closes, 100);
+    const rsi20 = calculateRSI(closes, 20);
+    const stoch = calculateStochastic(highs, lows, closes, 20);
+    const weightedAlpha = calculateWeightedAlpha(data.ohlcv);
+    const opinion = calculateOpinion(closes, highs, lows, sma20, sma50, sma100, rsi20, stoch.k, stoch.d);
+    
+    return {
+        sma20,
+        sma50,
+        sma100,
+        rsi20,
+        stochK: stoch.k,
+        stochD: stoch.d,
+        weightedAlpha,
+        opinionScore: opinion.score,
+        opinionText: opinion.opinion
+    };
+}
+
+function populateFinancialsTable(headersElId, bodyElId, finData, currency, ticker) {
+    const headersEl = document.getElementById(headersElId);
+    const bodyEl = document.getElementById(bodyElId);
+    if (!headersEl || !bodyEl) return;
+
+    if (!finData || !finData.periods || finData.periods.length === 0) {
+        headersEl.innerHTML = '<th>Metric</th><th>No Data</th>';
+        bodyEl.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-secondary);">No financial statements found.</td></tr>';
+        return;
+    }
+
+    const periods = finData.periods;
+    headersEl.innerHTML = '<th>Metric</th>' + periods.map(p => `<th>${p}</th>`).join('');
+
+    const metricsList = [
+        { label: 'Revenue', values: finData.revenue },
+        { label: 'Gross Profit', values: finData.gross_profit },
+        { label: 'Operating Income', values: finData.operating_income },
+        { label: 'Net Income', values: finData.net_income }
+    ];
+
+    bodyEl.innerHTML = metricsList.map(m => {
+        const valCols = m.values.map(val => {
+            const formatted = formatLargePrice(val, currency, ticker);
+            return `<td style="font-family: monospace; text-align: right;">${formatted}</td>`;
+        }).join('');
+        return `
+            <tr>
+                <td style="font-weight: 600; color: var(--text-primary);">${m.label}</td>
+                ${valCols}
+            </tr>
+        `;
+    }).join('');
+}
+
+function initStockSearch() {
+    const searchInput = document.getElementById('stock-search-input');
+    const searchDropdown = document.getElementById('stock-search-autocomplete');
+    const compareInput = document.getElementById('comparison-add-input');
+    const compareDropdown = document.getElementById('comparison-autocomplete');
+    const summaryToggle = document.getElementById('search-summary-toggle');
+    const summaryEl = document.getElementById('search-business-summary');
+    
+    if (searchInput && searchDropdown) {
+        setupAutocomplete(searchInput, searchDropdown, (symbol) => {
+            selectSearchedTicker(symbol);
+        });
+    }
+    
+    if (compareInput && compareDropdown) {
+        setupAutocomplete(compareInput, compareDropdown, (symbol) => {
+            addComparisonTicker(symbol);
+        });
+        compareInput.placeholder = `Add ticker (0/5) to compare (e.g. MSFT)...`;
+    }
+    
+    // Period Selector clicks
+    const periodButtons = document.querySelectorAll('#search-period-selector .period-btn');
+    periodButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!currentSearchTicker) return;
+            periodButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentSearchPeriod = btn.dataset.period;
+            loadSearchData(currentSearchTicker, currentSearchPeriod);
+        });
+    });
+    
+    // Summary Toggle
+    if (summaryToggle && summaryEl) {
+        summaryToggle.addEventListener('click', () => {
+            if (summaryEl.style.display === '-webkit-box') {
+                summaryEl.style.display = 'block';
+                summaryEl.style.webkitLineClamp = '';
+                summaryToggle.textContent = 'Show Less';
+            } else {
+                summaryEl.style.display = '-webkit-box';
+                summaryEl.style.webkitLineClamp = '3';
+                summaryToggle.textContent = 'Show More';
+            }
+        });
+    }
+    
+    // Track button click
+    const trackBtn = document.getElementById('search-track-btn');
+    if (trackBtn) {
+        trackBtn.addEventListener('click', async () => {
+            if (!currentSearchTicker) return;
+            
+            try {
+                const activeTickers = await (await fetch('/api/v1/tickers')).json();
+                if (activeTickers.length >= 30) {
+                    showToast('Watchlist limit of 30 tickers reached!', 'negative');
+                    return;
+                }
+                
+                trackBtn.disabled = true;
+                trackBtn.textContent = 'Tracking...';
+                
+                const res = await fetch('/api/v1/tickers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: currentSearchTicker })
+                });
+                
+                if (res.ok) {
+                    showToast(`Successfully tracking ${currentSearchTicker}`);
+                    await fetchMarketAndInsights(); // Updates main dashboard grid
+                    await updateTrackStatus(currentSearchTicker);
+                } else {
+                    const data = await res.json();
+                    showToast(data.detail || `Failed to track ${currentSearchTicker}`, 'negative');
+                    trackBtn.disabled = false;
+                    trackBtn.textContent = 'Track Ticker';
+                }
+            } catch (err) {
+                console.error('Failed to track ticker:', err);
+                showToast('Network error', 'negative');
+                trackBtn.disabled = false;
+                trackBtn.textContent = 'Track Ticker';
+            }
+        });
+    }
+}
+
+function setupAutocomplete(inputEl, dropdownEl, onSelect) {
+    const handleSearch = debounce(async () => {
+        const val = inputEl.value.trim();
+        if (!val || val.length < 1) {
+            dropdownEl.innerHTML = '';
+            dropdownEl.classList.remove('active');
+            return;
+        }
+        
+        try {
+            const res = await fetch(`/api/v1/search?q=${encodeURIComponent(val)}`);
+            if (!res.ok) return;
+            const items = await res.json();
+            
+            dropdownEl.innerHTML = '';
+            
+            if (items.length > 0) {
+                dropdownEl.classList.add('active');
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'autocomplete-item';
+                    li.dataset.symbol = item.symbol;
+                    li.innerHTML = `
+                        <span class="autocomplete-exchange">${formatExchange(item.exchange) || '🇺🇸 NYSE'}</span>
+                        <span class="autocomplete-symbol">${item.symbol}</span>
+                        <span class="autocomplete-name">${item.name || ''}</span>
+                    `;
+                    li.addEventListener('click', () => {
+                        inputEl.value = item.symbol;
+                        dropdownEl.innerHTML = '';
+                        dropdownEl.classList.remove('active');
+                        onSelect(item.symbol);
+                    });
+                    dropdownEl.appendChild(li);
+                });
+            } else {
+                dropdownEl.classList.remove('active');
+            }
+        } catch (err) {
+            console.error('Autocomplete fetch error:', err);
+        }
+    }, 250);
+    
+    inputEl.addEventListener('input', handleSearch);
+    
+    document.addEventListener('click', (e) => {
+        if (e.target !== inputEl && e.target !== dropdownEl) {
+            dropdownEl.innerHTML = '';
+            dropdownEl.classList.remove('active');
+        }
+    });
+}
+
+async function selectSearchedTicker(symbol) {
+    if (!symbol) return;
+    currentSearchTicker = symbol.toUpperCase().trim();
+    
+    // Reset toggle
+    const summaryEl = document.getElementById('search-business-summary');
+    const summaryToggle = document.getElementById('search-summary-toggle');
+    if (summaryEl) {
+        summaryEl.style.display = '-webkit-box';
+        summaryEl.style.webkitLineClamp = '3';
+        if (summaryToggle) summaryToggle.textContent = 'Show More';
+    }
+    
+    await Promise.all([
+        loadSearchData(currentSearchTicker, currentSearchPeriod),
+        updateTrackStatus(currentSearchTicker)
+    ]);
+}
+
+async function loadSearchData(ticker, period) {
+    const loadingEl = document.getElementById('search-chart-loading');
+    if (loadingEl) loadingEl.style.display = 'flex';
+    
+    try {
+        const [histRes, fundRes] = await Promise.all([
+            fetch(`/api/v1/market/history/${ticker}?period=${period}`),
+            fetch(`/api/v1/market/fundamentals/${ticker}`)
+        ]);
+        
+        if (!histRes.ok) throw new Error('Failed to load history');
+        const data = await histRes.json();
+        
+        let fundData = null;
+        if (fundRes.ok) {
+            fundData = await fundRes.json();
+        }
+        
+        // Show panel, hide placeholder
+        const placeholderPanel = document.getElementById('search-placeholder-panel');
+        const detailPanel = document.getElementById('search-detail-panel');
+        if (placeholderPanel) placeholderPanel.style.display = 'none';
+        if (detailPanel) detailPanel.style.display = 'block';
+        
+        const info = data.info || {};
+        const companyNameEl = document.getElementById('search-company-name');
+        const symbolEl = document.getElementById('search-ticker-symbol');
+        const exchangeEl = document.getElementById('search-exchange-sector');
+        
+        if (companyNameEl) companyNameEl.textContent = info.name || ticker;
+        if (symbolEl) symbolEl.textContent = ticker;
+        
+        const sectorText = (info.sector || info.industry) ? `${info.sector || ''} ${info.industry ? '· ' + info.industry : ''}` : 'Index / Commodity';
+        if (exchangeEl) {
+            const formatted = formatExchange(info.exchange);
+            exchangeEl.textContent = formatted ? `${formatted} · ${sectorText}` : sectorText;
+        }
+        
+        // Current Price
+        const priceEl = document.getElementById('search-current-price');
+        if (priceEl) {
+            priceEl.textContent = formatPrice(info.current_price, info.currency || 'USD', false, ticker);
+        }
+        
+        // 1-Day change badge
+        const changeEl = document.getElementById('search-price-change');
+        if (changeEl) {
+            const changePct = info.previous_close ? ((info.current_price - info.previous_close) / info.previous_close) * 100 : 0;
+            const isPos = changePct >= 0;
+            changeEl.className = `discover-change-badge ${isPos ? 'pos' : 'neg'}`;
+            changeEl.textContent = `${isPos ? '+' : ''}${changePct.toFixed(2)}%`;
+        }
+        
+        // Key Metrics
+        const mcEl = document.getElementById('search-metric-market-cap');
+        const peEl = document.getElementById('search-metric-pe');
+        const epsEl = document.getElementById('search-metric-eps');
+        const yieldEl = document.getElementById('search-metric-yield');
+        const betaEl = document.getElementById('search-metric-beta');
+        const rangeEl = document.getElementById('search-metric-52w');
+        
+        if (mcEl) mcEl.textContent = info.market_cap ? formatLargePrice(info.market_cap, info.currency || 'USD', ticker) : '—';
+        if (peEl) peEl.textContent = (info.pe_ratio !== null && info.pe_ratio !== undefined) ? info.pe_ratio.toFixed(2) : '—';
+        if (epsEl) epsEl.textContent = (info.eps !== null && info.eps !== undefined) ? info.eps.toFixed(2) : '—';
+        if (yieldEl) yieldEl.textContent = info.dividend_yield ? `${(info.dividend_yield * 100).toFixed(2)}%` : '—';
+        if (betaEl) betaEl.textContent = (info.beta !== null && info.beta !== undefined) ? info.beta.toFixed(2) : '—';
+        
+        if (rangeEl) {
+            if (info['52w_high'] && info['52w_low']) {
+                const low = formatPrice(info['52w_low'], info.currency || 'USD', false, ticker);
+                const high = formatPrice(info['52w_high'], info.currency || 'USD', false, ticker);
+                rangeEl.textContent = `${low} - ${high}`;
+            } else {
+                rangeEl.textContent = '—';
+            }
+        }
+        
+        // Summary
+        const businessSummaryEl = document.getElementById('search-business-summary');
+        if (businessSummaryEl) {
+            businessSummaryEl.textContent = info.business_summary || 'No profile description available.';
+        }
+        
+        // Populate financials tables
+        if (fundData) {
+            populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', fundData.financials, fundData.currency || info.currency || 'USD', ticker);
+            populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', fundData.quarterly_financials, fundData.currency || info.currency || 'USD', ticker);
+        } else {
+            populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', null);
+            populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', null);
+        }
+
+        // Render News
+        const newsListEl = document.getElementById('search-news-list');
+        if (newsListEl) {
+            if (data.news && data.news.length > 0) {
+                newsListEl.innerHTML = data.news.map(art => {
+                    const dateStr = art.published ? new Date(art.published).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                    const sourceBadge = art.source ? `<span style="font-size: 0.7rem; background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: 4px; color: var(--text-secondary);">${art.source}</span>` : '';
+                    const dateBadge = dateStr ? `<span style="font-size: 0.7rem; color: var(--text-secondary);">${dateStr}</span>` : '';
+                    const meta = (sourceBadge || dateBadge) ? `<div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem;">${sourceBadge} ${dateBadge}</div>` : '';
+                    return `
+                        <div style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+                            <a href="${art.url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.85rem; font-weight: 500; color: #3b82f6; text-decoration: none; display: block; line-height: 1.4; transition: color 0.2s;">
+                                ${art.title}
+                            </a>
+                            ${meta}
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                newsListEl.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No recent news articles found.</p>';
+            }
+        }
+
+        // Render Chart
+        renderSearchChart(data, period);
+    } catch (err) {
+        console.error('Failed to load search details:', err);
+        showToast(`Failed to load data for ${ticker}`, 'negative');
+    } finally {
+        if (loadingEl) loadingEl.style.display = 'none';
+    }
+}
+
+function renderSearchChart(data, period) {
+    if (currentSearchChart) {
+        currentSearchChart.destroy();
+        currentSearchChart = null;
+    }
+    
+    const canvas = document.getElementById('searchChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
+    const closes = data.ohlcv.map(d => d.close);
+    const labels = data.ohlcv.map(d => {
+        const dt = new Date(d.time);
+        return period === '1d' ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : dt.toLocaleDateString();
+    });
+    
+    const firstClose = closes[0];
+    const lastClose = closes[closes.length - 1];
+    const chartChangePct = firstClose ? ((lastClose - firstClose) / firstClose) * 100 : 0;
+    const isUp = chartChangePct >= 0;
+    const trendColor = isUp ? '#10b981' : '#f43f5e';
+    const rgb = isUp ? '16, 185, 129' : '244, 63, 94';
+    
+    const changeEl = document.getElementById('search-chart-change');
+    if (changeEl) {
+        changeEl.style.color = trendColor;
+        changeEl.textContent = `${isUp ? '+' : ''}${chartChangePct.toFixed(2)}%`;
+    }
+    
+    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+    gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
+    gradient.addColorStop(1, `rgba(${rgb}, 0)`);
+    
+    currentSearchChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: data.ticker,
+                data: closes,
+                borderColor: trendColor,
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.3,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.9)',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y, data.info ? data.info.currency : 'USD', false, data.ticker)}`
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        color: '#94a3b8',
+                        callback: v => {
+                            const isIndex = data.ticker && (data.ticker.startsWith('^') || DISCOVER_INDEX_SYMBOLS.includes(data.ticker));
+                            if (isIndex) {
+                                return v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            }
+                            const tc = (data.info && data.info.currency) ? (data.info.currency === 'GBp' ? 'GBP' : data.info.currency) : 'USD';
+                            const tickerRate = EXCHANGE_RATES[tc] ? EXCHANGE_RATES[tc].rate : 1.0;
+                            const usdValue = v / tickerRate;
+                            const targetCurr = currentCurrency === 'DEFAULT' ? tc : currentCurrency;
+                            const { symbol, rate } = EXCHANGE_RATES[targetCurr] || EXCHANGE_RATES['USD'];
+                            return `${symbol}${(usdValue * rate).toFixed(0)}`;
+                        }
+                    },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                }
+            }
+        }
+    });
+}
+
+async function updateTrackStatus(ticker) {
+    try {
+        const res = await fetch('/api/v1/tickers');
+        if (!res.ok) return;
+        const activeTickers = await res.json();
+        
+        const count = activeTickers.length;
+        const statusEl = document.getElementById('search-track-status');
+        if (statusEl) {
+            statusEl.textContent = `Current Watchlist: ${count}/30.`;
+        }
+        
+        const btn = document.getElementById('search-track-btn');
+        if (btn) {
+            if (activeTickers.includes(ticker)) {
+                btn.disabled = true;
+                btn.textContent = '✓ Tracked';
+                btn.className = 'glass-btn';
+            } else {
+                btn.disabled = false;
+                btn.textContent = 'Track Ticker';
+                btn.className = 'glass-btn primary';
+            }
+        }
+    } catch (e) {
+        console.error('Failed to update track status:', e);
+    }
+}
+
+async function addComparisonTicker(ticker) {
+    ticker = ticker.toUpperCase().trim();
+    if (comparisonTickers.includes(ticker)) {
+        showToast(`${ticker} is already added to comparison.`, 'warning');
+        return;
+    }
+    if (comparisonTickers.length >= 5) {
+        showToast('Maximum 5 tickers can be compared.', 'warning');
+        return;
+    }
+    
+    const addInput = document.getElementById('comparison-add-input');
+    if (addInput) {
+        addInput.disabled = true;
+        addInput.placeholder = `Loading ${ticker}...`;
+    }
+    
+    try {
+        const res = await fetch(`/api/v1/market/history/${ticker}?period=1y`);
+        if (!res.ok) throw new Error('Ticker not found');
+        const data = await res.json();
+        
+        comparisonTickers.push(ticker);
+        comparisonData[ticker] = data;
+        comparisonData[ticker].indicators = calculateAllIndicatorsForTicker(ticker);
+        
+        if (addInput) {
+            addInput.value = '';
+            addInput.placeholder = `Add ticker (${comparisonTickers.length}/5) to compare (e.g. MSFT)...`;
+        }
+        
+        updateComparisonUI();
+    } catch (err) {
+        console.error('Failed to load comparison ticker:', err);
+        showToast(`Failed to load data for ${ticker}`, 'negative');
+        if (addInput) {
+            addInput.placeholder = `Add ticker (${comparisonTickers.length}/5) to compare (e.g. MSFT)...`;
+        }
+    } finally {
+        if (addInput) {
+            addInput.disabled = false;
+        }
+    }
+}
+
+window.removeComparisonTicker = function(ticker) {
+    ticker = ticker.toUpperCase().trim();
+    comparisonTickers = comparisonTickers.filter(t => t !== ticker);
+    delete comparisonData[ticker];
+    updateComparisonUI();
+    const addInput = document.getElementById('comparison-add-input');
+    if (addInput) {
+        addInput.placeholder = `Add ticker (${comparisonTickers.length}/5) to compare (e.g. MSFT)...`;
+    }
+};
+
+function calculateRowWinners() {
+    const winners = {};
+    if (comparisonTickers.length === 0) return winners;
+    
+    // Row 1: Change % (highest is best)
+    let bestChange = -Infinity;
+    let changeWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const changePct = info.previous_close ? ((info.current_price - info.previous_close) / info.previous_close) * 100 : 0;
+        if (changePct > bestChange) {
+            bestChange = changePct;
+            changeWinner = t;
+        }
+    });
+    winners['change'] = changeWinner;
+    
+    // Row 2: Market Cap (highest is best)
+    let bestCap = -Infinity;
+    let capWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const cap = info.market_cap || 0;
+        if (cap > bestCap && cap > 0) {
+            bestCap = cap;
+            capWinner = t;
+        }
+    });
+    winners['market_cap'] = capWinner;
+    
+    // Row 3: P/E (lowest positive is best)
+    let bestPe = Infinity;
+    let peWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const pe = info.pe_ratio;
+        if (pe !== null && pe !== undefined && pe > 0) {
+            if (pe < bestPe) {
+                bestPe = pe;
+                peWinner = t;
+            }
+        }
+    });
+    winners['pe'] = peWinner;
+    
+    // Row 4: EPS (highest is best)
+    let bestEps = -Infinity;
+    let epsWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const eps = info.eps;
+        if (eps !== null && eps !== undefined) {
+            if (eps > bestEps) {
+                bestEps = eps;
+                epsWinner = t;
+            }
+        }
+    });
+    winners['eps'] = epsWinner;
+    
+    // Row 5: Yield (highest is best)
+    let bestYield = -Infinity;
+    let yieldWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const y = info.dividend_yield || 0;
+        if (y > bestYield && y > 0) {
+            bestYield = y;
+            yieldWinner = t;
+        }
+    });
+    winners['yield'] = yieldWinner;
+    
+    // Row 6: Beta (lowest raw beta is best)
+    let bestBeta = Infinity;
+    let betaWinner = null;
+    comparisonTickers.forEach(t => {
+        const info = comparisonData[t].info || {};
+        const b = info.beta;
+        if (b !== null && b !== undefined) {
+            if (b < bestBeta) {
+                bestBeta = b;
+                betaWinner = t;
+            }
+        }
+    });
+    winners['beta'] = betaWinner;
+
+    // Row 7: Weighted Alpha (highest is best)
+    let bestAlpha = -Infinity;
+    let alphaWinner = null;
+    comparisonTickers.forEach(t => {
+        const ind = comparisonData[t].indicators || {};
+        const alpha = ind.weightedAlpha || 0;
+        if (alpha > bestAlpha) {
+            bestAlpha = alpha;
+            alphaWinner = t;
+        }
+    });
+    winners['weighted_alpha'] = alphaWinner;
+
+    // Row 8: Opinion Score (highest is best)
+    let bestOpinion = -Infinity;
+    let opinionWinner = null;
+    comparisonTickers.forEach(t => {
+        const ind = comparisonData[t].indicators || {};
+        const op = ind.opinionScore || 0;
+        if (op > bestOpinion) {
+            bestOpinion = op;
+            opinionWinner = t;
+        }
+    });
+    winners['opinion'] = opinionWinner;
+    
+    return winners;
+}
+
+function renderVerdictCard() {
+    const verdictCard = document.getElementById('comparison-verdict-card');
+    if (!verdictCard) return;
+    
+    const scores = {};
+    comparisonTickers.forEach(t => { scores[t] = 0; });
+    
+    const infoMap = {};
+    comparisonTickers.forEach(t => { infoMap[t] = comparisonData[t].info || {}; });
+    
+    const awardPoints = (winnerList, points) => {
+        if (winnerList && winnerList.length > 0) {
+            winnerList.forEach(t => {
+                scores[t] = (scores[t] || 0) + points;
+            });
+        }
+    };
+    
+    // PE winner (lowest positive PE) - 25 points
+    let minPe = Infinity;
+    let peWinners = [];
+    comparisonTickers.forEach(t => {
+        const pe = infoMap[t].pe_ratio;
+        if (pe !== null && pe !== undefined && pe > 0) {
+            if (pe < minPe) {
+                minPe = pe;
+                peWinners = [t];
+            } else if (pe === minPe) {
+                peWinners.push(t);
+            }
+        }
+    });
+    awardPoints(peWinners, 25);
+    
+    // EPS winner (highest EPS) - 25 points
+    let maxEps = -Infinity;
+    let epsWinners = [];
+    comparisonTickers.forEach(t => {
+        const eps = infoMap[t].eps;
+        if (eps !== null && eps !== undefined) {
+            if (eps > maxEps) {
+                maxEps = eps;
+                epsWinners = [t];
+            } else if (eps === maxEps) {
+                epsWinners.push(t);
+            }
+        }
+    });
+    awardPoints(epsWinners, 25);
+    
+    // Consensus (analyst recommendation rating) - 20 points
+    const recScores = {
+        'strong_buy': 5, 'strongBuy': 5,
+        'buy': 4,
+        'hold': 3,
+        'sell': 2,
+        'underperform': 1,
+        'strong_sell': 1, 'strongSell': 1
+    };
+    let maxRec = -1;
+    let recWinners = [];
+    comparisonTickers.forEach(t => {
+        const key = infoMap[t].recommendation || 'hold';
+        const rating = recScores[key] || 3;
+        if (rating > maxRec) {
+            maxRec = rating;
+            recWinners = [t];
+        } else if (rating === maxRec) {
+            recWinners.push(t);
+        }
+    });
+    awardPoints(recWinners, 20);
+    
+    // Volatility (Beta, lower is better/safer) - 15 points
+    let minBeta = Infinity;
+    let betaWinners = [];
+    comparisonTickers.forEach(t => {
+        const beta = infoMap[t].beta;
+        if (beta !== null && beta !== undefined) {
+            if (beta < minBeta) {
+                minBeta = beta;
+                betaWinners = [t];
+            } else if (beta === minBeta) {
+                betaWinners.push(t);
+            }
+        }
+    });
+    awardPoints(betaWinners, 15);
+    
+    // Momentum (1-day change, highest is best) - 15 points
+    let maxChange = -Infinity;
+    let changeWinners = [];
+    comparisonTickers.forEach(t => {
+        const info = infoMap[t];
+        const changePct = info.previous_close ? ((info.current_price - info.previous_close) / info.previous_close) * 100 : 0;
+        if (changePct > maxChange) {
+            maxChange = changePct;
+            changeWinners = [t];
+        } else if (changePct === maxChange) {
+            changeWinners.push(t);
+        }
+    });
+    awardPoints(changeWinners, 15);
+
+    // Long-Term Momentum (Weighted Alpha, highest is best) - 15 points
+    let maxAlpha = -Infinity;
+    let alphaWinners = [];
+    comparisonTickers.forEach(t => {
+        const ind = comparisonData[t].indicators || {};
+        const alpha = ind.weightedAlpha || 0;
+        if (alpha > maxAlpha) {
+            maxAlpha = alpha;
+            alphaWinners = [t];
+        } else if (alpha === maxAlpha) {
+            alphaWinners.push(t);
+        }
+    });
+    awardPoints(alphaWinners, 15);
+
+    // Technical Indicators Opinion (highest is best) - 15 points
+    let maxOpinion = -Infinity;
+    let opinionWinners = [];
+    comparisonTickers.forEach(t => {
+        const ind = comparisonData[t].indicators || {};
+        const op = ind.opinionScore || 0;
+        if (op > maxOpinion) {
+            maxOpinion = op;
+            opinionWinners = [t];
+        } else if (op === maxOpinion) {
+            opinionWinners.push(t);
+        }
+    });
+    awardPoints(opinionWinners, 15);
+    
+    // Determine winner
+    let winner = null;
+    let maxScore = -1;
+    let tie = false;
+    let tieWinners = [];
+    
+    comparisonTickers.forEach(t => {
+        const s = scores[t];
+        if (s > maxScore) {
+            maxScore = s;
+            winner = t;
+            tie = false;
+            tieWinners = [t];
+        } else if (s === maxScore) {
+            tie = true;
+            tieWinners.push(t);
+        }
+    });
+    
+    let explanation = '';
+    if (tie) {
+        explanation = `The comparison results in a tie between <strong>${tieWinners.join(' and ')}</strong> with a matching score of <strong>${maxScore} points</strong>. `;
+    } else {
+        explanation = `Based on our financial weighted scoring algorithm, <strong>${winner} (${infoMap[winner].name || winner})</strong> is the winner with a total score of <strong>${maxScore} points</strong>! `;
+    }
+    
+    const reasons = [];
+    if (peWinners.length > 0) {
+        reasons.push(`<strong>Valuation (25% weight):</strong> ${peWinners.join(', ')} won with the lowest positive P/E ratio (${minPe.toFixed(2)}).`);
+    }
+    if (epsWinners.length > 0) {
+        reasons.push(`<strong>Profitability (25% weight):</strong> ${epsWinners.join(', ')} won with the highest EPS (${maxEps.toFixed(2)}).`);
+    }
+    if (recWinners.length > 0) {
+        reasons.push(`<strong>Consensus (20% weight):</strong> ${recWinners.join(', ')} won with the strongest analyst recommendation rating.`);
+    }
+    if (betaWinners.length > 0) {
+        reasons.push(`<strong>Volatility/Risk (15% weight):</strong> ${betaWinners.join(', ')} won with the lowest Beta (${minBeta.toFixed(2)}), offering superior downside protection.`);
+    }
+    if (changeWinners.length > 0) {
+        reasons.push(`<strong>Short-Term Momentum (15% weight):</strong> ${changeWinners.join(', ')} won with the highest 1-day change (${maxChange.toFixed(2)}%).`);
+    }
+    if (alphaWinners.length > 0) {
+        reasons.push(`<strong>Long-Term Momentum (15% weight):</strong> ${alphaWinners.join(', ')} won with the highest Weighted Alpha (${maxAlpha.toFixed(2)}%).`);
+    }
+    if (opinionWinners.length > 0) {
+        reasons.push(`<strong>Technical Indicators Opinion (15% weight):</strong> ${opinionWinners.join(', ')} won with the strongest technical indicators matching opinion (${maxOpinion}% Buy rules).`);
+    }
+    
+    explanation += 'Here is the category breakdown:<br><br>' + reasons.map(r => `• ${r}`).join('<br>');
+    
+    if (tie) {
+        verdictCard.className = 'verdict-container glass';
+    } else {
+        verdictCard.className = 'verdict-container gold glass';
+    }
+    
+    verdictCard.innerHTML = `
+        <div class="verdict-header">
+            <span class="verdict-badge">${tie ? 'Tie' : 'Winner'}</span>
+            <h3 class="verdict-title">${tie ? `Tie: ${tieWinners.join(' vs ')}` : `Winner Verdict: ${winner}`}</h3>
+        </div>
+        <p class="verdict-summary-text">${explanation}</p>
+        <div class="verdict-breakdown-grid">
+            ${comparisonTickers.map(t => `
+                <div class="verdict-score-card glass">
+                    <span class="verdict-score-label">${t} Score</span>
+                    <span class="verdict-score-value">${scores[t]} pts</span>
+                    ${(!tie && t === winner) ? '<span class="verdict-score-winner">👑 Winner</span>' : ''}
+                    ${(tie && tieWinners.includes(t)) ? '<span class="verdict-score-winner" style="color: var(--accent);">⚖️ Tied</span>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function updateComparisonUI() {
+    const pillsContainer = document.getElementById('comparison-pills-container');
+    const tableWrapper = document.getElementById('comparison-table-wrapper');
+    const verdictCard = document.getElementById('comparison-verdict-card');
+    
+    if (comparisonTickers.length === 0) {
+        pillsContainer.innerHTML = '<span style="font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">No tickers added to comparison yet. Add tickers above.</span>';
+        tableWrapper.style.display = 'none';
+        verdictCard.style.display = 'none';
+        return;
+    }
+    
+    pillsContainer.innerHTML = comparisonTickers.map(t => `
+        <span class="comparison-pill">
+            ${t}
+            <button class="comparison-pill-remove" onclick="removeComparisonTicker('${t}')">&times;</button>
+        </span>
+    `).join('');
+    
+    tableWrapper.style.display = 'block';
+    
+    const headersTr = document.getElementById('comparison-table-headers');
+    headersTr.innerHTML = '<th>Metric</th>' + comparisonTickers.map(t => `<th>${t}</th>`).join('');
+    
+    const categories = [
+        {
+            name: 'Key Stats',
+            metrics: [
+                { key: 'name', label: 'Company Name', type: 'text' },
+                { key: 'sector', label: 'Sector / Industry', type: 'text' },
+                { key: 'price', label: 'Current Price', type: 'price' },
+                { key: 'market_cap', label: 'Market Capitalisation', type: 'market_cap' },
+                { key: 'pe', label: 'Trailing P/E (TTM)', type: 'pe' },
+                { key: 'eps', label: 'EPS (TTM)', type: 'eps' },
+                { key: 'yield', label: 'Dividend Yield', type: 'yield' }
+            ]
+        },
+        {
+            name: 'Performance',
+            metrics: [
+                { key: 'change', label: '1-Day Change', type: 'change' },
+                { key: 'range52w', label: '52-Week Range', type: 'text' },
+                { key: 'recommendation', label: 'Analyst Recommendation', type: 'text' }
+            ]
+        },
+        {
+            name: 'Technicals',
+            metrics: [
+                { key: 'sma20', label: '20-Day SMA', type: 'sma20' },
+                { key: 'stochK', label: '20-Day Stochastic %K', type: 'stochK' },
+                { key: 'rsi20', label: '20-Day RSI', type: 'rsi20' },
+                { key: 'weighted_alpha', label: 'Weighted Alpha', type: 'weighted_alpha' },
+                { key: 'opinion', label: 'Technical Opinion', type: 'opinion' },
+                { key: 'beta', label: 'Beta (Volatility)', type: 'beta' }
+            ]
+        }
+    ];
+    
+    const winners = calculateRowWinners();
+    const tbody = document.getElementById('comparison-table-body');
+    tbody.innerHTML = '';
+    
+    categories.forEach(category => {
+        // Render category header row
+        const catTr = document.createElement('tr');
+        catTr.className = 'comparison-category-row';
+        const catTd = document.createElement('td');
+        catTd.colSpan = comparisonTickers.length + 1;
+        catTd.textContent = category.name;
+        catTr.appendChild(catTd);
+        tbody.appendChild(catTr);
+        
+        category.metrics.forEach(metric => {
+            const tr = document.createElement('tr');
+            
+            const tdLabel = document.createElement('td');
+            tdLabel.textContent = metric.label;
+            tr.appendChild(tdLabel);
+            
+            comparisonTickers.forEach(t => {
+                const td = document.createElement('td');
+                const data = comparisonData[t];
+                const info = data.info || {};
+                const ind = data.indicators || {};
+                
+                let val = '—';
+                let className = '';
+                
+                if (winners[metric.key] === t) {
+                    className = 'comparison-winner-cell';
+                }
+                
+                switch (metric.type) {
+                    case 'text':
+                        if (metric.key === 'name') val = info.name || t;
+                        else if (metric.key === 'sector') val = (info.sector || info.industry) ? `${info.sector || ''} ${info.industry ? '/ ' + info.industry : ''}` : 'Index';
+                        else if (metric.key === 'range52w') {
+                            if (info['52w_high'] && info['52w_low']) {
+                                const low = formatPrice(info['52w_low'], info.currency || 'USD', false, t);
+                                const high = formatPrice(info['52w_high'], info.currency || 'USD', false, t);
+                                val = `${low} - ${high}`;
+                            }
+                        } else if (metric.key === 'recommendation') val = info.recommendation ? info.recommendation.replace('_', ' ').toUpperCase() : '—';
+                        break;
+                        
+                    case 'price':
+                        val = formatPrice(info.current_price, info.currency || 'USD', false, t);
+                        break;
+                        
+                    case 'change':
+                        const changePct = info.previous_close ? ((info.current_price - info.previous_close) / info.previous_close) * 100 : 0;
+                        const isPos = changePct >= 0;
+                        val = `<span style="color: ${isPos ? 'var(--positive)' : 'var(--negative)'}; font-weight:700;">${isPos ? '+' : ''}${changePct.toFixed(2)}%</span>`;
+                        break;
+                        
+                    case 'market_cap':
+                        val = info.market_cap ? formatLargePrice(info.market_cap, info.currency || 'USD', t) : '—';
+                        break;
+                        
+                    case 'pe':
+                        val = (info.pe_ratio !== null && info.pe_ratio !== undefined) ? info.pe_ratio.toFixed(2) : '—';
+                        break;
+                        
+                    case 'eps':
+                        val = (info.eps !== null && info.eps !== undefined) ? info.eps.toFixed(2) : '—';
+                        break;
+                        
+                    case 'yield':
+                        val = info.dividend_yield ? `${(info.dividend_yield * 100).toFixed(2)}%` : '—';
+                        break;
+                        
+                    case 'beta':
+                        val = (info.beta !== null && info.beta !== undefined) ? info.beta.toFixed(2) : '—';
+                        break;
+
+                    case 'sma20':
+                        val = ind.sma20 ? formatPrice(ind.sma20, info.currency || 'USD', false, t) : '—';
+                        break;
+
+                    case 'stochK':
+                        val = ind.stochK !== undefined && ind.stochK !== null ? `${ind.stochK.toFixed(2)}%` : '—';
+                        break;
+
+                    case 'rsi20':
+                        val = ind.rsi20 !== undefined && ind.rsi20 !== null ? ind.rsi20.toFixed(2) : '—';
+                        break;
+
+                    case 'weighted_alpha':
+                        const alphaVal = ind.weightedAlpha || 0;
+                        const alphaPos = alphaVal >= 0;
+                        val = `<span style="color: ${alphaPos ? 'var(--positive)' : 'var(--negative)'}; font-weight:600;">${alphaPos ? '+' : ''}${alphaVal.toFixed(2)}%</span>`;
+                        break;
+
+                    case 'opinion':
+                        if (ind.opinionText) {
+                            const opColor = ind.opinionText.includes('Buy') ? 'var(--positive)' : (ind.opinionText.includes('Sell') ? 'var(--negative)' : 'var(--text-secondary)');
+                            val = `<span style="color: ${opColor}; font-weight:700;">${ind.opinionScore}% ${ind.opinionText}</span>`;
+                        } else {
+                            val = '—';
+                        }
+                        break;
+                }
+                
+                td.innerHTML = val;
+                if (className) td.className = className;
+                tr.appendChild(td);
+            });
+            
+            tbody.appendChild(tr);
+        });
+    });
+    
+    if (comparisonTickers.length >= 2) {
+        verdictCard.style.display = 'block';
+        renderVerdictCard();
+    } else {
+        verdictCard.style.display = 'none';
     }
 }
 

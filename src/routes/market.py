@@ -219,7 +219,7 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
             "3mo": "1d",
             "6mo": "1d",
             "ytd": "1d",
-            "1y":  "1wk",
+            "1y":  "1d",
             "5y":  "1mo",
             "max": "1mo"
         }
@@ -301,6 +301,7 @@ def get_ticker_history(request: Request, ticker: str, period: str = Query(defaul
                 "pe_ratio":        raw_info.get("trailingPE", None),
                 "forward_pe":      raw_info.get("forwardPE", None),
                 "eps":             raw_info.get("trailingEps", None),
+                "shares_outstanding": raw_info.get("sharesOutstanding", None),
                 "dividend_yield":  raw_info.get("dividendYield", None),
                 "beta":            raw_info.get("beta", None),
                 "52w_high":        raw_info.get("fiftyTwoWeekHigh", None),
@@ -532,7 +533,7 @@ def get_ticker_fundamentals(request: Request, ticker: str):
     try:
         t = yf.Ticker(ticker)
         
-        # 1. Financial Statements
+        # 1. Financial Statements (Annual)
         financials = {"periods": [], "revenue": [], "gross_profit": [], "operating_income": [], "net_income": []}
         try:
             inc = t.income_stmt
@@ -560,6 +561,33 @@ def get_ticker_fundamentals(request: Request, ticker: str):
         except Exception as e:
             logger.warning("Fundamentals: Failed to fetch income stmt", ticker=ticker, error=str(e))
             
+        # 1b. Financial Statements (Quarterly)
+        quarterly_financials = {"periods": [], "revenue": [], "gross_profit": [], "operating_income": [], "net_income": []}
+        try:
+            q_inc = t.quarterly_income_stmt
+            if not q_inc.empty:
+                q_cols = list(q_inc.columns)[:4]
+                q_cols.reverse()
+                
+                for col in q_cols:
+                    period_str = col.strftime('%Y-%m-%d') if hasattr(col, 'strftime') else str(col)
+                    quarterly_financials["periods"].append(period_str)
+                    
+                    def get_q_val(keys):
+                        for k in keys:
+                            if k in q_inc.index:
+                                val = q_inc.loc[k, col]
+                                if not pd.isna(val):
+                                    return float(val)
+                        return 0.0
+                        
+                    quarterly_financials["revenue"].append(get_q_val(["Total Revenue", "Operating Revenue"]))
+                    quarterly_financials["gross_profit"].append(get_q_val(["Gross Profit"]))
+                    quarterly_financials["operating_income"].append(get_q_val(["Operating Income", "EBIT"]))
+                    quarterly_financials["net_income"].append(get_q_val(["Net Income", "Net Income Common Stockholders"]))
+        except Exception as e:
+            logger.warning("Fundamentals: Failed to fetch quarterly income stmt", ticker=ticker, error=str(e))
+
         # 2. Ownership
         ownership = {"institutions": 0.0, "insiders": 0.0, "public": 100.0}
         try:
@@ -598,6 +626,7 @@ def get_ticker_fundamentals(request: Request, ticker: str):
         result = {
             "ticker": ticker,
             "financials": financials,
+            "quarterly_financials": quarterly_financials,
             "ownership": ownership,
             "dividends": dividends
         }

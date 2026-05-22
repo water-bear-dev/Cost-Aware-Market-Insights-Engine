@@ -803,6 +803,17 @@ body {
     background: rgba(255, 255, 255, 0.03);
 }
 
+.comparison-category-row td {
+    background: rgba(255, 255, 255, 0.05) !important;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .highlight-col {
     background: rgba(14, 165, 233, 0.03);
 }
@@ -1880,6 +1891,28 @@ body {
     display: none;
     list-style: none;
     border-radius: 12px;
+}
+
+/* Dropdown custom scrollbar */
+.autocomplete-dropdown::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.2);
+    border-radius: 4px;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.2s ease;
+}
+
+.autocomplete-dropdown::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.35);
 }
 
 .autocomplete-dropdown.active {
@@ -3250,4 +3283,214 @@ input[type=number] {
     gap: 0.5rem;
     margin-top: 0.6rem;
     margin-bottom: 0.6rem;
+}
+
+/* =====================================================
+   Stock Search & Comparison View
+   ===================================================== */
+.search-compare-container {
+    padding: 0;
+    margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+    .search-results-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+.metrics-comparison-grid .metric-card {
+    transition: all 0.3s ease;
+}
+
+.metrics-comparison-grid .metric-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(14, 165, 233, 0.15);
+}
+
+/* Verdict Container */
+.verdict-container {
+    margin-top: 2rem;
+    padding: 2rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(8, 12, 22, 0.8), rgba(16, 185, 129, 0.03));
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.1);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.verdict-container.gold {
+    background: linear-gradient(135deg, rgba(8, 12, 22, 0.85), rgba(245, 158, 11, 0.04));
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.verdict-container::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.verdict-container.gold::before {
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 60%);
+}
+
+.verdict-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.verdict-badge {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.verdict-container.gold .verdict-badge {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.verdict-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.verdict-summary-text {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.verdict-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.verdict-score-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.verdict-score-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.verdict-score-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.verdict-score-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.verdict-score-winner {
+    font-size: 0.8rem;
+    color: var(--positive);
+    font-weight: 600;
+}
+
+/* Comparison custom styles */
+#comparison-table-wrapper table {
+    table-layout: fixed;
+}
+
+#comparison-table-wrapper th,
+#comparison-table-wrapper td {
+    padding: 1rem;
+}
+
+#comparison-table-wrapper th:first-child,
+#comparison-table-wrapper td:first-child {
+    width: 200px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.comparison-winner-cell {
+    background: rgba(16, 185, 129, 0.08) !important;
+    border-left: 2px solid var(--positive) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+}
+
+.comparison-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--text-primary);
+    border: 1px solid rgba(14, 165, 233, 0.3);
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.comparison-pill:hover {
+    border-color: var(--accent);
+    background: rgba(14, 165, 233, 0.25);
+}
+
+.comparison-pill-remove {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    transition: all 0.15s ease;
+}
+
+.comparison-pill-remove:hover {
+    color: var(--negative);
+    background: rgba(244, 63, 94, 0.1);
 }

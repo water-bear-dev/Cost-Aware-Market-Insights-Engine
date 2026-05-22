@@ -1,6 +1,98 @@
 # Development Blog
 
 
+## Entry 71: Hiding Sentiment and Restricting Tab Views for Indices and Commodities (2026-05-22)
+
+This entry details the design decisions and implementation for restricting retail sentiment badges and modal tab pages specifically for index trackers and commodities.
+
+### 1. Removing Retail Sentiment for Global Market Indices & Commodities
+Retail sentiment channels (like r/wallstreetbets) are highly equity-centric, focusing on stocks rather than global macroeconomic indices or physical commodities. Displaying sentiment badges (e.g. "BULLISH", "r/wallstreetbets: 20") for assets like the S&P 500 (`^GSPC`) or Gold (`GC=F`) degrades overall context coherence.
+- **Classification Engine**: We engineered a lightweight helper `isGlobalOrCommodity(ticker)` in `static/app.js` to detect indices and commodities based on standard prefix/suffix structures and discovery tables:
+  ```javascript
+  function isGlobalOrCommodity(ticker) {
+      if (!ticker) return false;
+      const t = ticker.toUpperCase();
+      return t.startsWith('^') || t.endsWith('=F') || 
+             DISCOVER_INDEX_SYMBOLS.includes(t) || 
+             DISCOVER_COMMODITY_SYMBOLS.includes(t);
+  }
+  ```
+- **Unified Short-Circuiting**: Modified `renderSentimentBadges` to take an optional `ticker` parameter. If `isGlobalOrCommodity(ticker)` matches, it immediately yields an empty string `''`.
+- **Card and Modal Alignment**: Passed the ticker to all call sites in `updateCard`, `cardInnerHtml`, and `renderModalContent`. We also hid the modal's `modal-sentiment-section` container when viewing these assets.
+
+### 2. Disabling Financials and Forecasts Tab Navigation
+Global indices and commodity trackers do not publish balance sheets, income statements, or standard corporate earnings forecasts. Leaving these tabs active for them leads to blank panels or confusing loading states.
+- **Tab Filtration**: In `renderModalContent`, the tab buttons for "Financials" and "Forecasts" are dynamically styled with `display: none` when the asset is a commodity or index.
+- **State Healing**: To handle scenarios where a user had a financial tab open on an equity, closed it, and clicked on an index, we added reset logic. If `isGlobalOrCommodity` returns true and the active tab button is financials/forecasts, the interface programmatically resets focus to the "Overview" tab and restores active states.
+
+## Entry 70: UI Spelling Correction, r/wallstreetbets Relabeling, and Dynamic Retail Sentiment Explanations (2026-05-22)
+
+This entry details the correction of a persistent UI misspelling, the rebranding of "WSB" mentions to "r/wallstreetbets" for clarity and accurate attribution, and the design of a zero-cost client-side engine generating dynamic, ticker-specific sentiment commentary.
+
+### 1. Correcting the Spelling of Sentiment
+We corrected a misspelling in the watchlist card details modal where the heading was labeled "Setiment" instead of "Sentiment" in `static/index.html`. This ensures a highly polished, professional visual presentation.
+
+### 2. Standardizing "r/wallstreetbets" Attribution
+To reflect the actual home of these retail discussions, we updated the user interface to explicitly label "WSB" references as "r/wallstreetbets". This includes:
+- Updating the social volume badges displaying the fire emoji: `🔥 r/wallstreetbets: {volume}`.
+- Rewriting the dynamic commentary text to reference `r/wallstreetbets` rather than generic "WSB" forums.
+
+### 3. Zero-Cost Client-Side Dynamic Sentiment Commentary
+To avoid calling expensive LLMs and incurring API costs while maintaining a rich user experience, we engineered a deterministic text generator in client-side JavaScript (`static/app.js`).
+- **Bit-Wise Hashing Algorithm**: The function `generateSentimentExplanation` computes a bit-wise hash of the ticker symbol:
+  ```javascript
+  const hash = ticker ? (ticker.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0) >>> 0) : 0;
+  ```
+- **Dynamic Pool Selection**: This stable hash selects from multiple custom pools of text variations based on the ticker's characteristics:
+  - **4 Sentiment Theses**: Selects distinct retail profiles (e.g., Growth Catalysts, Momentum FOMO, Undervalued/primer for turnaround, product hype).
+  - **3 Price Correlation Variations**: Tailors commentary to price performance boundaries (e.g., contrarian dip-buying for down days, momentum chasing for up days, steady accumulation on flat days).
+  - **3 Score Strength Evaluations**: Annotates the numeric sentiment score (e.g., extreme, moderate, mild) and lists corresponding terms.
+  - **3 Social Volume Intensity Classifications**: Tailors descriptions for high speculative interest (meme candidates), moderate steady interest, and low chatter flying under the radar.
+
+This prevents different tickers from displaying identical template text, transforming the "Social Sentiment" panel into a premium, dynamic, and informative analytics widget.
+
+## Entry 69: Stock Search Dropdowns, Multi-Ticker Comparison (Up to 5) & Local Technical Indicators (2026-05-22)
+
+This entry details the stock search layout fixes, side-by-side quarterly and annual financial grids, regional exchange flags, latest news widgets, 5-ticker comparison grid, and client-side technical indicator engine.
+
+### 1. The Stacking Context & Scrollbar Overlaps
+During search integration, we observed that:
+- The autocomplete suggestion dropdown fell behind the newly loaded search details card because of z-index stacking contexts.
+- Raw browser scrollbars broke the glassmorphic aesthetics.
+
+**Resolution**: Updated the autocomplete suggestion styles to use absolute positioning, elevated z-index (`2000`), and bound the height with modern styled scrollbars identical to the rest of the application.
+
+### 2. Premium Exchange Metadata & Flag Emojis
+To give the stock search an institutional feel, we expanded the exchange formatting dictionary. Rather than outputting raw abbreviations like `NMS` or `ASX`, the system maps codes to flags and clean names:
+```javascript
+const exchangeMap = {
+    'NMS': '🇺🇸 NASDAQ',
+    'NYQ': '🇺🇸 NYSE',
+    'ASX': '🇦🇺 ASX',
+    'TOR': '🇨🇦 Toronto Stock Exchange',
+    'GER': '🇩🇪 XETRA',
+    ...
+};
+```
+
+### 3. Side-by-Side Financial Tables & Quarterly Fundamentals
+We enriched `/api/v1/market/fundamentals/{ticker}` on the backend to retrieve `quarterly_income_stmt` alongside standard `income_stmt`. 
+- The frontend renders both Annual and Quarterly income statements side-by-side below the chart.
+- Key figures (Revenue, Net Income, Gross Profit) are formatted in clean tables.
+
+### 4. Zero-Cost Client-Side Technical Indicators
+To support deep analytics without using AI token budgets or triggering expensive LLM runs, we engineered mathematical calculations in client-side JavaScript. Using 1-year daily historical closes from the `/api/v1/market/history/{ticker}?period=1y` endpoint, the frontend dynamically calculates:
+- **20-Day Simple Moving Average (SMA)**: Traces standard trend lines.
+- **20-Day Stochastic %K**: Evaluates overbought/oversold relative to 20-day high-low boundaries.
+- **20-Day Relative Strength Index (RSI)**: Computes average gains vs losses.
+- **Weighted Alpha**: A custom performance rating measuring returns over the last 52 weeks with linear weight decays, emphasizing recent price actions.
+- **Technical Opinion**: Aggregates 10 distinct rule-sets (including SMA crossovers, RSI boundaries, and price momentum) to output an overall rating percentage (e.g. 80% Buy, 100% Sell, 40% Hold).
+
+### 5. Multi-Ticker Comparison Verdict Engine (Up to 5)
+We expanded comparison capacity from 3 to 5 tickers, dynamically showing the occupied slot indicator (e.g., `(2/5)`). 
+- Categorized comparison parameters into Technicals, Performance, and Key Stats groups.
+- The scoring verdict engine was expanded to evaluate Weighted Alpha and Technical Opinion, increasing the total score ceiling to 130 points. It awards points to the best-performing assets and renders a structured verdict explaining the winning ticker.
+
 ## Entry 68: Phase 11 — Multi-Provider LLM Routing, Lexical Sentiment Pipeline & Frontend Sentiment Badges (2026-05-20)
 
 This entry covers the full implementation of Phase 11: a concurrent social sentiment analysis layer wired end-to-end from the LangGraph DAG through to card and modal UI badges.

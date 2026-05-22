@@ -3,6 +3,46 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.6.2] - 2026-05-22
+
+### Changed
+- **Index and Commodity Sentiment Badge Removal** — Disabled sentiment rendering and social volume badges on all global market indices and commodities across the entire application interface (watchlist cards, discovery cards, details modal).
+- **Index and Commodity Tab Restriction** — Restricted ticker details modal view for indices and commodities to only the "Overview" tab. The "Financials" and "Forecasts" tabs are hidden automatically, with fallback logic resetting active tab state to "Overview" to prevent visual glitches.
+
+## [3.6.1] - 2026-05-22
+
+### Added
+- **Dynamic Retail Sentiment Explanations** — Engineered a client-side hashing mechanism in `static/app.js` using a bit-wise hash of the ticker symbol to generate unique, ticker-specific retail sentiment commentary. This dynamically selects from custom pools of sentiment theses, price correlations, and volume metrics to avoid repetitive templates.
+
+### Changed
+- **r/wallstreetbets Labeling** — Relabeled all references to "WSB" to "r/wallstreetbets" across the entire application interface (social volume badges, charts, and details modal) for precise community attribution.
+
+### Fixed
+- **Sentiment Spelling Correction** — Corrected the misspelling of "Setiment" to "Sentiment" in the market sentiment detail modal header.
+
+## [3.6.0] - 2026-05-22
+
+### Added
+- **Stock Search & Comparison Enhancements** — Replaced raw dropdown with a scrollable autocomplete list styled to match the dark-glass theme. Added z-index rules to place recommendations on top of all card elements.
+- **Side-by-Side Financial Tables** — Injected annual and quarterly income statements directly below the historical price chart, loading data via enriched backend fundamentals routes.
+- **Search Ticker Latest News** — Added a real-time yfinance news list displaying 5 headlines and links in the left-hand searched stock detail card.
+- **5-Ticker Comparison Engine** — Extended the watchlist/search comparison slots from 3 to 5 tickers. Added dynamic placeholder indicators showing the current count out of maximum limit (e.g., `(N/5)`).
+- **Client-Side Financial Analytics & Technical Indicators** — Integrated lightweight, client-side JavaScript computations using 1-year historical daily closes to prevent AI model/LLM cost overhead:
+  - **20-Day SMA**
+  - **20-Day Stochastic %K**
+  - **20-Day RSI**
+  - **Weighted Alpha** (incorporating weekly-close returns over 52 weeks with linear weight decays)
+  - **Technical Opinion** (Buy/Sell/Hold percentage computed from trend and momentum alignments)
+- **Categorized Comparison Rows** — Separated comparison table metrics into distinct category blocks: **Key Stats**, **Performance**, and **Technicals** for high readability.
+
+### Changed
+- **Regional Exchange Flags** — Enhanced `formatExchange` to prefix listings with country flag emojis and display widely recognized market names (e.g., Nasdaq, NYSE, Toronto Stock Exchange).
+- **Verdict Scoring Expansion** — Upgraded the automatic winner analysis logic to incorporate Weighted Alpha and Technical Opinion scores, increasing the maximum possible scoring pool to 130 points.
+
+### Fixed
+- **Dropdown Overlaps**: Resolved z-index stacking conflicts where the search suggestions would render behind the details card.
+- **Autocomplete Scrolling**: Added custom `-webkit-scrollbar` declarations to the dropdown selector, replacing browser defaults with custom styled scrollbars.
+
 ## [3.5.0] - 2026-05-20
 
 ### Added

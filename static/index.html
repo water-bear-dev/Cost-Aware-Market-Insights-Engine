@@ -78,6 +78,7 @@
                 <button class="tab-btn active" data-tab="manage-view">Manage</button>
                 <button class="tab-btn" data-tab="discover-view">Discover</button>
                 <button class="tab-btn" data-tab="screener-view">Screener</button>
+                <button class="tab-btn" data-tab="search-compare-view">Stock Search</button>
                 <span class="tab-nav-spacer"></span>
                 <button class="tab-btn" data-tab="finops-view">Costs</button>
                 <button class="tab-btn" data-tab="how-view">How it works</button>
@@ -445,6 +446,225 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </section>
+
+
+        <!-- Stock Search & Compare Section -->
+        <section id="search-compare-view" class="tab-content">
+            <div class="search-compare-container">
+                <div class="glass" style="margin-bottom: 2.5rem; padding: 2rem;">
+                    <h2 class="discover-section-title" style="margin: 0; font-size: 1.2rem; color: var(--accent);">🔍 Stock Search & Analyst Lookup</h2>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem; margin-bottom: 1.5rem;">
+                        Search any global stock dynamically. Access general profile, technical performance, and core ratios. Zero AI cost.
+                    </p>
+                    
+                    <div class="search-bar-wrap" style="position: relative; z-index: 100; width: 100%; max-width: 600px;">
+                        <div style="position: relative; display: flex; gap: 1rem; width: 100%;">
+                            <input type="text" id="stock-search-input" placeholder="Search symbol or name (e.g. AAPL, MSFT, TSLA)..." class="glass-input" style="flex: 1;" autocomplete="off" />
+                            <ul id="stock-search-autocomplete" class="autocomplete-dropdown glass" style="width: 100%; top: calc(100% + 4px);"></ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail Panel (initially hidden or showing placeholder) -->
+                <div id="search-detail-panel" style="display: none; margin-bottom: 2.5rem;">
+                    <div class="search-results-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+                        
+                        <!-- Left Panel: General Info & Metrics -->
+                        <div class="glass flex-column" style="gap: 1.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                                <div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                        <h3 id="search-company-name" style="font-size: 1.4rem; font-weight: 700; color: var(--text-primary);">--</h3>
+                                        <span id="search-ticker-symbol" class="badge" style="background: rgba(14, 165, 233, 0.15); color: var(--accent); font-weight: 700;">--</span>
+                                    </div>
+                                    <p id="search-exchange-sector" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">--</p>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div id="search-current-price" style="font-size: 1.6rem; font-weight: 800; color: var(--text-primary);">--</div>
+                                    <div id="search-price-change" class="discover-change-badge" style="margin-top: 0.25rem;">--</div>
+                                </div>
+                            </div>
+
+                            <!-- Technicals Metrics Grid -->
+                            <div>
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 1rem; letter-spacing: 0.05em;">Key Technicals & Ratios</h4>
+                                <div class="metrics-comparison-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">Market Cap</p>
+                                        <h3 class="metric-value" id="search-metric-market-cap" style="font-size: 1.1rem; margin-top: 0.25rem;">--</h3>
+                                    </div>
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">P/E Ratio (TTM)</p>
+                                        <h3 class="metric-value" id="search-metric-pe" style="font-size: 1.1rem; margin-top: 0.25rem;">--</h3>
+                                    </div>
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">EPS (TTM)</p>
+                                        <h3 class="metric-value" id="search-metric-eps" style="font-size: 1.1rem; margin-top: 0.25rem;">--</h3>
+                                    </div>
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">Div Yield</p>
+                                        <h3 class="metric-value" id="search-metric-yield" style="font-size: 1.1rem; margin-top: 0.25rem;">--</h3>
+                                    </div>
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">Beta (Volatility)</p>
+                                        <h3 class="metric-value" id="search-metric-beta" style="font-size: 1.1rem; margin-top: 0.25rem;">--</h3>
+                                    </div>
+                                    <div class="metric-card glass" style="padding: 1rem;">
+                                        <p class="metric-label dim-label" style="font-size: 0.65rem;">52W High/Low</p>
+                                        <h3 class="metric-value" id="search-metric-52w" style="font-size: 0.85rem; margin-top: 0.25rem; font-weight: 600;">--</h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Business Summary (Collapsible) -->
+                            <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.05em;">Business Profile</h4>
+                                <p id="search-business-summary" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis;">--</p>
+                                <button id="search-summary-toggle" class="sort-btn" style="margin-top: 0.5rem; background: transparent; border: none; color: var(--accent); padding: 0;">Show More</button>
+                            </div>
+
+                            <!-- Latest News Catalysts -->
+                            <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em;">Latest News Catalysts</h4>
+                                <div id="search-news-list" class="flex-column" style="gap: 0.75rem;">
+                                    <p style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No recent news articles found.</p>
+                                </div>
+                            </div>
+
+                            <!-- Track Ticker Action -->
+                            <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
+                                <span id="search-track-status" style="font-size: 0.85rem; color: var(--text-secondary);">Current Watchlist: --/30.</span>
+                                <button id="search-track-btn" class="glass-btn primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Track Ticker</button>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Chart -->
+                        <div class="glass flex-column" style="gap: 1rem; min-height: 380px; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                                <div class="period-selector" id="search-period-selector" style="margin: 0;">
+                                    <button class="period-btn" data-period="1d">1D</button>
+                                    <button class="period-btn" data-period="5d">5D</button>
+                                    <button class="period-btn active" data-period="1mo">1M</button>
+                                    <button class="period-btn" data-period="3mo">3M</button>
+                                    <button class="period-btn" data-period="6mo">6M</button>
+                                    <button class="period-btn" data-period="ytd">YTD</button>
+                                    <button class="period-btn" data-period="1y">1Y</button>
+                                    <button class="period-btn" data-period="5y">5Y</button>
+                                </div>
+                                <div id="search-chart-change" style="font-weight: 700; font-size: 1rem; color: var(--positive);">--</div>
+                            </div>
+                            
+                            <div class="chart-container" style="position: relative; flex: 1; min-height: 280px; width: 100%;">
+                                <div id="search-chart-loading" class="glass-loader" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%; z-index:10; background: rgba(15,23,42,0.4); backdrop-filter: blur(4px); align-items:center; justify-content:center; flex-direction: column; gap: 1rem; border-radius: 1rem;">
+                                    <div class="dot-spinner"></div>
+                                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;">Loading History Chart...</span>
+                                </div>
+                                <canvas id="searchChart"></canvas>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Side-by-side Financials Section -->
+                    <div class="glass" style="margin-top: 1.5rem; padding: 2rem;">
+                        <h4 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            📊 Financial Statements
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; flex-wrap: wrap;">
+                            
+                            <!-- Annual Financials -->
+                            <div>
+                                <h5 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Annual Income Statement</h5>
+                                <div style="overflow-x: auto;" class="custom-scrollbar">
+                                    <table class="screener-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
+                                        <thead>
+                                            <tr id="search-financials-annual-headers">
+                                                <th>Metric</th>
+                                                <!-- Dynamic Period Columns -->
+                                            </tr>
+                                        </thead>
+                                        <tbody id="search-financials-annual-body">
+                                            <!-- Dynamic Rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Quarterly Financials -->
+                            <div>
+                                <h5 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Quarterly Income Statement</h5>
+                                <div style="overflow-x: auto;" class="custom-scrollbar">
+                                    <table class="screener-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
+                                        <thead>
+                                            <tr id="search-financials-quarterly-headers">
+                                                <th>Metric</th>
+                                                <!-- Dynamic Period Columns -->
+                                            </tr>
+                                        </thead>
+                                        <tbody id="search-financials-quarterly-body">
+                                            <!-- Dynamic Rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Placeholder when no ticker is searched -->
+                <div id="search-placeholder-panel" class="glass" style="text-align: center; padding: 4rem 2rem; margin-bottom: 2.5rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📈</div>
+                    <h3 style="font-size: 1.2rem; font-weight: 600; color: var(--text-primary);">No Stock Selected</h3>
+                    <p style="color: var(--text-secondary); max-width: 400px; margin: 0.5rem auto 0 auto; font-size: 0.85rem; line-height: 1.5;">
+                        Search for a ticker symbol (e.g., AAPL, MSFT, ASX:CBA) in the lookup bar above to retrieve real-time technical analysis and fundamental ratios.
+                    </p>
+                </div>
+
+                <!-- Comparison Panel -->
+                <div class="glass" style="margin-bottom: 2.5rem; padding: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">⚖️ Compare Tickers</h3>
+                            <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem;">Add up to 5 stocks to compare metrics, technicals, and run a winner analysis.</p>
+                        </div>
+                        
+                        <!-- Add Ticker to Comparison -->
+                        <div style="position: relative; z-index: 100; width: 100%; max-width: 320px;">
+                            <input type="text" id="comparison-add-input" placeholder="Add ticker to compare (e.g. MSFT)..." class="glass-input" style="width: 100%; padding: 0.5rem 1rem;" autocomplete="off" />
+                            <ul id="comparison-autocomplete" class="autocomplete-dropdown glass" style="width: 100%; top: calc(100% + 4px);"></ul>
+                        </div>
+                    </div>
+
+                    <!-- Comparison Tags / List -->
+                    <div id="comparison-pills-container" style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                        <!-- Comparison tags will be generated here -->
+                        <span style="font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">No tickers added to comparison yet. Add tickers above.</span>
+                    </div>
+
+                    <!-- Side by Side Metrics Grid -->
+                    <div id="comparison-table-wrapper" style="display: none; overflow-x: auto; margin-bottom: 2rem;" class="custom-scrollbar">
+                        <table class="screener-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                            <thead>
+                                <tr id="comparison-table-headers">
+                                    <th>Metric</th>
+                                    <!-- Dynamic headers for tickers -->
+                                </tr>
+                            </thead>
+                            <tbody id="comparison-table-body">
+                                <!-- Dynamic rows of comparison metrics -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Winner Verdict Card -->
+                    <div id="comparison-verdict-card" class="verdict-container glass" style="display: none;">
+                        <!-- Dynamic Winner Banner & Category breakdown -->
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -826,7 +1046,7 @@
 
                     <!-- Market Sentiment & Activity -->
                     <div class="modal-section" id="modal-sentiment-section" style="display: none;">
-                        <h4>Setiment</h4>
+                        <h4>Sentiment</h4>
                         <div id="modal-sentiment-badges" class="sentiment-row" style="margin-top: 0.5rem;"></div>
                         <div id="modal-sentiment-explanation" style="margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; padding: 0.75rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border-left: 3px solid var(--accent);"></div>
                     </div>
