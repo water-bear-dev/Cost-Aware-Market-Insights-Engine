@@ -105,9 +105,10 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 *   **Cost-Aware Targeted Refresh**: Separates cheap real-time market data refreshes (manual button) from expensive AI synthesis (autonomous healing), optimizing token spend.
 *   **Institutional Global Dashboard**: Side-by-side comparison across 5+ global exchanges with normalized currency and automated FX conversion.
 *   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality market opportunities.
-*   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure Bedrock/Claude spend never exceeds your daily threshold.
+*   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure LLM spend never exceeds your daily threshold.
+*   **Multi-Provider LLM Routing**: Unified routing engine with priority fallback — Ollama → OpenAI → Anthropic → Bedrock Converse API. Zero single-provider lock-in.
+*   **Lexical Social Sentiment**: $0-cost, dictionary-based scoring of Reddit WSB posts and news headlines. Live sentiment badges (📈/📉/⚖️) and WSB social volume counters on every watchlist card and discovery pick.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
-*   **Hybrid AI Synthesis**: Seamlessly toggle between AWS Bedrock (Production) and local Ollama/Gemma (Development) models with environment-aware auto-switching.
 *   **Analytics Warehouse**: dbt-driven data lakehouse architecture for scalable, reproducible financial modeling.
 
 For a deep dive into the system network design and future Cloud integration plans, review the full [System Design Documentation](./system-design/system_overview.md).
@@ -141,7 +142,7 @@ To ensure the engine runs successfully in a local or cloud environment, verify t
 ### 2. AWS Infrastructure (Production)
 - **AWS Account**: Required for DynamoDB (Insights/Market) and Bedrock.
 - **AWS CLI (`aws`)**: Configured with valid credentials (`aws configure`) and appropriate IAM permissions for DynamoDB, S3, and Bedrock.
-- **Bedrock Model Access**: **CRITICAL.** You must manually request access to the `Anthropic Claude 3 Haiku` model in the AWS Bedrock console (e.g., in `us-east-1` or `us-west-2`). Access is typically granted within minutes but is not enabled by default.
+- **Bedrock Model Access**: **CRITICAL.** You must manually request access to the `Anthropic Claude 3 Haiku` model in the AWS Bedrock console (e.g., in `us-east-1` or `us-west-2`). Access is typically granted within minutes but is not enabled by default. The engine uses the **Bedrock Converse API** (`converse` endpoint) — ensure your IAM role has `bedrock:InvokeModel` and `bedrock:Converse` permissions.
 
 ### 3. Local Intelligence (Development)
 - **Ollama**: Required if running without AWS Bedrock.
@@ -157,9 +158,11 @@ The engine is designed for **Multi-LLM portability**, allowing you to run powerf
 
 | Environment | LLM Provider | Model | Cost | Setup Complexity |
 | :--- | :--- | :--- | :--- | :--- |
-| **Local** | `ollama` | Llama 3 / 3.2 | Free | Low |
-| **Cloud (AWS)** | `bedrock` | Claude 3 Haiku | Pay-as-you-go | Medium |
-| **Local (Quick)** | `mock` | Static Mock | Free | Zero |
+| **Local (Free)** | `ollama` | Llama 3 / 3.2 | Free | Low |
+| **Cloud (AWS)** | `bedrock` | Claude 3 Haiku (Converse API) | Pay-as-you-go | Medium |
+| **Cloud (OpenAI)** | `openai` | GPT-4o / GPT-4o-mini | Pay-as-you-go | Low |
+| **Cloud (Anthropic)** | `anthropic` | Claude 3.x | Pay-as-you-go | Low |
+| **Local (Zero-Effort)** | `mock` | Static Mock | Free | Zero |
 
 ---
 

@@ -34,6 +34,9 @@ def get_insights(request: Request, ticker: Optional[str] = None):
                 "input_tokens": int(item.get("input_tokens", 0)),
                 "output_tokens": int(item.get("output_tokens", 0)),
                 "cost_usd": float(item.get("cost_usd", 0)),
+                "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
+                "sentiment_label": item.get("sentiment_label", "Neutral"),
+                "social_volume": int(item.get("social_volume", 0)),
             }
         else:
             # Only return insights for actively tracked tickers (prevents ghost data)
@@ -58,6 +61,9 @@ def get_insights(request: Request, ticker: Optional[str] = None):
                     "input_tokens": int(item.get("input_tokens", 0)),
                     "output_tokens": int(item.get("output_tokens", 0)),
                     "cost_usd": float(item.get("cost_usd", 0)),
+                    "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
+                    "sentiment_label": item.get("sentiment_label", "Neutral"),
+                    "social_volume": int(item.get("social_volume", 0)),
                 })
             return results
 
@@ -111,7 +117,10 @@ def get_daily_picks(request: Request):
                     "company_name": item.get("company_name", ""),
                     "industry": item.get("industry", "Unknown"),
                     "currency": item.get("currency", "USD"),
-                    "news": item.get("news")
+                    "news": item.get("news"),
+                    "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
+                    "sentiment_label": item.get("sentiment_label", "Neutral"),
+                    "social_volume": int(item.get("social_volume", 0)),
                 })
         return picks
     except Exception as e:

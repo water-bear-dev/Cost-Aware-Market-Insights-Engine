@@ -14,6 +14,9 @@ class DagSynthesisResponse(BaseModel):
     finops_approved: bool
     insight: Optional[str]
     cost: float
+    sentiment_score: Optional[float] = None
+    sentiment_label: Optional[str] = None
+    social_volume: Optional[int] = None
 
 @router.post("/{ticker}/synthesize", response_model=DagSynthesisResponse)
 async def trigger_dag_synthesis(ticker: str):
@@ -29,6 +32,8 @@ async def trigger_dag_synthesis(ticker: str):
         "market_data": None,
         "quant_analysis": None,
         "sentiment_score": None,
+        "sentiment_label": None,
+        "social_volume": 0,
         "risk_approved": False,
         "final_insight": None
     }
@@ -42,7 +47,10 @@ async def trigger_dag_synthesis(ticker: str):
             status="success",
             finops_approved=final_state.get("finops_budget_cleared", False),
             insight=final_state.get("final_insight"),
-            cost=final_state.get("estimated_cost", 0.0)
+            cost=final_state.get("estimated_cost", 0.0),
+            sentiment_score=final_state.get("sentiment_score"),
+            sentiment_label=final_state.get("sentiment_label"),
+            social_volume=final_state.get("social_volume")
         )
     except Exception as e:
         logger.error("DAG Execution Failed", ticker=ticker, error=str(e), exc_info=True)

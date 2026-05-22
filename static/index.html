@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=7">
+    <link rel="stylesheet" href="/static/style.css?v=8">
     <link rel="stylesheet" href="/static/screener.css?v=1">
 </head>
 
@@ -824,6 +824,13 @@
                         <p id="modal-insight-meta" style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.5rem;"></p>
                     </div>
 
+                    <!-- Market Sentiment & Activity -->
+                    <div class="modal-section" id="modal-sentiment-section" style="display: none;">
+                        <h4>Setiment</h4>
+                        <div id="modal-sentiment-badges" class="sentiment-row" style="margin-top: 0.5rem;"></div>
+                        <div id="modal-sentiment-explanation" style="margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; padding: 0.75rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border-left: 3px solid var(--accent);"></div>
+                    </div>
+
                     <!-- About the Company -->
                     <div class="modal-section" id="modal-about-section" style="display:none;">
                         <h4>About</h4>
@@ -949,6 +956,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=7"></script>
+    <script src="/static/app.js?v=8"></script>
 </body>
 </html>

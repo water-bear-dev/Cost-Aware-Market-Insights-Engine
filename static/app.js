@@ -139,6 +139,67 @@ function formatExchange(code) {
     return map[upper] || upper;
 }
 
+function renderSentimentBadges(sentiment_label, sentiment_score, social_volume) {
+    if (!sentiment_label && sentiment_score === undefined && social_volume === undefined) {
+        return '';
+    }
+    
+    let html = '<div class="sentiment-row">';
+    if (sentiment_label) {
+        const label = sentiment_label.toUpperCase();
+        const sClass = label.includes('BULLISH') ? 'bullish' : (label.includes('BEARISH') ? 'bearish' : 'neutral');
+        const emoji = sClass === 'bullish' ? '📈' : (sClass === 'bearish' ? '📉' : '⚖️');
+        const scoreText = (sentiment_score !== undefined && sentiment_score !== null) ? ` (${sentiment_score >= 0 ? '+' : ''}${parseFloat(sentiment_score).toFixed(2)})` : '';
+        html += `<span class="sentiment-badge ${sClass}">${emoji} ${label}${scoreText}</span>`;
+    }
+    if (social_volume !== undefined && social_volume !== null && social_volume > 0) {
+        html += `<span class="social-volume-badge">🔥 WSB: ${social_volume}</span>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function generateSentimentExplanation(label, score, volume) {
+    if (!label && score === undefined && volume === undefined) return '';
+
+    const labelUpper = (label || '').toUpperCase();
+    const isBullish = labelUpper.includes('BULL');
+    const isBearish = labelUpper.includes('BEAR');
+    
+    let sentimentDescription = '';
+    if (isBullish) {
+        sentimentDescription = `retail discussions show positive momentum. Buyers are currently dominant, with optimism regarding upcoming catalysts, growth expectations, or positive earnings expectations.`;
+    } else if (isBearish) {
+        sentimentDescription = `retail discussions lean negative. Sellers are dominant, with caution driven by sector headwinds, downside risks, or negative news sentiment.`;
+    } else {
+        sentimentDescription = `retail discussions are balanced or neutral. There is no clear directional bias from retail investors, representing consolidation or mixed news signals.`;
+    }
+
+    let scoreExplanation = '';
+    if (score !== undefined && score !== null) {
+        const absScore = Math.abs(parseFloat(score));
+        let strength = 'mild';
+        if (absScore > 0.6) strength = 'extreme';
+        else if (absScore > 0.3) strength = 'moderate';
+        
+        scoreExplanation = ` A lexical score of <strong>${score >= 0 ? '+' : ''}${parseFloat(score).toFixed(2)}</strong> indicates a <strong>${strength}</strong> density of ${isBullish ? 'positive' : (isBearish ? 'negative' : 'balanced')} keywords (like <em>${isBullish ? 'growth, calls, surge' : (isBearish ? 'risk, debt, slide' : 'hold, range')}</em>).`;
+    }
+
+    let volumeExplanation = '';
+    if (volume !== undefined && volume !== null && volume > 0) {
+        volumeExplanation = ` WSB volume of <strong>${volume}</strong> indicates an active level of discussions in retail communities (r/wallstreetbets).`;
+    }
+
+    return `
+        <div style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--accent); letter-spacing: 0.05em; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
+            <span>🤖 AI Explanation</span>
+        </div>
+        <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;">
+            Retail sentiment is classified as <strong>${labelUpper || 'NEUTRAL'}</strong>. This means ${sentimentDescription}${scoreExplanation}${volumeExplanation}
+        </p>
+    `;
+}
+
 function formatPrice(value, tickerCurrency = 'USD', forceLocal = false, ticker = null) {
     if (value === null || value === undefined) return 'N/A';
 
@@ -833,7 +894,7 @@ function initControls() {
     });
 
     document.addEventListener('click', (e) => {
-        if (!managePanel.contains(e.target) && e.target !== manageBtn) {
+        if (!managePanel.contains(e.target) && e.target !== manageBtn && !e.target.closest('.modal-backdrop')) {
             managePanel.classList.remove('open');
         }
     });
@@ -973,13 +1034,13 @@ function renderManageList() {
     list.innerHTML = tickers.map(t => {
         const companyName = lastMarketData[t]?.company_name || t;
         return `
-            <li class="manage-item" draggable="true" data-ticker="${t}" style="cursor: grab; display: flex; align-items: center; width: 100%;">
+            <li class="manage-item" draggable="false" data-ticker="${t}" style="cursor: default; display: flex; align-items: center; width: 100%;">
                 <div class="manage-item-drag-handle" style="color: var(--text-secondary); opacity: 0.4; margin-right: 0.75rem; cursor: grab; font-family: monospace; font-size: 1.1rem; user-select: none;">⋮⋮</div>
-                <span class="manage-item-ticker" style="cursor: pointer; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 0.5rem;" onclick="window.open('https://finance.yahoo.com/quote/${encodeURIComponent(t)}', '_blank')" title="View ${t} on Yahoo Finance">
+                <span class="manage-item-ticker" style="cursor: pointer; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 0.5rem;" onclick="event.stopPropagation(); window.open('https://finance.yahoo.com/quote/${encodeURIComponent(t)}', '_blank')" title="View ${t} on Yahoo Finance">
                     <span class="manage-item-company-name" style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${companyName}</span>
                     <span class="manage-item-symbol-sub" style="font-size: 0.7rem; color: var(--text-secondary); font-weight: normal; margin-top: 0.1rem;">${t} <span style="font-size: 0.85em; color: var(--accent); opacity: 0.7;">↗</span></span>
                 </span>
-                <button class="manage-item-delete" onclick="handleManageDelete('${t}', this)" title="Remove ${t}" style="flex-shrink: 0;">
+                <button class="manage-item-delete" onclick="event.stopPropagation(); handleManageDelete('${t}', this)" title="Remove ${t}" style="flex-shrink: 0;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"></path></svg>
                 </button>
             </li>
@@ -996,6 +1057,22 @@ function initDragAndDrop() {
     let dragSrcEl = null;
 
     items.forEach(item => {
+        const handle = item.querySelector('.manage-item-drag-handle');
+        if (handle) {
+            handle.addEventListener('mousedown', () => {
+                item.setAttribute('draggable', 'true');
+            });
+            handle.addEventListener('mouseup', () => {
+                item.setAttribute('draggable', 'false');
+            });
+            handle.addEventListener('touchstart', () => {
+                item.setAttribute('draggable', 'true');
+            });
+            handle.addEventListener('touchend', () => {
+                item.setAttribute('draggable', 'false');
+            });
+        }
+
         item.addEventListener('dragstart', function(e) {
             dragSrcEl = this;
             e.dataTransfer.effectAllowed = 'move';
@@ -1037,6 +1114,7 @@ function initDragAndDrop() {
             items.forEach(it => {
                 it.classList.remove('drag-over');
                 it.classList.remove('dragging');
+                it.setAttribute('draggable', 'false');
             });
         });
     });
@@ -1073,10 +1151,10 @@ function showDeleteConfirmModal(companyName, ticker) {
         }
 
         message.innerHTML = `Are you sure you want to stop tracking <strong>${companyName} (${ticker})</strong>?<br><br>This will remove all real-time insights, financial indicators, and recent news charts from your dashboard.`;
-        modal.classList.add('active');
+        modal.classList.add('open');
 
         const cleanup = (confirmed) => {
-            modal.classList.remove('active');
+            modal.classList.remove('open');
             cancelBtn.removeEventListener('click', onCancel);
             okBtn.removeEventListener('click', onOk);
             resolve(confirmed);
@@ -1491,8 +1569,9 @@ async function fetchDailyPicks() {
 
                     ${catalystsHtml}
 
-                    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
-                        <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6;">
+                    <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+                        ${renderSentimentBadges(pick.sentiment_label, pick.sentiment_score, pick.social_volume)}
+                        <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6; flex-shrink: 0;">
                             VIEW REPORT &rarr;
                         </div>
                     </div>
@@ -2215,6 +2294,12 @@ function updateCard(wrapper, mkt, insight) {
         }
     }
 
+    // Refresh card-level sentiment badges
+    const sentimentContainer = inner.querySelector('.card-sentiment-container');
+    if (sentimentContainer && insight) {
+        sentimentContainer.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+    }
+
     // Update data attributes for filtering/sorting
     wrapper.dataset.price = mkt.close_price || 0;
     wrapper.dataset.change = mkt.change_pct || 0;
@@ -2318,6 +2403,9 @@ function cardInnerHtml(mkt, insight) {
             </div>
         </div>
         <div id="sparkline-card-${mkt.ticker}" class="card-sparkline-bg"></div>
+        <div class="card-sentiment-container">
+            ${insight ? renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume) : ''}
+        </div>
         <div class="insight-text" style="margin-top: 0; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.25rem;">
             ${insight ? formatInsight(insight.insight_text, null, ['WhatsHappening']) : 'Awaiting AI synthesis — click to view history.'}
             ${insight ? '<div style="font-size:0.82rem; color:var(--accent); margin-top:0.6rem; opacity:0.9; text-align:right; font-weight:500;">Click to expand full analysis →</div>' : ''}
@@ -3011,6 +3099,34 @@ function renderModalContent(mkt, insight) {
         document.getElementById('modal-stats-section').style.display = 'none';
     } else {
         document.getElementById('modal-stats-section').style.display = 'block';
+    }
+
+    // Sentiment section — show when insight has sentiment data
+    const sentimentSection = document.getElementById('modal-sentiment-section');
+    const sentimentBadges = document.getElementById('modal-sentiment-badges');
+    const sentimentExplanation = document.getElementById('modal-sentiment-explanation');
+    if (sentimentSection && sentimentBadges) {
+        const hasSentiment = insight && (insight.sentiment_label || insight.sentiment_score !== undefined || insight.social_volume !== undefined);
+        if (hasSentiment && !isDiscover) {
+            sentimentBadges.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+            if (sentimentExplanation) {
+                sentimentExplanation.innerHTML = generateSentimentExplanation(insight.sentiment_label, insight.sentiment_score, insight.social_volume);
+                const label = (insight.sentiment_label || '').toUpperCase();
+                if (label.includes('BULL')) {
+                    sentimentExplanation.style.borderLeftColor = '#22c55e'; // green
+                    sentimentExplanation.style.background = 'rgba(34, 197, 94, 0.05)';
+                } else if (label.includes('BEAR')) {
+                    sentimentExplanation.style.borderLeftColor = '#ef4444'; // red
+                    sentimentExplanation.style.background = 'rgba(239, 68, 68, 0.05)';
+                } else {
+                    sentimentExplanation.style.borderLeftColor = 'var(--text-secondary)'; // gray
+                    sentimentExplanation.style.background = 'rgba(255, 255, 255, 0.03)';
+                }
+            }
+            sentimentSection.style.display = 'block';
+        } else {
+            sentimentSection.style.display = 'none';
+        }
     }
 
     // Header

@@ -40,19 +40,37 @@ async def quant_compute_node(state: AlphaDagState) -> dict:
     return {"quant_analysis": {"status": "mocked", "volatility": 0.12}}
 
 def bedrock_node(state: AlphaDagState) -> dict:
-    """Invokes AWS Bedrock / Claude 3 Haiku."""
-    logger.info("Invoking Bedrock AI")
-    # Idempotent logging
-    record_cost(Decimal(str(state.get("estimated_cost", 0.0))))
-    return {"messages": [AIMessage(content="Generated Alpha-DAG insight.")]}
+    """Invokes configured LLM to generate insights."""
+    logger.info("Invoking LLM Node")
+    from src.synthesis.llm import call_llm
+    from src.cost_tracking.service import log_cost
+    
+    ticker = state.get("ticker")
+    prompt = (
+        f"Generate a professional financial insight for {ticker}.\n"
+        f"Market Data: {state.get('market_data')}\n"
+        f"Quant Analysis: {state.get('quant_analysis')}\n"
+        "Provide a concise summary analysis and investment outlook."
+    )
+    
+    res = call_llm(prompt)
+    log_cost(ticker, res["input_tokens"], res["output_tokens"], res["model_used"])
+    return {"messages": [AIMessage(content=res["text"])]}
 
 def validation_node(state: AlphaDagState) -> dict:
-    """Validates the output against quantitative risk thresholds."""
-    logger.info("Validating Output")
+    """Validates the output and attaches lexical sentiment details."""
+    logger.info("Validating Output and running Sentiment analysis")
+    from src.synthesis.sentiment import analyze_lexical_sentiment
+    
+    ticker = state.get("ticker")
+    sent = analyze_lexical_sentiment(ticker)
+    
     messages = state.get("messages", [])
     last_content = messages[-1].content if messages else ""
     return {
         "risk_approved": True, 
-        "sentiment_score": 0.85, 
+        "sentiment_score": sent["sentiment_score"],
+        "sentiment_label": sent["sentiment_label"],
+        "social_volume": sent["social_volume"],
         "final_insight": last_content
     }

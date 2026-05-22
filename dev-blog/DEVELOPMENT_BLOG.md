@@ -1,6 +1,87 @@
 # Development Blog
 
 
+## Entry 68: Phase 11 — Multi-Provider LLM Routing, Lexical Sentiment Pipeline & Frontend Sentiment Badges (2026-05-20)
+
+This entry covers the full implementation of Phase 11: a concurrent social sentiment analysis layer wired end-to-end from the LangGraph DAG through to card and modal UI badges.
+
+### 1. The Problem: Single-Provider Lock-In & Zero Sentiment Signal
+
+Prior to this phase the LLM synthesiser was hard-coded to Amazon Bedrock (Claude 3 Haiku) with no fallback strategy and no awareness of social/news sentiment independent from AI synthesis. Two failure modes existed:
+- **Bedrock region misconfiguration** caused full synthesis outages with no recovery path.
+- **Sentiment** was entirely absent — insight cards showed AI prose but gave no quick read on crowd positioning or news volume.
+
+### 2. Unified LLM Router (`src/synthesis/llm.py`)
+
+We built a provider-agnostic router that resolves to the cheapest available model at call time:
+
+```
+Priority: Ollama (local, $0) → OpenAI → Anthropic → Bedrock Converse API
+```
+
+Key decisions:
+- **Bedrock Converse API** replaces the deprecated `invoke_model` call, future-proofing against the InvokeModel deprecation notice AWS issued.
+- **Ollama** is checked first so developers running locally never incur a cloud cost during iteration.
+- Each provider has an isolated `try/except` block — failure cascades cleanly to the next tier without raising.
+
+### 3. Lexical Sentiment Analyser (`src/synthesis/sentiment.py`)
+
+Rather than burning AI tokens on sentiment classification (which would defeat our FinOps-first architecture), we built a pure-Python lexical scorer:
+
+- **Dictionary matching** across a curated set of bullish/bearish financial terms against Reddit WSB post titles and yfinance news headlines.
+- **Social volume** = the count of WSB posts mentioning the ticker, giving a raw crowd-attention metric.
+- **Labels**: `Strongly Bullish`, `Bullish`, `Neutral`, `Bearish`, `Strongly Bearish`.
+- **$0 cost** — runs entirely in-process with no external API calls.
+
+**Interesting finding**: For high-volume meme tickers (GME, AMC, NVDA), WSB post counts routinely exceed 200+ in a 24-hour window, making `social_volume` a useful attention-spike detector independent of price.
+
+### 4. DAG Parallelisation (`src/dag/graph.py` + `discovery_graph.py`)
+
+We added `sentiment_node` as a sibling to the existing `quant_node`, `research_node`, and `news_node` inside the LangGraph graph. All four now run concurrently via `asyncio.gather`. This means sentiment adds **zero latency** to the DAG execution time — it's hidden behind the already-parallel research and quant fetch.
+
+The `AlphaDagState` TypedDict was extended with three new fields:
+```python
+sentiment_label: str
+sentiment_score: float
+social_volume: int
+```
+
+### 5. FinOps Ledger Update (`src/cost_tracking/service.py`)
+
+The cost tracker was updated to accept a `model_id` string and resolve per-token pricing dynamically. This means the cost dashboard now correctly shows different rates for Haiku vs. Sonnet vs. Ollama ($0.00) calls, rather than hardcoding Haiku's rate for all providers.
+
+### 6. API Surface (`src/routes/insights.py`, `src/routes/v2_dag.py`)
+
+Both `/insights` and `/daily_picks` responses now include:
+```json
+{
+  "sentiment_score": 0.42,
+  "sentiment_label": "Bullish",
+  "social_volume": 47
+}
+```
+
+The DAG trigger endpoint (`/api/v2/dag/trigger`) also passes initial sentiment state and returns these fields in the response model.
+
+### 7. Frontend Wiring
+
+Three layers of UI were updated:
+
+**CSS (`style.css` v8)**: Added `.sentiment-badge` (bullish/bearish/neutral variants with colour-coded glows) and `.social-volume-badge` (sky-blue WSB mention counter).
+
+**HTML (`index.html`)**: Added `#modal-sentiment-section` between Quick Stats and the AI Take panel in the ticker detail modal. Hidden by default; shown only for tracked watchlist assets.
+
+**JavaScript (`app.js` v8)**:
+- `renderSentimentBadges(label, score, volume)` — shared helper producing the badge HTML used in both cards and the modal.
+- `cardInnerHtml()` — injects a `.card-sentiment-container` div above the insight text so every watchlist card shows live sentiment.
+- `updateCard()` — refreshes the sentiment container on every 15-second poll cycle.
+- `renderModalContent()` — populates `#modal-sentiment-badges` and shows/hides `#modal-sentiment-section` based on data availability.
+- Discovery picks cards — sentiment badges appear in the card footer next to the "VIEW REPORT →" link.
+
+### Interesting Engineering Note
+
+We deliberately kept `renderSentimentBadges` returning an empty string (not throwing) when all three inputs are undefined/null. This makes it safe to call speculatively in both old-schema and new-schema contexts without defensive null checks at every call site — a small but meaningful ergonomic win.
+
 ## Entry 67: TradingView-Style Forecast Cone, Interactive EPS Dual-Bar Chart & Parallel Fetch Layer (2026-05-19)
 
 Today, we delivered the crowning jewel of the Ticker Detail Modal’s research intelligence capabilities: a high-fidelity **TradingView-Style Price Target Forecast Cone** and an **Interactive EPS Earnings Performance Dashboard**. This completes the modular Forecasts tab and integrates institutional-grade financial visuals entirely in the frontend, respecting our Docker/cloud resource boundaries with 100% mathematical vector math!

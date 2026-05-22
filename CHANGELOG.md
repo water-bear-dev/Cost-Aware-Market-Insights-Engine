@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.5.0] - 2026-05-20
+
+### Added
+- **Multi-Provider LLM Router** (`src/synthesis/llm.py`) — Unified routing engine with priority fallback: Ollama (local, $0) → OpenAI → Anthropic → Amazon Bedrock Converse API. Eliminates single-provider lock-in and hard Bedrock dependency.
+- **Lexical Sentiment Analyser** (`src/synthesis/sentiment.py`) — $0-cost, dictionary-based sentiment scoring of Reddit WSB posts and yfinance headlines per ticker. Returns `sentiment_score` (float), `sentiment_label` (Strongly Bullish → Strongly Bearish), and `social_volume` (WSB mention count).
+- **Concurrent Sentiment DAG Node** — Added `sentiment_node` running in parallel with `quant_node`, `research_node`, and `news_node` inside the LangGraph DAG. Zero latency overhead.
+- **Dynamic FinOps Pricing** (`src/cost_tracking/service.py`) — Cost tracker now resolves per-token rates dynamically per `model_id`, correctly billing Haiku, Sonnet, and Ollama ($0.00) at distinct rates.
+- **Sentiment API Fields** — `/api/v1/insights`, `/api/v1/daily_picks`, and `/api/v2/dag/trigger` all now return `sentiment_score`, `sentiment_label`, and `social_volume` in their response payloads.
+- **Sentiment Badges on Watchlist Cards** — Each card now shows a colour-coded sentiment pill (📈 BULLISH / 📉 BEARISH / ⚖️ NEUTRAL) and a WSB volume counter, updated on every 15-second poll cycle.
+- **Sentiment Section in Ticker Detail Modal** — New "Social Sentiment & Activity" section between Quick Stats and the AI Take tab, populated only for tracked watchlist assets.
+- **Sentiment Badges on Daily Discovery Picks** — Discovery pick cards show sentiment pills in the card footer alongside the "VIEW REPORT" link.
+- **`renderSentimentBadges` Helper** (`static/app.js`) — Shared JS function producing badge HTML used across cards, modal, and discovery picks. Null-safe with empty-string fallback.
+
+### Changed
+- **Bedrock Integration** — Migrated from deprecated `invoke_model` to the Bedrock Converse API (`converse` endpoint) for forward compatibility.
+- **`AlphaDagState`** — Extended TypedDict with `sentiment_label`, `sentiment_score`, and `social_volume` fields.
+- **`synthesis/service.py`** — Now calls `analyze_lexical_sentiment` and `call_llm` (unified router) instead of provider-specific Bedrock boilerplate.
+- **Frontend versioning** — `style.css` and `app.js` bumped to `?v=8`.
+
+### Fixed
+- **Provider Cascade Resilience** — Each LLM provider is wrapped in an isolated `try/except`; failure no longer propagates — it falls through to the next tier.
+
 ## [3.4.1] - 2026-05-19
 
 ### Added

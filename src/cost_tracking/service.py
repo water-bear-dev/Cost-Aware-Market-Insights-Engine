@@ -74,19 +74,38 @@ def check_budget(estimated_cost: float) -> bool:
         return False
     return True
 
-def log_cost(ticker: str, input_tokens: int, output_tokens: int) -> dict:
+def log_cost(ticker: str, input_tokens: int, output_tokens: int, model: str = None) -> dict:
     table = get_table('CostTracking')
     today = get_today()
     req_id = str(uuid.uuid4())
     
-    cost = (Decimal(input_tokens) / 1000 * MOCK_INPUT_RATE) + \
-           (Decimal(output_tokens) / 1000 * MOCK_OUTPUT_RATE)
+    model_name = model or f"{settings.llm_provider}-{settings.ollama_model if settings.llm_provider == 'ollama' else ''}"
+    
+    # Dynamic rate calculation (FinOps model pricing)
+    input_rate = Decimal('0.0')
+    output_rate = Decimal('0.0')
+    
+    if "openai" in model_name:
+        input_rate = Decimal('0.00015')
+        output_rate = Decimal('0.00060')
+    elif "anthropic" in model_name:
+        input_rate = Decimal('0.00080')
+        output_rate = Decimal('0.00400')
+    elif "bedrock" in model_name:
+        input_rate = Decimal('0.00025')
+        output_rate = Decimal('0.00125')
+    elif "local-mock" in model_name:
+        input_rate = MOCK_INPUT_RATE
+        output_rate = MOCK_OUTPUT_RATE
+        
+    cost = (Decimal(input_tokens) / 1000 * input_rate) + \
+           (Decimal(output_tokens) / 1000 * output_rate)
            
     item = {
         'date': today,
         'request_id': req_id,
         'ticker': ticker,
-        'model': 'local-mock',
+        'model': model_name,
         'input_tokens': input_tokens,
         'output_tokens': output_tokens,
         'estimated_cost_usd': cost,
@@ -96,13 +115,11 @@ def log_cost(ticker: str, input_tokens: int, output_tokens: int) -> dict:
     
     try:
         table.put_item(Item=item)
-        logger.info("Cost logged", ticker=ticker, cost=float(cost))
+        logger.info("Cost logged", ticker=ticker, cost=float(cost), model=model_name)
         
         # Phase 3 FinOps: Emit CloudWatch Metrics
         from src.clients.cloudwatch import emit_metric
-        from src.config import settings
         
-        # We emit the delta cost so it can be 'Sum'med in CloudWatch Alarms over a 1-day period
         emit_metric('DailyAICost', float(cost), 'Count')
         
         # Calculate current utilization
@@ -114,4 +131,38 @@ def log_cost(ticker: str, input_tokens: int, output_tokens: int) -> dict:
         return item
     except Exception as e:
         logger.error("Failed to log cost", ticker=ticker, error=str(e))
+        return None
+
+def record_cost(cost: Decimal, ticker: str = "SYSTEM", model: str = "system") -> dict:
+    table = get_table('CostTracking')
+    today = get_today()
+    req_id = str(uuid.uuid4())
+    
+    item = {
+        'date': today,
+        'request_id': req_id,
+        'ticker': ticker,
+        'model': model,
+        'input_tokens': 0,
+        'output_tokens': 0,
+        'estimated_cost_usd': cost,
+        'actual_cost_usd': cost,
+        'timestamp': datetime.utcnow().isoformat() + "Z"
+    }
+    
+    try:
+        table.put_item(Item=item)
+        logger.info("Cost recorded via record_cost", cost=float(cost))
+        
+        from src.clients.cloudwatch import emit_metric
+        emit_metric('DailyAICost', float(cost), 'Count')
+        
+        spend = get_daily_spend()
+        budget = Decimal(str(settings.daily_budget_usd))
+        utilization = float((spend / budget) * 100) if budget else 0.0
+        emit_metric('BudgetUtilizationPct', utilization, 'Percent')
+        
+        return item
+    except Exception as e:
+        logger.error("Failed to record cost", error=str(e))
         return None

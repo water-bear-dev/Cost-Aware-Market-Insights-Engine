@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     llm_provider: Optional[str] = None # will be auto-detected if None
     ollama_url: str = "http://host.docker.internal:11434"
     ollama_model: str = "llama3.2"
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: Optional[str] = None
+    anthropic_model: str = "claude-3-5-haiku-20241022"
     tickers: str = "META,AAPL,AMZN,NFLX,GOOGL"
     
     @model_validator(mode='after')
@@ -22,6 +26,10 @@ class Settings(BaseSettings):
         if not self.llm_provider:
             if os.environ.get("AWS_EXECUTION_ENV") or self.environment == "production":
                 self.llm_provider = "bedrock"
+            elif os.environ.get("OPENAI_API_KEY") or self.openai_api_key:
+                self.llm_provider = "openai"
+            elif os.environ.get("ANTHROPIC_API_KEY") or self.anthropic_api_key:
+                self.llm_provider = "anthropic"
             else:
                 self.llm_provider = "ollama"
         

@@ -24,6 +24,8 @@ class AlphaDagState(TypedDict):
     
     # Validation gates
     sentiment_score: Optional[float]
+    sentiment_label: Optional[str]
+    social_volume: Optional[int]
     risk_approved: bool
     
     # Final generated payload
