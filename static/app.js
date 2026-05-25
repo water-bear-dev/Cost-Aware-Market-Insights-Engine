@@ -1404,11 +1404,41 @@ function setupTickerForm() {
     const status = document.getElementById('ticker-status');
     const resultsList = document.getElementById('autocomplete-results');
 
+    const modal = document.getElementById('add-ticker-modal');
+    const openModalBtn = document.getElementById('open-add-ticker-modal-btn');
+    const closeModalBtn = document.getElementById('close-add-ticker-modal-btn');
+    const cancelModalBtn = document.getElementById('cancel-add-ticker-btn');
+
+    if (openModalBtn && modal) {
+        openModalBtn.addEventListener('click', () => {
+            if (input) input.value = '';
+            if (status) status.textContent = '';
+            if (resultsList) resultsList.classList.remove('active');
+            modal.classList.add('open');
+            setTimeout(() => { if (input) input.focus(); }, 100);
+        });
+    }
+
+    const closeModal = () => {
+        if (modal) {
+            modal.classList.remove('open');
+            if (resultsList) resultsList.classList.remove('active');
+        }
+    };
+
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+    if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
+    if (modal) {
+        modal.addEventListener('click', e => {
+            if (e.target === modal) closeModal();
+        });
+    }
+
     let debounceTimer;
 
     const handleSearch = async (query) => {
         if (!query || query.length < 1) {
-            resultsList.classList.remove('active');
+            if (resultsList) resultsList.classList.remove('active');
             return;
         }
 
@@ -1416,7 +1446,7 @@ function setupTickerForm() {
             const res = await fetch(`/api/v1/search?q=${encodeURIComponent(query)}`);
             if (res.ok) {
                 const results = await res.json();
-                if (results.length > 0) {
+                if (results.length > 0 && resultsList) {
                     resultsList.innerHTML = results.map(r => `
                         <li class="autocomplete-item" data-symbol="${r.symbol}" data-exchange="${r.exchange}">
                             <div class="autocomplete-exchange">${r.exchange}</div>
@@ -1425,7 +1455,7 @@ function setupTickerForm() {
                         </li>
                     `).join('');
                     resultsList.classList.add('active');
-                } else {
+                } else if (resultsList) {
                     resultsList.classList.remove('active');
                 }
             }
@@ -1434,77 +1464,91 @@ function setupTickerForm() {
         }
     };
 
-    input.addEventListener('input', (e) => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => handleSearch(e.target.value.trim()), 300);
-    });
+    if (input) {
+        input.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => handleSearch(e.target.value.trim()), 300);
+        });
 
-    resultsList.addEventListener('click', (e) => {
-        const item = e.target.closest('.autocomplete-item');
-        if (item) {
-            const symbol = item.dataset.symbol;
-            const exchange = item.dataset.exchange;
-            // The user requested prefix: NASDAQ: AAPL
-            input.value = exchange ? `${exchange}: ${symbol}` : symbol;
-            resultsList.classList.remove('active');
-            input.focus();
-        }
-    });
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && btn) {
+                btn.click();
+                if (resultsList) resultsList.classList.remove('active');
+            }
+        });
+    }
+
+    if (resultsList) {
+        resultsList.addEventListener('click', (e) => {
+            const item = e.target.closest('.autocomplete-item');
+            if (item && input) {
+                const symbol = item.dataset.symbol;
+                const exchange = item.dataset.exchange;
+                input.value = exchange ? `${exchange}: ${symbol}` : symbol;
+                resultsList.classList.remove('active');
+                input.focus();
+            }
+        });
+    }
 
     // Close autocomplete when clicking outside
     document.addEventListener('click', (e) => {
-        if (!input.contains(e.target) && !resultsList.contains(e.target)) {
+        if (input && resultsList && !input.contains(e.target) && !resultsList.contains(e.target)) {
             resultsList.classList.remove('active');
         }
     });
 
-    input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-            btn.click();
-            resultsList.classList.remove('active');
-        }
-    });
+    if (btn) {
+        btn.addEventListener('click', async () => {
+            if (!input) return;
+            let val = input.value.trim().toUpperCase();
+            if (!val) return;
 
-    btn.addEventListener('click', async () => {
-        let val = input.value.trim().toUpperCase();
-        if (!val) return;
-
-        // Strip exchange prefix if present (e.g. "NASDAQ: AAPL" -> "AAPL")
-        if (val.includes(':')) {
-            const parts = val.split(':');
-            val = parts[parts.length - 1].trim();
-        }
-
-        btn.disabled = true;
-        btn.textContent = "Tracking...";
-        status.textContent = "";
-
-        try {
-            const res = await fetch('/api/v1/tickers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticker: val })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                status.textContent = `✓ Added ${val}`;
-                status.style.color = "var(--positive)";
-                input.value = "";
-                resultsList.classList.remove('active');
-                await fetchMarketAndInsights();
-            } else {
-                status.textContent = data.detail || "Failed to add ticker";
-                status.style.color = "var(--negative)";
+            // Strip exchange prefix if present (e.g. "NASDAQ: AAPL" -> "AAPL")
+            if (val.includes(':')) {
+                const parts = val.split(':');
+                val = parts[parts.length - 1].trim();
             }
-        } catch (e) {
-            status.textContent = "Network error";
-            status.style.color = "var(--negative)";
-        } finally {
-            btn.disabled = false;
-            btn.textContent = "Track Ticker";
-            setTimeout(() => { status.textContent = ""; }, 5000);
-        }
-    });
+
+            btn.disabled = true;
+            btn.textContent = "Tracking...";
+            if (status) status.textContent = "";
+
+            try {
+                const res = await fetch('/api/v1/tickers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticker: val })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    if (status) {
+                        status.textContent = `✓ Added ${val}`;
+                        status.style.color = "var(--positive)";
+                    }
+                    input.value = "";
+                    if (resultsList) resultsList.classList.remove('active');
+                    await fetchMarketAndInsights();
+                    // Close the modal after a short delay so user sees the checkmark
+                    setTimeout(closeModal, 800);
+                } else {
+                    if (status) {
+                        status.textContent = data.detail || "Failed to add ticker";
+                        status.style.color = "var(--negative)";
+                    }
+                }
+            } catch (e) {
+                if (status) {
+                    status.textContent = "Network error";
+                    status.style.color = "var(--negative)";
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Track Ticker";
+                setTimeout(() => { if (status) status.textContent = ""; }, 5000);
+            }
+        });
+    }
 }
 
 /* =====================================================
@@ -5237,6 +5281,9 @@ let searchAnnualChartInstance = null;
 let searchQuarterlyChartInstance = null;
 let comparisonTickers = [];
 let comparisonData = {};
+let currentSearchFundData = null;
+let currentFinancialsType = 'annual';
+let currentQuarterlyYear = 'All';
 
 // Helper functions for client-side technical indicators
 function calculateSMA(prices, period) {
@@ -5439,6 +5486,99 @@ function calculateAllIndicatorsForTicker(ticker) {
         weightedAlpha,
         opinionScore: opinion.score,
         opinionText: opinion.opinion
+    };
+}
+
+function renderFinancialsSections() {
+    const ticker = currentSearchTicker;
+    const fundData = currentSearchFundData;
+    
+    // Toggle active display
+    const annualSection = document.getElementById('search-financials-annual-section');
+    const quarterlySection = document.getElementById('search-financials-quarterly-section');
+    const yearContainer = document.getElementById('search-financials-year-container');
+    const yearSelect = document.getElementById('search-financials-year-select');
+
+    if (currentFinancialsType === 'annual') {
+        if (annualSection) annualSection.style.display = 'block';
+        if (quarterlySection) quarterlySection.style.display = 'none';
+        if (yearContainer) yearContainer.style.display = 'none';
+    } else {
+        if (annualSection) annualSection.style.display = 'none';
+        if (quarterlySection) quarterlySection.style.display = 'block';
+        if (yearContainer) yearContainer.style.display = 'flex';
+    }
+
+    if (!fundData) {
+        populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', null);
+        populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', null);
+        if (searchAnnualChartInstance) {
+            searchAnnualChartInstance.destroy();
+            searchAnnualChartInstance = null;
+        }
+        if (searchQuarterlyChartInstance) {
+            searchQuarterlyChartInstance.destroy();
+            searchQuarterlyChartInstance = null;
+        }
+        const annualContainer = document.getElementById('search-financials-annual-chart-container');
+        const quarterlyContainer = document.getElementById('search-financials-quarterly-chart-container');
+        if (annualContainer) annualContainer.style.display = 'none';
+        if (quarterlyContainer) quarterlyContainer.style.display = 'none';
+        return;
+    }
+
+    const currency = fundData.currency || 'USD';
+
+    // Populate Annual (always all periods)
+    if (currentFinancialsType === 'annual') {
+        populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', fundData.financials, currency, ticker);
+        renderFinancialsChart('search-financials-annual-chart', fundData.financials, 'annual');
+    } else {
+        // Build the Year select options if it's empty or doesn't match the current fundData periods
+        if (yearSelect && fundData.quarterly_financials && fundData.quarterly_financials.periods) {
+            const uniqueYears = [];
+            fundData.quarterly_financials.periods.forEach(p => {
+                const y = p.substring(0, 4);
+                if (y && !uniqueYears.includes(y)) {
+                    uniqueYears.push(y);
+                }
+            });
+            uniqueYears.sort((a, b) => b - a); // Descending order of years
+
+            // Re-populate year options only if they changed
+            const existingOptions = Array.from(yearSelect.options).map(o => o.value);
+            const newOptions = ['All', ...uniqueYears];
+            if (JSON.stringify(existingOptions) !== JSON.stringify(newOptions)) {
+                yearSelect.innerHTML = newOptions.map(y => `<option value="${y}">${y}</option>`).join('');
+                // If current selected year is not in new options, reset to 'All'
+                if (!newOptions.includes(currentQuarterlyYear)) {
+                    currentQuarterlyYear = 'All';
+                }
+                yearSelect.value = currentQuarterlyYear;
+            }
+        }
+
+        // Filter quarterly data
+        const filteredQuarterly = filterQuarterlyDataByYear(fundData.quarterly_financials, currentQuarterlyYear);
+        populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', filteredQuarterly, currency, ticker);
+        renderFinancialsChart('search-financials-quarterly-chart', filteredQuarterly, 'quarterly');
+    }
+}
+
+function filterQuarterlyDataByYear(quarterlyData, year) {
+    if (!quarterlyData || !quarterlyData.periods || year === 'All') return quarterlyData;
+    const indices = [];
+    quarterlyData.periods.forEach((p, idx) => {
+        if (p && p.substring(0, 4) === year) {
+            indices.push(idx);
+        }
+    });
+    return {
+        periods: indices.map(idx => quarterlyData.periods[idx]),
+        revenue: indices.map(idx => quarterlyData.revenue ? quarterlyData.revenue[idx] : 0.0),
+        gross_profit: indices.map(idx => quarterlyData.gross_profit ? quarterlyData.gross_profit[idx] : 0.0),
+        operating_income: indices.map(idx => quarterlyData.operating_income ? quarterlyData.operating_income[idx] : 0.0),
+        net_income: indices.map(idx => quarterlyData.net_income ? quarterlyData.net_income[idx] : 0.0)
     };
 }
 
@@ -5697,6 +5837,29 @@ function initStockSearch() {
             newsList.scrollBy({ left: 340, behavior: 'smooth' });
         });
     }
+
+    // Toggle for Annual / Quarterly
+    const financialsToggle = document.getElementById('search-financials-toggle');
+    if (financialsToggle) {
+        financialsToggle.addEventListener('click', (e) => {
+            const btn = e.target.closest('.period-btn');
+            if (!btn) return;
+            const buttons = financialsToggle.querySelectorAll('.period-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFinancialsType = btn.dataset.type;
+            renderFinancialsSections();
+        });
+    }
+
+    // Year select change
+    const yearSelect = document.getElementById('search-financials-year-select');
+    if (yearSelect) {
+        yearSelect.addEventListener('change', (e) => {
+            currentQuarterlyYear = e.target.value;
+            renderFinancialsSections();
+        });
+    }
 }
 
 function setupAutocomplete(inputEl, dropdownEl, onSelect) {
@@ -5764,6 +5927,17 @@ async function selectSearchedTicker(symbol) {
         summaryEl.style.webkitLineClamp = '3';
         if (summaryToggle) summaryToggle.textContent = 'Show More';
     }
+
+    currentFinancialsType = 'annual';
+    currentQuarterlyYear = 'All';
+    const financialsToggleButtons = document.querySelectorAll('#search-financials-toggle .period-btn');
+    financialsToggleButtons.forEach(btn => {
+        if (btn.dataset.type === 'annual') {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
     
     await Promise.all([
         loadSearchData(currentSearchTicker, currentSearchPeriod),
@@ -5771,7 +5945,44 @@ async function selectSearchedTicker(symbol) {
     ]);
 }
 
+function showSearchFinancialsLoading() {
+    const placeholderPanel = document.getElementById('search-placeholder-panel');
+    const detailPanel = document.getElementById('search-detail-panel');
+    if (placeholderPanel) placeholderPanel.style.display = 'none';
+    if (detailPanel) detailPanel.style.display = 'block';
+
+    const annualHeaders = document.getElementById('search-financials-annual-headers');
+    const annualBody = document.getElementById('search-financials-annual-body');
+    const quarterlyHeaders = document.getElementById('search-financials-quarterly-headers');
+    const quarterlyBody = document.getElementById('search-financials-quarterly-body');
+    
+    if (annualHeaders) annualHeaders.innerHTML = '<th>Metric</th><th>Loading...</th>';
+    if (annualBody) annualBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-secondary); padding: 2rem;"><div class="pulse-animation">Loading Annual Income Statement...</div></td></tr>';
+    if (quarterlyHeaders) quarterlyHeaders.innerHTML = '<th>Metric</th><th>Loading...</th>';
+    if (quarterlyBody) quarterlyBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-secondary); padding: 2rem;"><div class="pulse-animation">Loading Quarterly Income Statement...</div></td></tr>';
+    
+    const annualContainer = document.getElementById('search-financials-annual-chart-container');
+    const quarterlyContainer = document.getElementById('search-financials-quarterly-chart-container');
+    if (annualContainer) annualContainer.style.display = 'none';
+    if (quarterlyContainer) quarterlyContainer.style.display = 'none';
+
+    const nameEl = document.getElementById('search-company-name');
+    if (nameEl) nameEl.innerHTML = '<span class="pulse-animation" style="color:var(--text-secondary); font-size:1rem; font-weight:normal;">Loading...</span>';
+    
+    const priceEl = document.getElementById('search-current-price');
+    if (priceEl) priceEl.innerHTML = '<span class="pulse-animation" style="color:var(--text-secondary); font-size:1.2rem; font-weight:normal;">Loading...</span>';
+
+    const summaryEl = document.getElementById('search-business-summary');
+    if (summaryEl) summaryEl.innerHTML = '<span class="pulse-animation" style="color:var(--text-secondary);">Loading business profile...</span>';
+    
+    ['search-metric-market-cap', 'search-metric-pe', 'search-metric-eps', 'search-metric-yield', 'search-metric-beta', 'search-metric-52w'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="pulse-animation" style="color:var(--text-secondary); font-size:0.9rem;">...</span>';
+    });
+}
+
 async function loadSearchData(ticker, period) {
+    showSearchFinancialsLoading();
     const loadingEl = document.getElementById('search-chart-loading');
     if (loadingEl) loadingEl.style.display = 'flex';
     
@@ -5788,12 +5999,6 @@ async function loadSearchData(ticker, period) {
         if (fundRes.ok) {
             fundData = await fundRes.json();
         }
-        
-        // Show panel, hide placeholder
-        const placeholderPanel = document.getElementById('search-placeholder-panel');
-        const detailPanel = document.getElementById('search-detail-panel');
-        if (placeholderPanel) placeholderPanel.style.display = 'none';
-        if (detailPanel) detailPanel.style.display = 'block';
         
         const info = data.info || {};
         const companyNameEl = document.getElementById('search-company-name');
@@ -5855,27 +6060,8 @@ async function loadSearchData(ticker, period) {
         }
         
         // Populate financials tables
-        if (fundData) {
-            populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', fundData.financials, fundData.currency || info.currency || 'USD', ticker);
-            populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', fundData.quarterly_financials, fundData.currency || info.currency || 'USD', ticker);
-            renderFinancialsChart('search-financials-annual-chart', fundData.financials, 'annual');
-            renderFinancialsChart('search-financials-quarterly-chart', fundData.quarterly_financials, 'quarterly');
-        } else {
-            populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', null);
-            populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', null);
-            if (searchAnnualChartInstance) {
-                searchAnnualChartInstance.destroy();
-                searchAnnualChartInstance = null;
-            }
-            if (searchQuarterlyChartInstance) {
-                searchQuarterlyChartInstance.destroy();
-                searchQuarterlyChartInstance = null;
-            }
-            const annualContainer = document.getElementById('search-financials-annual-chart-container');
-            const quarterlyContainer = document.getElementById('search-financials-quarterly-chart-container');
-            if (annualContainer) annualContainer.style.display = 'none';
-            if (quarterlyContainer) quarterlyContainer.style.display = 'none';
-        }
+        currentSearchFundData = fundData;
+        renderFinancialsSections();
 
         // Render News
         const newsListEl = document.getElementById('search-news-list');

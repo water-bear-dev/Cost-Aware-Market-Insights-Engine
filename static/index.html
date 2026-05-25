@@ -89,32 +89,22 @@
         <section id="manage-view" class="tab-content active">
 
             <div class="insights-controls glass" style="margin-bottom: 2.5rem; padding: 2rem; position: relative; z-index: 10;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem;">
-                    <div>
-                        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; text-transform: uppercase;">Tracked Assets</h2>
-                        <div class="ticker-form" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; width: 100%;">
-                            <div style="position: relative;">
-                                <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" autocomplete="off" />
-                                <ul id="autocomplete-results" class="autocomplete-dropdown glass"></ul>
-                            </div>
-                            <button id="add-ticker-btn" class="glass-btn primary">Track Ticker</button>
-                            <span id="ticker-status" style="font-size: 0.85rem; color: var(--text-secondary);"></span>
-                            
-                            <div style="margin-left: auto; display: flex; align-items: center; gap: 1.5rem;">
-                                <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                    <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em;">Currency</span>
-                                    <select id="currency-selector" class="glass-input" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(15,23,42,0.6);">
-                                        <option value="DEFAULT" selected>Default Currency</option>
-                                        <option value="USD">USD ($)</option>
-                                        <option value="EUR">EUR (€)</option>
-                                        <option value="GBP">GBP (£)</option>
-                                        <option value="AUD">AUD (A$)</option>
-                                        <option value="JPY">JPY (¥)</option>
-                                    </select>
-                                </div>
-                                <span class="badge" id="ticker-count">0/30 Tracked</span>
-                            </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; width: 100%;">
+                    <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); margin: 0; text-transform: uppercase;">Tracked Assets</h2>
+                    <div style="display: flex; align-items: center; gap: 1.5rem; margin-left: auto; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="dim-label" style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color: var(--text-secondary);">Currency</span>
+                            <select id="currency-selector" class="glass-input" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem; background: rgba(15,23,42,0.6);">
+                                <option value="DEFAULT" selected>Default Currency</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="AUD">AUD (A$)</option>
+                                <option value="JPY">JPY (¥)</option>
+                            </select>
                         </div>
+                        <span class="badge" id="ticker-count" style="margin: 0;">0/30 Tracked</span>
+                        <button id="open-add-ticker-modal-btn" class="glass-btn primary" style="padding: 0.45rem 1rem; font-size: 0.85rem;">Add new ticker</button>
                     </div>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; border-top: 1px solid var(--glass-border); padding-top: 2rem; margin-bottom: 1rem;">
@@ -297,7 +287,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading gainers...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-secondary);" class="pulse-animation">Loading gainers...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -314,7 +304,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-secondary);">Loading losers...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-secondary);" class="pulse-animation">Loading losers...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -657,13 +647,25 @@
 
                     <!-- Side-by-side Financials Section -->
                     <div class="glass" style="margin-top: 1.5rem; padding: 2rem;">
-                        <h4 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                            📊 Financial Statements
-                        </h4>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; flex-wrap: wrap;">
-                            
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem;">
+                            <h4 style="font-size: 1rem; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                📊 Financial Statements
+                            </h4>
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div class="period-selector" id="search-financials-toggle" style="margin: 0;">
+                                    <button class="period-btn active" data-type="annual">Annual</button>
+                                    <button class="period-btn" data-type="quarterly">Quarterly</button>
+                                </div>
+                                <div id="search-financials-year-container" style="display: none; align-items: center; gap: 0.5rem;">
+                                    <span class="dim-label" style="font-size: 0.75rem; text-transform: uppercase;">Year:</span>
+                                    <select id="search-financials-year-select" class="glass-input" style="width: auto; padding: 0.25rem 0.5rem; font-size: 0.8rem;"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
                             <!-- Annual Financials -->
-                            <div>
+                            <div id="search-financials-annual-section" style="display: block;">
                                 <h5 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Annual Income Statement</h5>
                                 <div style="overflow-x: auto;" class="custom-scrollbar">
                                     <table class="screener-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
@@ -684,7 +686,7 @@
                             </div>
                             
                             <!-- Quarterly Financials -->
-                            <div>
+                            <div id="search-financials-quarterly-section" style="display: none;">
                                 <h5 style="font-size: 0.85rem; color: var(--accent); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em;">Quarterly Income Statement</h5>
                                 <div style="overflow-x: auto;" class="custom-scrollbar">
                                     <table class="screener-table" style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem;">
@@ -703,7 +705,6 @@
                                     <canvas id="search-financials-quarterly-chart"></canvas>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -1383,6 +1384,28 @@
             <div style="display: flex; gap: 1rem; justify-content: center;">
                 <button id="confirm-delete-cancel" class="glass-btn" style="padding: 0.5rem 1.5rem; font-size: 0.85rem; cursor: pointer;">Cancel</button>
                 <button id="confirm-delete-ok" class="glass-btn danger" style="padding: 0.5rem 1.5rem; font-size: 0.85rem; cursor: pointer; background: rgba(244, 63, 94, 0.2); border-color: rgba(244, 63, 94, 0.4); color: #f43f5e;">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Ticker Modal -->
+    <div id="add-ticker-modal" class="modal-backdrop" role="dialog" aria-modal="true">
+        <div class="modal-panel glass" style="max-width: 480px; padding: 2rem;">
+            <div class="modal-header" style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: var(--text-primary);">➕ Track New Ticker</h3>
+                <button id="close-add-ticker-modal-btn" class="zoom-btn" style="font-size: 1.25rem;">✕</button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0; line-height: 1.5;">Type ticker symbol (e.g. AAPL, TSLA, GC=F) to track price, news, and insights.</p>
+                <div style="position: relative; width: 100%;">
+                    <input type="text" id="new-ticker-input" placeholder="Symbol (e.g. AAPL)" class="glass-input" autocomplete="off" style="width: 100%; box-sizing: border-box;" />
+                    <ul id="autocomplete-results" class="autocomplete-dropdown glass" style="width: 100%; box-sizing: border-box;"></ul>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
+                    <button id="cancel-add-ticker-btn" class="glass-btn" style="padding: 0.5rem 1.5rem; font-size: 0.85rem;">Cancel</button>
+                    <button id="add-ticker-btn" class="glass-btn primary" style="padding: 0.5rem 1.5rem; font-size: 0.85rem;">Track Ticker</button>
+                </div>
+                <span id="ticker-status" style="font-size: 0.85rem; text-align: center; display: block;"></span>
             </div>
         </div>
     </div>

@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.6.5] - 2026-05-25
+
+### Added
+- **Financial Statements View Toggle** — Refactored the side-by-side financial statement grids in the searched stock detail view into a toggleable panel displaying either Annual or Quarterly views, optimizing vertical layout and workspace clean lines.
+- **Quarterly Statement Year Filtering** — Integrated a dynamic Year dropdown selector that extracts unique years from quarterly periods, enabling users to filter quarterly statement columns and the corresponding grouped bar chart on-the-fly.
+- **Pulsing Loading State Visuals** — Added cohesive pulse loading placeholders (`pulse-animation`) to company names, prices, key metrics cards, business profile summaries, and financials tables upon search initialization, as well as the main dashboard movers grids, improving visual feedback.
+- **High-Contrast Search Textboxes** — Styled all primary search inputs (`#asset-search`, `#qmj-search`, `#stock-search-input`, and `#comparison-add-input`) with high-contrast light backgrounds and dark text to improve input readability and focus highlights.
+
+### Fixed
+- **Quarterly Statement Toggle Event Listener** — Switched the click handler on the Annual/Quarterly toggle buttons to use robust event delegation (`closest`) on `#search-financials-toggle`, resolving event interception or click handling bugs.
+- **Quarterly Data Filtering Robustness** — Hardened the client-side `filterQuarterlyDataByYear` helper function to handle empty or partially populated quarterly arrays defensively, preventing crashes when rendering metrics with incomplete datasets.
+
 ## [3.6.4] - 2026-05-25
 
 ### Added

@@ -1,6 +1,37 @@
 # Development Blog
 
 
+## Entry 73: Financial Statements Toggle, Quarterly Year Filtering, and Cohesive Pulsing Loading Animations (2026-05-25)
+
+This entry details the design decisions and implementation of the interactive financials view toggle, dynamic year-level filtering for quarterly reports, and the integration of pulsing loading placeholders across the stock lookup dashboard.
+
+### 1. Tabbed Toggle for Financial Statements
+Showing annual and quarterly income statements side-by-side consumed excessive screen space and created cluttered visual density in the searched stock details panel.
+- **Toggle Controls**: We introduced a `period-selector` button group (`Annual` / `Quarterly`) directly inside the card header of the "📊 Financial Statements" panel.
+- **Clean Section Switching**: Grouped the Annual and Quarterly sections into separate container blocks. Switching tabs toggles their display property (`block` / `none`) and updates button active states.
+- **Automatic State Reset**: Searching for a new ticker programmatically resets the view state to `Annual` and updates selector states to ensure a predictable user flow.
+
+### 2. Year-Level Filtering for Quarterly Statements
+Quarterly datasets often compile years of historical reporting, resulting in wide tables that overflow or clutter.
+- **Dynamic Year Extraction**: We programmed an extraction pass that reads the unique years (first 4 characters of `YYYY-MM-DD` period strings) present in the quarterly financials periods.
+- **On-the-Fly Filtering**: Selecting a year from the dropdown filters the quarterly table columns, revenue, gross profit, operating income, and net income arrays in memory, immediately redrawing both the table data cells and the Chart.js grouped bar charts.
+
+### 3. Cohesive Pulsing Loading Animations
+To provide immediate visual feedback during API fetches, we unified loading states with our custom CSS `.pulse-animation` class:
+- **Lookup Panel Placeholders**: Implemented `showSearchFinancialsLoading()` which runs instantly on search start. It reveals the searched detail panel and puts pulsing loading placeholders inside key elements (company name, current price, business profile summary, key metrics cards, and financials tables).
+- **Dashboard Movers Pulse**: Added the pulsing effect to the "Loading gainers..." and "Loading losers..." tables on the primary Discover dashboard for a unified visual language.
+
+### 4. Robust Click Handling & Safe Filtering
+In complex layouts, direct event listeners on elements sharing common classes can collide or become subject to event interception.
+- **Event Delegation**: We migrated the Annual/Quarterly toggle listener to use parent-level delegation on `#search-financials-toggle` using `.closest('.period-btn')`. This ensures clicking anywhere within a tab button correctly registers the state transition.
+- **Defensive Property Verification**: Hardened the client-side quarterly mapping loop in `filterQuarterlyDataByYear` to check for array existence prior to index retrieval, avoiding runtime exceptions when data properties are null or empty.
+
+### 5. High-Contrast Search Textboxes
+To optimize form readability and draw direct focus to the core search features in a dark-glass user interface, we enhanced the styling of all primary search input textboxes:
+- **Light Backgrounds**: Replaced low-contrast translucent backgrounds with a light slate color (`rgba(248, 250, 252, 0.95)` / `#ffffff` on focus).
+- **Dark Slate Text**: Injected dark slate colors (`#0f172a` for text, `#64748b` for placeholders) to secure accessible, high-contrast text rendering.
+- **Targeted Elements**: Applied globally to `#asset-search`, `#qmj-search`, `#stock-search-input`, and `#comparison-add-input`.
+
 ## Entry 72: Advanced Market Indicators, Financial Statement Bar Charts, News Carousel, Menu Bar Padding, and Sentiment Flow Diagram (2026-05-25)
 
 This entry details the design decisions and implementation for a suite of qualitative and quantitative UI upgrades, menu and alignment adjustments, and documentation expansions for the zero-cost Sentiment Analysis Framework.

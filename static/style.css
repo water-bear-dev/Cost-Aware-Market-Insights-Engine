@@ -3511,3 +3511,33 @@ input[type=number] {
 .custom-scrollbar-h::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
 }
+
+/* Search textboxes light background styling */
+#asset-search,
+#qmj-search,
+#stock-search-input,
+#comparison-add-input,
+#new-ticker-input {
+    background: rgba(248, 250, 252, 0.95);
+    color: #0f172a;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+#asset-search::placeholder,
+#qmj-search::placeholder,
+#stock-search-input::placeholder,
+#comparison-add-input::placeholder,
+#new-ticker-input::placeholder {
+    color: #64748b;
+}
+
+#asset-search:focus,
+#qmj-search:focus,
+#stock-search-input:focus,
+#comparison-add-input:focus,
+#new-ticker-input:focus {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: var(--accent);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
