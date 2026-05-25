@@ -5233,6 +5233,8 @@ function renderModalForecasts(data, epsData) {
 let currentSearchTicker = null;
 let currentSearchPeriod = '1mo';
 let currentSearchChart = null;
+let searchAnnualChartInstance = null;
+let searchQuarterlyChartInstance = null;
 let comparisonTickers = [];
 let comparisonData = {};
 
@@ -5475,6 +5477,125 @@ function populateFinancialsTable(headersElId, bodyElId, finData, currency, ticke
     }).join('');
 }
 
+function renderFinancialsChart(canvasId, finData, type) {
+    const containerId = type === 'annual' ? 'search-financials-annual-chart-container' : 'search-financials-quarterly-chart-container';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (type === 'annual') {
+        if (searchAnnualChartInstance) {
+            searchAnnualChartInstance.destroy();
+            searchAnnualChartInstance = null;
+        }
+    } else {
+        if (searchQuarterlyChartInstance) {
+            searchQuarterlyChartInstance.destroy();
+            searchQuarterlyChartInstance = null;
+        }
+    }
+
+    if (!finData || !finData.periods || finData.periods.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const labels = finData.periods;
+    const revenue = finData.revenue;
+    const grossProfit = finData.gross_profit;
+    const operatingIncome = finData.operating_income;
+    const netIncome = finData.net_income;
+
+    const formatter = (value) => {
+        const absVal = Math.abs(value);
+        if (absVal >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+        if (absVal >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+        return value.toFixed(1);
+    };
+
+    const chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: revenue,
+                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Gross Profit',
+                    data: grossProfit,
+                    backgroundColor: 'rgba(129, 140, 248, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Operating Income',
+                    data: operatingIncome,
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Net Income',
+                    data: netIncome,
+                    backgroundColor: 'rgba(245, 158, 11, 0.8)',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        font: { size: 10 }
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(15,23,42,0.9)',
+                    titleColor: '#94a3b8',
+                    bodyColor: '#f8fafc',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.dataset.label}: $${formatter(ctx.raw)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: 'rgba(255, 255, 255, 0.5)', font: { size: 9 } }
+                },
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        font: { size: 9 },
+                        callback: function(value) { return '$' + formatter(value); }
+                    }
+                }
+            }
+        }
+    });
+
+    if (type === 'annual') {
+        searchAnnualChartInstance = chartInstance;
+    } else {
+        searchQuarterlyChartInstance = chartInstance;
+    }
+}
+
 function initStockSearch() {
     const searchInput = document.getElementById('stock-search-input');
     const searchDropdown = document.getElementById('stock-search-autocomplete');
@@ -5561,6 +5682,19 @@ function initStockSearch() {
                 trackBtn.disabled = false;
                 trackBtn.textContent = 'Track Ticker';
             }
+        });
+    }
+
+    // Carousel navigation
+    const prevBtn = document.getElementById('news-prev-btn');
+    const nextBtn = document.getElementById('news-next-btn');
+    const newsList = document.getElementById('search-news-list');
+    if (prevBtn && nextBtn && newsList) {
+        prevBtn.addEventListener('click', () => {
+            newsList.scrollBy({ left: -340, behavior: 'smooth' });
+        });
+        nextBtn.addEventListener('click', () => {
+            newsList.scrollBy({ left: 340, behavior: 'smooth' });
         });
     }
 }
@@ -5724,23 +5858,45 @@ async function loadSearchData(ticker, period) {
         if (fundData) {
             populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', fundData.financials, fundData.currency || info.currency || 'USD', ticker);
             populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', fundData.quarterly_financials, fundData.currency || info.currency || 'USD', ticker);
+            renderFinancialsChart('search-financials-annual-chart', fundData.financials, 'annual');
+            renderFinancialsChart('search-financials-quarterly-chart', fundData.quarterly_financials, 'quarterly');
         } else {
             populateFinancialsTable('search-financials-annual-headers', 'search-financials-annual-body', null);
             populateFinancialsTable('search-financials-quarterly-headers', 'search-financials-quarterly-body', null);
+            if (searchAnnualChartInstance) {
+                searchAnnualChartInstance.destroy();
+                searchAnnualChartInstance = null;
+            }
+            if (searchQuarterlyChartInstance) {
+                searchQuarterlyChartInstance.destroy();
+                searchQuarterlyChartInstance = null;
+            }
+            const annualContainer = document.getElementById('search-financials-annual-chart-container');
+            const quarterlyContainer = document.getElementById('search-financials-quarterly-chart-container');
+            if (annualContainer) annualContainer.style.display = 'none';
+            if (quarterlyContainer) quarterlyContainer.style.display = 'none';
         }
 
         // Render News
         const newsListEl = document.getElementById('search-news-list');
         if (newsListEl) {
             if (data.news && data.news.length > 0) {
-                newsListEl.innerHTML = data.news.map(art => {
+                const newsItems = data.news.slice(0, 10);
+                newsListEl.style.display = 'flex';
+                newsListEl.style.flexDirection = 'row';
+                newsListEl.style.flexWrap = 'nowrap';
+                newsListEl.style.overflowX = 'auto';
+                newsListEl.style.gap = '1.25rem';
+                newsListEl.style.scrollBehavior = 'smooth';
+                newsListEl.style.paddingBottom = '0.75rem';
+                newsListEl.innerHTML = newsItems.map(art => {
                     const dateStr = art.published ? new Date(art.published).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-                    const sourceBadge = art.source ? `<span style="font-size: 0.7rem; background: rgba(255,255,255,0.06); padding: 0.15rem 0.4rem; border-radius: 4px; color: var(--text-secondary);">${art.source}</span>` : '';
+                    const sourceBadge = art.source ? `<span style="font-size: 0.7rem; background: rgba(255,255,255,0.06); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--text-secondary); font-weight: 500;">${art.source}</span>` : '';
                     const dateBadge = dateStr ? `<span style="font-size: 0.7rem; color: var(--text-secondary);">${dateStr}</span>` : '';
-                    const meta = (sourceBadge || dateBadge) ? `<div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.25rem;">${sourceBadge} ${dateBadge}</div>` : '';
+                    const meta = (sourceBadge || dateBadge) ? `<div style="display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem;">${sourceBadge} ${dateBadge}</div>` : '';
                     return `
-                        <div style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
-                            <a href="${art.url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.85rem; font-weight: 500; color: #3b82f6; text-decoration: none; display: block; line-height: 1.4; transition: color 0.2s;">
+                        <div style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.03); padding: 1.25rem; border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s ease-in-out; flex: 0 0 320px; box-sizing: border-box;" class="glow-hover">
+                            <a href="${art.url}" target="_blank" rel="noopener noreferrer" style="font-size: 0.9rem; font-weight: 600; color: #3b82f6; text-decoration: none; display: block; line-height: 1.4; transition: color 0.2s; margin-bottom: 0.5rem;">
                                 ${art.title}
                             </a>
                             ${meta}
@@ -5748,12 +5904,15 @@ async function loadSearchData(ticker, period) {
                     `;
                 }).join('');
             } else {
+                newsListEl.style.display = 'flex';
                 newsListEl.innerHTML = '<p style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No recent news articles found.</p>';
             }
         }
 
         // Render Chart
         renderSearchChart(data, period);
+        // Render Analyst Consensus & Technical indicators
+        updateSearchAnalytics(data);
     } catch (err) {
         console.error('Failed to load search details:', err);
         showToast(`Failed to load data for ${ticker}`, 'negative');
@@ -5773,6 +5932,9 @@ function renderSearchChart(data, period) {
     const ctx = canvas.getContext('2d');
     
     const closes = data.ohlcv.map(d => d.close);
+    const volumes = data.ohlcv.map(d => d.volume || 0);
+    const maxVolume = Math.max(...volumes, 0);
+    
     const labels = data.ohlcv.map(d => {
         const dt = new Date(d.time);
         return period === '1d' ? dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : dt.toLocaleDateString();
@@ -5799,17 +5961,32 @@ function renderSearchChart(data, period) {
         type: 'line',
         data: {
             labels,
-            datasets: [{
-                label: data.ticker,
-                data: closes,
-                borderColor: trendColor,
-                backgroundColor: gradient,
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                tension: 0.3,
-                fill: true
-            }]
+            datasets: [
+                {
+                    label: data.ticker,
+                    data: closes,
+                    borderColor: trendColor,
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Volume',
+                    type: 'bar',
+                    data: volumes,
+                    backgroundColor: isUp ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)',
+                    hoverBackgroundColor: isUp ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)',
+                    borderColor: 'transparent',
+                    borderWidth: 0,
+                    yAxisID: 'yVolume',
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.85
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -5824,7 +6001,12 @@ function renderSearchChart(data, period) {
                     borderColor: 'rgba(255,255,255,0.1)',
                     borderWidth: 1,
                     callbacks: {
-                        label: ctx => ` ${ctx.label}: ${formatPrice(ctx.parsed.y, data.info ? data.info.currency : 'USD', false, data.ticker)}`
+                        label: ctx => {
+                            if (ctx.datasetIndex === 1) {
+                                return ` Volume: ${ctx.parsed.y.toLocaleString()}`;
+                            }
+                            return ` ${data.ticker}: ${formatPrice(ctx.parsed.y, data.info ? data.info.currency : 'USD', false, data.ticker)}`;
+                        }
                     }
                 }
             },
@@ -5832,6 +6014,7 @@ function renderSearchChart(data, period) {
                 x: { ticks: { color: '#94a3b8', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
                 y: {
                     beginAtZero: false,
+                    position: 'left',
                     ticks: {
                         color: '#94a3b8',
                         callback: v => {
@@ -5848,10 +6031,243 @@ function renderSearchChart(data, period) {
                         }
                     },
                     grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                yVolume: {
+                    position: 'right',
+                    beginAtZero: true,
+                    max: maxVolume > 0 ? maxVolume * 4 : 100,
+                    grid: { display: false },
+                    ticks: { display: false },
+                    border: { display: false }
                 }
             }
         }
     });
+}
+
+function updateSearchAnalytics(data) {
+    const section = document.getElementById('search-analytics-section');
+    if (!section) return;
+    
+    if (!data || !data.ohlcv || data.ohlcv.length < 5) {
+        section.style.display = 'none';
+        return;
+    }
+    
+    section.style.display = 'grid';
+    
+    // 1. UPDATE ANALYST CONSENSUS GAUGE
+    const summary = data.analyst_summary || { buy: 0, hold: 0, sell: 0, strong_buy: 0, strong_sell: 0 };
+    const strongBuy = Number(summary.strong_buy || 0);
+    const buy = Number(summary.buy || 0);
+    const hold = Number(summary.hold || 0);
+    const sell = Number(summary.sell || 0);
+    const strongSell = Number(summary.strong_sell || 0);
+    
+    const totalCount = strongBuy + buy + hold + sell + strongSell;
+    
+    let averageScore = 0; // range from -2 to +2
+    let consensusText = "Hold";
+    let consensusColor = "var(--text-secondary)";
+    
+    if (totalCount > 0) {
+        const weightedSum = (strongBuy * 2) + (buy * 1) + (hold * 0) + (sell * -1) + (strongSell * -2);
+        averageScore = weightedSum / totalCount;
+        
+        if (averageScore >= 1.2) {
+            consensusText = "Strong Buy";
+            consensusColor = "#10b981";
+        } else if (averageScore >= 0.4) {
+            consensusText = "Buy";
+            consensusColor = "#34d399";
+        } else if (averageScore >= -0.4) {
+            consensusText = "Hold";
+            consensusColor = "#eab308";
+        } else if (averageScore >= -1.2) {
+            consensusText = "Sell";
+            consensusColor = "#f43f5e";
+        } else {
+            consensusText = "Strong Sell";
+            consensusColor = "#e11d48";
+        }
+    } else {
+        consensusText = "No Analyst Rating";
+        consensusColor = "var(--text-secondary)";
+    }
+    
+    const valEl = document.getElementById('consensus-value');
+    if (valEl) {
+        valEl.textContent = consensusText;
+        valEl.style.color = consensusColor;
+    }
+    
+    const scoreEl = document.getElementById('consensus-score');
+    if (scoreEl) {
+        scoreEl.textContent = totalCount > 0 ? `Based on ${totalCount} analyst ratings` : "No ratings available";
+    }
+    
+    const needle = document.getElementById('consensus-needle');
+    if (needle) {
+        let angle = 0;
+        if (totalCount > 0) {
+            angle = (averageScore / 2) * 90;
+        }
+        needle.style.transform = `rotate(${angle}deg)`;
+    }
+    
+    const arc = document.getElementById('consensus-arc');
+    if (arc) {
+        if (totalCount > 0) {
+            const percentage = (averageScore + 2) / 4;
+            const offset = 125 - (percentage * 125);
+            arc.style.strokeDashoffset = offset;
+        } else {
+            arc.style.strokeDashoffset = 62.5;
+        }
+    }
+    
+    // 2. TECHNICAL INDICATORS CALCULATIONS
+    const closes = data.ohlcv.map(d => d.close);
+    const lastPrice = closes[closes.length - 1];
+    
+    // A. RSI (14)
+    const rsi14 = calculateRSI(closes, 14);
+    const rsiValEl = document.getElementById('tech-rsi-value');
+    const rsiBadgeEl = document.getElementById('tech-rsi-badge');
+    if (rsiValEl && rsiBadgeEl) {
+        rsiValEl.textContent = rsi14.toFixed(1);
+        if (rsi14 >= 70) {
+            rsiBadgeEl.textContent = "Overbought";
+            rsiBadgeEl.className = "discover-change-badge neg";
+            rsiBadgeEl.style.background = "rgba(244, 63, 94, 0.15)";
+            rsiBadgeEl.style.color = "#f43f5e";
+        } else if (rsi14 <= 30) {
+            rsiBadgeEl.textContent = "Oversold";
+            rsiBadgeEl.className = "discover-change-badge pos";
+            rsiBadgeEl.style.background = "rgba(16, 185, 129, 0.15)";
+            rsiBadgeEl.style.color = "#10b981";
+        } else {
+            rsiBadgeEl.textContent = "Neutral";
+            rsiBadgeEl.className = "discover-change-badge";
+            rsiBadgeEl.style.background = "rgba(255,255,255,0.06)";
+            rsiBadgeEl.style.color = "var(--text-secondary)";
+        }
+    }
+    
+    // B. MACD (12, 26, 9)
+    const ema12Series = calculateEMASeries(closes, 12);
+    const ema26Series = calculateEMASeries(closes, 26);
+    
+    let macdVal = 0;
+    let signalVal = 0;
+    let divergence = 0;
+    let macdText = "--";
+    let macdClass = "";
+    let macdStyle = {};
+    
+    if (ema12Series.length >= 26 && ema26Series.length >= 26) {
+        const macdSeries = [];
+        for (let i = 0; i < closes.length; i++) {
+            macdSeries.push(ema12Series[i] - ema26Series[i]);
+        }
+        const signalSeries = calculateEMASeries(macdSeries, 9);
+        
+        macdVal = macdSeries[macdSeries.length - 1];
+        signalVal = signalSeries[signalSeries.length - 1];
+        divergence = macdVal - signalVal;
+        
+        macdText = macdVal.toFixed(2);
+        
+        if (divergence > 0) {
+            macdText += ` (Div: +${divergence.toFixed(2)})`;
+            macdClass = "discover-change-badge pos";
+            macdStyle = { background: "rgba(16, 185, 129, 0.15)", color: "#10b981" };
+        } else {
+            macdText += ` (Div: ${divergence.toFixed(2)})`;
+            macdClass = "discover-change-badge neg";
+            macdStyle = { background: "rgba(244, 63, 94, 0.15)", color: "#f43f5e" };
+        }
+    } else {
+        macdText = "Insufficient Data";
+        macdClass = "discover-change-badge";
+        macdStyle = { background: "rgba(255,255,255,0.06)", color: "var(--text-secondary)" };
+    }
+    
+    const macdValEl = document.getElementById('tech-macd-value');
+    const macdBadgeEl = document.getElementById('tech-macd-badge');
+    if (macdValEl && macdBadgeEl) {
+        macdValEl.textContent = macdText;
+        macdBadgeEl.className = macdClass || "discover-change-badge";
+        if (Object.keys(macdStyle).length > 0) {
+            macdBadgeEl.style.background = macdStyle.background;
+            macdBadgeEl.style.color = macdStyle.color;
+        } else {
+            macdBadgeEl.removeAttribute('style');
+        }
+        macdBadgeEl.style.marginTop = '0';
+        macdBadgeEl.textContent = divergence > 0 ? "Bullish Crossover" : "Bearish Crossover";
+        if (macdText === "Insufficient Data") {
+            macdBadgeEl.textContent = "Neutral";
+        }
+    }
+    
+    // C. SMA (20)
+    const sma20 = calculateSMA(closes, 20);
+    const sma20ValEl = document.getElementById('tech-sma20-value');
+    const sma20BadgeEl = document.getElementById('tech-sma20-badge');
+    if (sma20ValEl && sma20BadgeEl) {
+        if (sma20 !== null) {
+            const diffPct = ((lastPrice - sma20) / sma20) * 100;
+            sma20ValEl.textContent = formatPrice(sma20, data.info ? data.info.currency : 'USD', false, data.ticker);
+            if (diffPct >= 0) {
+                sma20BadgeEl.textContent = `+${diffPct.toFixed(1)}% Bullish`;
+                sma20BadgeEl.className = "discover-change-badge pos";
+                sma20BadgeEl.style.background = "rgba(16, 185, 129, 0.15)";
+                sma20BadgeEl.style.color = "#10b981";
+            } else {
+                sma20BadgeEl.textContent = `${diffPct.toFixed(1)}% Bearish`;
+                sma20BadgeEl.className = "discover-change-badge neg";
+                sma20BadgeEl.style.background = "rgba(244, 63, 94, 0.15)";
+                sma20BadgeEl.style.color = "#f43f5e";
+            }
+        } else {
+            sma20ValEl.textContent = "—";
+            sma20BadgeEl.textContent = "Neutral";
+            sma20BadgeEl.className = "discover-change-badge";
+            sma20BadgeEl.style.background = "rgba(255,255,255,0.06)";
+            sma20BadgeEl.style.color = "var(--text-secondary)";
+        }
+        sma20BadgeEl.style.marginTop = '0';
+    }
+    
+    // D. SMA (50)
+    const sma50 = calculateSMA(closes, 50);
+    const sma50ValEl = document.getElementById('tech-sma50-value');
+    const sma50BadgeEl = document.getElementById('tech-sma50-badge');
+    if (sma50ValEl && sma50BadgeEl) {
+        if (sma50 !== null) {
+            const diffPct = ((lastPrice - sma50) / sma50) * 100;
+            sma50ValEl.textContent = formatPrice(sma50, data.info ? data.info.currency : 'USD', false, data.ticker);
+            if (diffPct >= 0) {
+                sma50BadgeEl.textContent = `+${diffPct.toFixed(1)}% Bullish`;
+                sma50BadgeEl.className = "discover-change-badge pos";
+                sma50BadgeEl.style.background = "rgba(16, 185, 129, 0.15)";
+                sma50BadgeEl.style.color = "#10b981";
+            } else {
+                sma50BadgeEl.textContent = `${diffPct.toFixed(1)}% Bearish`;
+                sma50BadgeEl.className = "discover-change-badge neg";
+                sma50BadgeEl.style.background = "rgba(244, 63, 94, 0.15)";
+                sma50BadgeEl.style.color = "#f43f5e";
+            }
+        } else {
+            sma50ValEl.textContent = "—";
+            sma50BadgeEl.textContent = "Neutral";
+            sma50BadgeEl.className = "discover-change-badge";
+            sma50BadgeEl.style.background = "rgba(255,255,255,0.06)";
+            sma50BadgeEl.style.color = "var(--text-secondary)";
+        }
+        sma50BadgeEl.style.marginTop = '0';
+    }
 }
 
 async function updateTrackStatus(ticker) {

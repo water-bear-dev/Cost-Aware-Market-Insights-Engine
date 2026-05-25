@@ -77,8 +77,8 @@
             <div class="tab-navigation">
                 <button class="tab-btn active" data-tab="manage-view">Manage</button>
                 <button class="tab-btn" data-tab="discover-view">Discover</button>
-                <button class="tab-btn" data-tab="screener-view">Screener</button>
-                <button class="tab-btn" data-tab="search-compare-view">Stock Search</button>
+                <button class="tab-btn" data-tab="screener-view">QMJ Screener</button>
+                <button class="tab-btn" data-tab="search-compare-view">Search & Compare</button>
                 <span class="tab-nav-spacer"></span>
                 <button class="tab-btn" data-tab="finops-view">Costs</button>
                 <button class="tab-btn" data-tab="how-view">How it works</button>
@@ -525,14 +525,6 @@
                                 <button id="search-summary-toggle" class="sort-btn" style="margin-top: 0.5rem; background: transparent; border: none; color: var(--accent); padding: 0;">Show More</button>
                             </div>
 
-                            <!-- Latest News Catalysts -->
-                            <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem;">
-                                <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.75rem; letter-spacing: 0.05em;">Latest News Catalysts</h4>
-                                <div id="search-news-list" class="flex-column" style="gap: 0.75rem;">
-                                    <p style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No recent news articles found.</p>
-                                </div>
-                            </div>
-
                             <!-- Track Ticker Action -->
                             <div style="border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
                                 <span id="search-track-status" style="font-size: 0.85rem; color: var(--text-secondary);">Current Watchlist: --/30.</span>
@@ -563,8 +555,104 @@
                                 </div>
                                 <canvas id="searchChart"></canvas>
                             </div>
-                        </div>
 
+                            <!-- Search Analytics Section -->
+                            <div id="search-analytics-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; border-top: 1px solid var(--glass-border); padding-top: 1.5rem; margin-top: 0.5rem; display: none;">
+                                <!-- Left side: Consensus Gauge -->
+                                <div class="flex-column" style="align-items: center; justify-content: center; position: relative; gap: 0.5rem;">
+                                    <h5 style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; font-weight: 600;">Analyst Consensus</h5>
+                                    <div style="position: relative; width: 180px; height: 95px; display: flex; align-items: flex-end; justify-content: center; overflow: hidden;">
+                                        <!-- Semi-circle track -->
+                                        <svg width="180" height="180" viewBox="0 0 100 100" style="position: absolute; top: 0; left: 0;">
+                                            <!-- Background Arc -->
+                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round"/>
+                                            <!-- Gradient Arc Colored (Strong Sell -> Strong Buy) -->
+                                            <path id="consensus-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="url(#gauge-grad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="125" stroke-dashoffset="125" style="transition: stroke-dashoffset 0.8s ease-in-out;"/>
+                                            <defs>
+                                                <linearGradient id="gauge-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#f43f5e" /> <!-- Sell -->
+                                                    <stop offset="50%" stop-color="#eab308" /> <!-- Hold -->
+                                                    <stop offset="100%" stop-color="#10b981" /> <!-- Buy -->
+                                                </linearGradient>
+                                            </defs>
+                                        </svg>
+                                        <!-- Needle -->
+                                        <div id="consensus-needle" style="position: absolute; width: 4px; height: 45px; background: var(--text-primary); bottom: 10px; transform-origin: 50% 100%; transform: rotate(-90deg); transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1); border-radius: 4px 4px 0 0; box-shadow: 0 0 8px rgba(255,255,255,0.3); z-index: 2;"></div>
+                                        <!-- Center pin -->
+                                        <div style="position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--text-primary); bottom: 4px; border: 2px solid var(--bg-dark); z-index: 3;"></div>
+                                    </div>
+                                    <!-- Consensus text labels -->
+                                    <div style="display: flex; justify-content: space-between; width: 180px; margin-top: 0.25rem; font-size: 0.7rem; color: var(--text-secondary); font-weight: 500;">
+                                        <span>SELL</span>
+                                        <span>HOLD</span>
+                                        <span>BUY</span>
+                                    </div>
+                                    <!-- Current Consensus Value -->
+                                    <div id="consensus-value" style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-top: 0.25rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">--</div>
+                                    <div id="consensus-score" style="font-size: 0.75rem; color: var(--text-secondary); text-align: center;">Based on -- analysts</div>
+                                </div>
+
+                                <!-- Right side: Technical Indicators Panel -->
+                                <div class="flex-column" style="gap: 0.75rem;">
+                                    <h5 style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; font-weight: 600;">Technical Indicators</h5>
+                                    
+                                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                        <!-- RSI -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.02);">
+                                            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);">RSI (14)</span>
+                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                <span id="tech-rsi-value" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">--</span>
+                                                <span id="tech-rsi-badge" class="discover-change-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-top: 0;">--</span>
+                                            </div>
+                                        </div>
+                                        <!-- MACD -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.02);">
+                                            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);">MACD (12, 26, 9)</span>
+                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                <span id="tech-macd-value" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">--</span>
+                                                <span id="tech-macd-badge" class="discover-change-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-top: 0;">--</span>
+                                            </div>
+                                        </div>
+                                        <!-- SMA (20) -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.02);">
+                                            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);">SMA (20) vs Close</span>
+                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                <span id="tech-sma20-value" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">--</span>
+                                                <span id="tech-sma20-badge" class="discover-change-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-top: 0;">--</span>
+                                            </div>
+                                        </div>
+                                        <!-- SMA (50) -->
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.02);">
+                                            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-secondary);">SMA (50) vs Close</span>
+                                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                                <span id="tech-sma50-value" style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">--</span>
+                                                <span id="tech-sma50-badge" class="discover-change-badge" style="font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; margin-top: 0;">--</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Latest News Section -->
+                    <div class="glass" style="margin-top: 1.5rem; padding: 2rem; position: relative;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <h4 style="font-size: 1rem; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">
+                                📰 Latest news
+                            </h4>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button id="news-prev-btn" class="carousel-btn" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); width: 32px; height: 32px; border-radius: 50%; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                                </button>
+                                <button id="news-next-btn" class="carousel-btn" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); width: 32px; height: 32px; border-radius: 50%; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.08)'" onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="search-news-list" style="display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; gap: 1.25rem; scroll-behavior: smooth; padding-bottom: 0.75rem;" class="custom-scrollbar-h">
+                            <p style="color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">No recent news articles found.</p>
+                        </div>
                     </div>
 
                     <!-- Side-by-side Financials Section -->
@@ -590,6 +678,9 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                <div id="search-financials-annual-chart-container" style="margin-top: 1.5rem; height: 240px; position: relative; display: none;">
+                                    <canvas id="search-financials-annual-chart"></canvas>
+                                </div>
                             </div>
                             
                             <!-- Quarterly Financials -->
@@ -607,6 +698,9 @@
                                             <!-- Dynamic Rows -->
                                         </tbody>
                                     </table>
+                                </div>
+                                <div id="search-financials-quarterly-chart-container" style="margin-top: 1.5rem; height: 240px; position: relative; display: none;">
+                                    <canvas id="search-financials-quarterly-chart"></canvas>
                                 </div>
                             </div>
 
@@ -627,7 +721,7 @@
                 <div class="glass" style="margin-bottom: 2.5rem; padding: 2rem;">
                     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
                         <div>
-                            <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary);">⚖️ Compare Tickers</h3>
+                            <h3 class="discover-section-title" style="margin: 0; font-size: 1.1rem; font-weight: 600; color: var(--accent);">⚖️ Compare Tickers</h3>
                             <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.25rem;">Add up to 5 stocks to compare metrics, technicals, and run a winner analysis.</p>
                         </div>
                         
