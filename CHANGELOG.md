@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.6.4] - 2026-05-25
+
+### Added
+- **Advanced Market Indicators Dashboard** — Added secondary volume chart overlay, SVG analyst rating needle gauge, and client-side technical indicators panel (calculating RSI, MACD, and SMAs).
+- **Interactive Financial Bar Charts** — Embedded Chart.js grouped bar charts below annual and quarterly tables to track revenue, gross profit, operating income, and net income.
+- **Latest News Carousel** — Structured news results into a single-row horizontal carousel limiting output to exactly 10 headlines with SVG navigation buttons.
+- **Sentiment Pipeline Documentation** — Documented calculations, thresholds, and normalization formulas for the Zero-Cost Lexical Sentiment framework in the website's How It Works view.
+
+### Changed
+- **Menu Rebranding** — Renamed primary navigation tabs: **Screener** to **QMJ Screener** and **Stock Search** to **Search & Compare**.
+- **Heading Alignment** — Styled the "Compare Tickers" header with the blue accent design consistent with "Stock Search & Analyst Lookup".
+- **Menu Bar Spacing & Theme** — Aligned `.sticky-header-wrapper` background color with the obsidian page theme (`rgba(8, 12, 22, 0.85)`) and added horizontal padding to prevent elements from touching screen boundaries.
+- **Architecture Diagrams** — Restructured both the website's DOM-based infrastructure diagram and [system_overview.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/system-design/system_overview.md)'s Mermaid flowchart to capture the zero-cost Sentiment Engine and Reddit API ingestion flows.
+
 ## [3.6.3] - 2026-05-22
 
 ### Added

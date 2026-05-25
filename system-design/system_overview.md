@@ -20,8 +20,10 @@ flowchart TB
         Hunter["Discovery Hunter\n(Global Ticker Filter)"]
         Synth["AI Synthesis"]
         Bedrock["Amazon Bedrock"]
+        SentimentEngine["Sentiment Engine\n(Zero-Cost Lexical)"]
 
         Gate --> Hunter --> Synth --> Bedrock
+        Hunter --> SentimentEngine
     end
 
     subgraph DataLayer ["Quantitative & Data Layer"]
@@ -36,6 +38,7 @@ flowchart TB
 
     subgraph Ingestion ["Ingestion"]
         YFinance["Global Market Ingestion\n(yfinance)"]
+        Reddit["Reddit Search API\n(r/wallstreetbets)"]
     end
 
     subgraph AWS ["AWS Cloud Infrastructure"]
@@ -61,6 +64,10 @@ flowchart TB
     YFinance -- "quarterly financials" --> Warehouse
     Warehouse -- "QMJ scores" --> Hunter
     QuantMCP -- "technical metrics" --> Hunter
+    Reddit -- "social chatter" --> SentimentEngine
+    YFinance -- "news headlines" --> SentimentEngine
+    SentimentEngine -- "sentiment scores" --> DDB_Insights
+    SentimentEngine -- "sentiment badges" --> Dash
     Synth -- "insights" --> Dash
     Dash -- "feedback loop" --> Gate
     Gate -- "debit budget" --> DDB_Costs
@@ -77,11 +84,12 @@ flowchart TB
     classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
     classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
 
-    class Gate,Hunter,Synth,Bedrock intelligence;
-    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
+    class Gate,Hunter,Synth,Bedrock,SentimentEngine intelligence;
+    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance,Reddit datalayer;
     class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
     class DDB_Costs cost;
     class Presentation presentation;
+```
 The engine leverages a distributed agentic architecture (Alpha-DAG) combined with a high-performance analytical warehouse.
 
 *   **Orchestration**: LangGraph (Alpha-DAG) for stateful multi-agent workflows.

@@ -868,77 +868,140 @@
 
                 <!-- Infrastructure Diagram -->
                 <div class="diagram-wrapper">
-                    <div class="diagram-container">
-                        <div class="infra-node" data-node="sources">
-                            <div class="node-pulse"></div>
-                            <div class="node-icon">📡</div>
-                            <div class="node-info">
-                                <span class="node-label">External Data</span>
-                                <span class="node-tech">yfinance / Google News</span>
+                    <!-- Row 1: Ingestion & Data Sources -->
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1.25rem; letter-spacing: 0.1em; text-align: center; font-weight: 700;">1. Ingestion & Data Sources</h4>
+                        <div class="diagram-container">
+                            <div class="infra-node" data-node="yfinance">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">📡</div>
+                                <div class="node-info">
+                                    <span class="node-label">yfinance Ingestion</span>
+                                    <span class="node-tech">Prices & News</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flow-line horizontal" style="max-width: 60px; min-width: 20px;">
+                                <div class="flow-particle"></div>
+                            </div>
+
+                            <div class="infra-node" data-node="reddit-wsb">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">💬</div>
+                                <div class="node-info">
+                                    <span class="node-label">Reddit WSB API</span>
+                                    <span class="node-tech">Social Chatter</span>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="flow-line horizontal">
-                            <div class="flow-particle"></div>
-                        </div>
+                    <!-- Row 2: Alpha-DAG Orchestration -->
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="font-size: 0.8rem; color: #a855f7; text-transform: uppercase; margin-bottom: 1.25rem; letter-spacing: 0.1em; text-align: center; font-weight: 700;">2. Alpha-DAG Orchestration (LangGraph)</h4>
+                        <div class="diagram-container">
+                            <div class="infra-node" data-node="finops-gate">
+                                <div class="node-pulse alert"></div>
+                                <div class="node-icon">🛡️</div>
+                                <div class="node-info">
+                                    <span class="node-label">FinOps Gate</span>
+                                    <span class="node-tech">Budget Enforcement</span>
+                                </div>
+                            </div>
 
-                        <div class="infra-node" data-node="backend">
-                            <div class="node-pulse"></div>
-                            <div class="node-icon">⚙️</div>
-                            <div class="node-info">
-                                <span class="node-label">Core Engine</span>
-                                <span class="node-tech">FastAPI / Python</span>
+                            <div class="flow-line horizontal" style="max-width: 40px; min-width: 20px;">
+                                <div class="flow-particle"></div>
+                            </div>
+
+                            <div class="infra-node" data-node="discovery-hunter">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">⚙️</div>
+                                <div class="node-info">
+                                    <span class="node-label">Discovery Hunter</span>
+                                    <span class="node-tech">Ticker Search & dbt</span>
+                                </div>
+                            </div>
+
+                            <div class="flow-line horizontal" style="max-width: 40px; min-width: 20px;">
+                                <div class="flow-particle"></div>
+                            </div>
+
+                            <div class="infra-node" data-node="sentiment-engine" style="border-color: rgba(168, 85, 247, 0.4);">
+                                <div class="node-pulse" style="border-color: #a855f7;"></div>
+                                <div class="node-icon">⚖️</div>
+                                <div class="node-info">
+                                    <span class="node-label">Sentiment Engine</span>
+                                    <span class="node-tech">Zero-Cost Lexical</span>
+                                </div>
+                            </div>
+
+                            <div class="flow-line horizontal" style="max-width: 40px; min-width: 20px;">
+                                <div class="flow-particle"></div>
+                            </div>
+
+                            <div class="infra-node" data-node="ai-synthesis">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">🧠</div>
+                                <div class="node-info">
+                                    <span class="node-label">AI Synthesis</span>
+                                    <span class="node-tech">Claude 3 / Bedrock</span>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <div class="flow-line horizontal">
-                            <div class="flow-particle reverse"></div>
-                        </div>
+                    <!-- Row 3: Persistence & Analytics Layer -->
+                    <div style="margin-bottom: 2rem;">
+                        <h4 style="font-size: 0.8rem; color: #10b981; text-transform: uppercase; margin-bottom: 1.25rem; letter-spacing: 0.1em; text-align: center; font-weight: 700;">3. Persistence & Analytics Layer</h4>
+                        <div class="diagram-container">
+                            <div class="infra-node" data-node="dynamodb">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">💾</div>
+                                <div class="node-info">
+                                    <span class="node-label">DynamoDB</span>
+                                    <span class="node-tech">Market / Insights DB</span>
+                                </div>
+                            </div>
 
-                        <div class="infra-node" data-node="db">
-                            <div class="node-pulse"></div>
-                            <div class="node-icon">💾</div>
-                            <div class="node-info">
-                                <span class="node-label">DynamoDB</span>
-                                <span class="node-tech">NoSQL Storage</span>
+                            <div class="flow-line horizontal" style="max-width: 60px; min-width: 20px;">
+                                <div class="flow-particle reverse"></div>
+                            </div>
+
+                            <div class="infra-node" data-node="warehouse">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">📊</div>
+                                <div class="node-info">
+                                    <span class="node-label">QMJ Warehouse</span>
+                                    <span class="node-tech">DuckDB / Athena</span>
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Secondary Row -->
-                        <div class="diagram-row-spacer"></div>
-
-                        <div class="infra-node" data-node="finops">
-                            <div class="node-pulse alert"></div>
-                            <div class="node-icon">🛡️</div>
-                            <div class="node-info">
-                                <span class="node-label">FinOps Gate</span>
-                                <span class="node-tech">Cost Guardrails</span>
+                    <!-- Row 4: Presentation & User Experience -->
+                    <div>
+                        <h4 style="font-size: 0.8rem; color: #f59e0b; text-transform: uppercase; margin-bottom: 1.25rem; letter-spacing: 0.1em; text-align: center; font-weight: 700;">4. Presentation & User Experience</h4>
+                        <div class="diagram-container">
+                            <div class="infra-node" data-node="fastapi">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">🔌</div>
+                                <div class="node-info">
+                                    <span class="node-label">FastAPI Router</span>
+                                    <span class="node-tech">API & Endpoints</span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="flow-line horizontal">
-                            <div class="flow-particle"></div>
-                        </div>
-
-                        <div class="infra-node" data-node="ai">
-                            <div class="node-pulse"></div>
-                            <div class="node-icon">🧠</div>
-                            <div class="node-info">
-                                <span class="node-label">Claude 3 AI</span>
-                                <span class="node-tech">Amazon Bedrock</span>
+                            <div class="flow-line horizontal" style="max-width: 60px; min-width: 20px;">
+                                <div class="flow-particle"></div>
                             </div>
-                        </div>
 
-                        <div class="flow-line horizontal">
-                            <div class="flow-particle"></div>
-                        </div>
-
-                        <div class="infra-node highlight" data-node="ui">
-                            <div class="node-pulse"></div>
-                            <div class="node-icon">💻</div>
-                            <div class="node-info">
-                                <span class="node-label">Dashboard</span>
-                                <span class="node-tech">User Interface</span>
+                            <div class="infra-node highlight" data-node="dashboard">
+                                <div class="node-pulse"></div>
+                                <div class="node-icon">💻</div>
+                                <div class="node-info">
+                                    <span class="node-label">Dashboard UI</span>
+                                    <span class="node-tech">Glassmorphic Interface</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1056,6 +1119,60 @@
                                     Sources: <br/>
                                     • <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2312432" target="_blank" style="color: inherit; text-decoration: underline;">Asness, C., Frazzini, A., & Pedersen, L. (2013). Quality Minus Junk.</a> <br/>
                                     • <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2174501" target="_blank" style="color: inherit; text-decoration: underline;">Asness, C., Moskowitz, T., & Pedersen, L. (2013). Value and Momentum Everywhere.</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sentiment Analysis Framework Section -->
+                <div class="process-card glass" style="grid-column: 1 / -1; margin-top: 2rem; border-color: rgba(168, 85, 247, 0.2);">
+                    <div class="process-step">06</div>
+                    <h3>Sentiment Analysis Framework</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
+                        <div>
+                            <p style="margin-bottom: 1.25rem; color: #cbd5e1; line-height: 1.7;">
+                                To provide real-time, qualitative market intelligence without incurring AI API costs, the engine runs an automated, zero-cost <strong>Lexical Sentiment Pipeline</strong>. It cross-references retail chatter and media headlines to capture market mood:
+                            </p>
+                            <ul style="list-style: none; padding: 0; font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>Reddit Ingestion (r/wallstreetbets):</strong> The engine queries the public search API for the last 15 posts matching the ticker, extracting post titles and content to capture active retail sentiment.</span>
+                                </li>
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>News Integration:</strong> Headline text from either the active synthesis queue or yfinance fallback is merged with social data to enrich the textual context.</span>
+                                </li>
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>Tokenization & Matching:</strong> All collected text is normalized and tokenized. Words are checked against predefined financial dictionaries containing optimistic/bullish words and risk-focused/bearish words.</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                            <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(0,0,0,0.2);">
+                                <h4 style="font-size: 0.8rem; color: var(--accent); text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">1. Retail Sentiment Index Score Formula</h4>
+                                <div style="background: rgba(0,0,0,0.25); padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 0.75rem;">
+                                    <div style="font-family: monospace; font-size: 1.1rem; color: var(--text-primary); text-align: center;">
+                                        Score = (Pos - Neg) / (Pos + Neg)
+                                    </div>
+                                </div>
+                                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary);">
+                                    Calculates the normalized ratio of bullish terms (<span style="color: #10b981; font-weight: 600;">Pos</span>) to bearish terms (<span style="color: #f43f5e; font-weight: 600;">Neg</span>). The resulting score spans from <strong>-1.00 (Maximum Bearish)</strong> to <strong>+1.00 (Maximum Bullish)</strong>.
+                                </p>
+                            </div>
+
+                            <div class="glass" style="padding: 1.5rem; border-radius: 16px; background: rgba(0,0,0,0.2);">
+                                <h4 style="font-size: 0.8rem; color: #10b981; text-transform: uppercase; margin-bottom: 1rem; letter-spacing: 0.05em;">2. Classification Boundaries & Social Volume</h4>
+                                <ul style="list-style: none; padding: 0; font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                    <li><strong style="color: #10b981;">📈 Bullish:</strong> Sentiment Score &gt; +0.12</li>
+                                    <li><strong style="color: #f43f5e;">📉 Bearish:</strong> Sentiment Score &lt; -0.12</li>
+                                    <li><strong style="color: var(--text-secondary);">⚖️ Neutral:</strong> Sentiment Score between -0.12 and +0.12</li>
+                                </ul>
+                                <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary);">
+                                    <strong>Social Volume:</strong> The absolute count of active Reddit post matches and headlines aggregated in the calculation window (displayed on the dashboard as <span style="color: #f59e0b; font-weight: 600;">🔥 r/wallstreetbets: [Count]</span>).
                                 </p>
                             </div>
                         </div>

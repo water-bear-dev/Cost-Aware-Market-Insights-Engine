@@ -1,6 +1,38 @@
 # Development Blog
 
 
+## Entry 72: Advanced Market Indicators, Financial Statement Bar Charts, News Carousel, Menu Bar Padding, and Sentiment Flow Diagram (2026-05-25)
+
+This entry details the design decisions and implementation for a suite of qualitative and quantitative UI upgrades, menu and alignment adjustments, and documentation expansions for the zero-cost Sentiment Analysis Framework.
+
+### 1. Advanced Market Indicators Dashboard & Client-Side Technical Analytics
+To support rich, institutional-grade analytics without consuming expensive LLM token budgets or API calls, we built a series of high-fidelity client-side calculations and dynamic SVG gauges inside the stock search view:
+- **Volume Overlay**: Integrated volume bar charts directly as a secondary overlay in the main price target chart (`renderSearchChart` in `static/app.js`), configured on a distinct secondary Y-axis with custom tooltips.
+- **Analyst Consensus Needle Gauge**: Built an interactive semi-circle consensus dial in `static/index.html` using SVG vectors to display consensus rating (BUY, SELL, HOLD) with a dynamic pointer needle rotating based on consensus scores.
+- **Technical Indicators Grid**: Programmed real-time mathematical calculations in client-side JS using 1-year historical daily closes to compute Relative Strength Index (RSI), Moving Average Convergence Divergence (MACD), and 20/50/200-day Simple Moving Averages (SMAs).
+
+### 2. Grouped Financial Statement Bar Charts
+- We added interactive Chart.js bar charts directly below the Annual and Quarterly Income Statement tables.
+- The charts plot core metrics side-by-side: **Total Revenue** (sky blue), **Gross Profit** (indigo), **Operating Income** (emerald), and **Net Income** (amber) over historical years/quarters.
+- Integrated automatic chart instance cleanups to destroy older canvas states when users switch stock tickers, preventing memory leaks and rendering clashes.
+
+### 3. Horizontal News Carousel
+- Decoupled news feeds and renamed the section to **Latest news**.
+- Sliced news data payloads to limit active items to exactly 10 headlines.
+- Formatted the feed into a single-row horizontal carousel container with smooth scrolling capabilities driven by SVG arrow navigation buttons.
+
+### 4. Menu adjustments, Header Padding, and Stacking Alignment
+- **Menu Rebranding**: Renamed navigation tabs: **Screener** is now **QMJ Screener** and **Stock Search** is now **Search & Compare**.
+- **Heading Alignment**: Styled the **Compare Tickers** header with the `.discover-section-title` class and a blue accent color (`color: var(--accent);`) to match the "Stock Search & Analyst Lookup" title.
+- **Header Padding & Background**: Changed `.sticky-header-wrapper` background color to `rgba(8, 12, 22, 0.85)` (translucent version of the obsidian page background color `#080c16`) to blend cleanly with the body background. Added horizontal padding of `1.5rem` to prevent menu tabs and widgets from touching the edge of the wrapper.
+
+### 5. Sentiment Framework Documentation & Layered Diagrams
+- **Sentiment Formulas**: Documented the workings of the Zero-Cost Lexical Sentiment pipeline in Section 06 of the **How It Works** web tab. Added the index scoring formula:
+  $$\text{Score} = \frac{\text{Positive} - \text{Negative}}{\text{Positive} + \text{Negative}}$$
+  Detailing the boundaries for Bullish ($> 0.12$), Bearish ($< -0.12$), and Neutral classifications along with Social Volume definitions.
+- **Layered Infrastructure Diagram**: Redesigned the DOM-based animated architecture diagram in `static/index.html` to align with the 4-layer architecture of [system_overview.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/system-design/system_overview.md) (Ingestion & Data Sources, Alpha-DAG Orchestration, Persistence & Analytics Layer, Presentation & User Experience).
+- **Mermaid Diagram Update**: Modified the system architecture flowchart in [system_overview.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/system-design/system_overview.md) to add the Reddit Search API node in the Ingestion stage, the Sentiment Engine node in the LangGraph Orchestration stage, and all of their respective input/output data flow connections.
+
 ## Entry 71: Hiding Sentiment and Restricting Tab Views for Indices and Commodities (2026-05-22)
 
 This entry details the design decisions and implementation for restricting retail sentiment badges and modal tab pages specifically for index trackers and commodities.
