@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.6.6] - 2026-05-25
+
+### Added
+- **Intention & Filename Headers** — Added explicit file headers at the top of all primary frontend files (`index.html`, `app.js`, `style.css`, and `screener.css`) detailing filenames and architectural intentions.
+- **Structured Code Annotations** — Cleaned and documented codebase blocks with comments to improve overall maintenance and scannability.
+
 ## [3.6.5] - 2026-05-25
 
 ### Added

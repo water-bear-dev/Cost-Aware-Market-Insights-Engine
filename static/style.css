@@ -1,3 +1,11 @@
+/*
+ * File: static/style.css
+ * Intention: Central styling definitions for the AI Market Insights Engine dashboard.
+ *            Defines global colors, HSL typography tokens, glassmorphism card variables,
+ *            responsive layouts, keyframe animation flows (e.g. pulse, fade-in, sliders),
+ *            and modular section modifiers for dark mode dashboard screens.
+ */
+
 /* =====================================================
    Base Variables
    ===================================================== */

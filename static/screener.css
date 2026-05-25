@@ -1,3 +1,10 @@
+/*
+ * File: static/screener.css
+ * Intention: Special styling definitions for the Quality Minus Junk (QMJ) Screener table view.
+ *            Controls custom column alignments, hover effects, highlight effects,
+ *            heatmap color rules for Z-scores (neutral, positive, negative), and the paginator controls.
+ */
+
 /* =====================================================
    Screener Table & Pagination
    ===================================================== */

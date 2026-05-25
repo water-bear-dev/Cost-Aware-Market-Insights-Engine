@@ -1,3 +1,11 @@
+/**
+ * File: static/app.js
+ * Intention: Primary JavaScript controller for the AI Market Insights Engine.
+ *            Manages application state, handles dashboard tab switching, renders Charts (Chart.js),
+ *            manages the local clock/timezone dropdown, conducts WebSocket/HTTP requests to backend APIs,
+ *            and dynamically populates views for asset tracking, QMJ Screener, and costs metrics.
+ */
+
 /* =====================================================
    State
    ===================================================== */

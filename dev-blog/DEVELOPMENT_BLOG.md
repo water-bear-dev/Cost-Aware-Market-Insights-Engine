@@ -1,6 +1,16 @@
 # Development Blog
 
 
+## Entry 74: Intentions Documentation and Reusable Code Annotations (2026-05-25)
+
+In this entry, we document the refactoring preparation and standardization of the core frontend assets (`index.html`, `app.js`, `style.css`, and `screener.css`) with explicit intention headers and structural component blocks.
+
+### 1. Documenting Intentions
+To improve codebase onboarding and ensure long-term maintenance of the Cost-Aware Market Insights Engine, we established standard comment blocks at the top of each frontend asset. These explain the file's primary responsibilities, technology stack integration (like Chart.js), and rendering logic.
+
+### 2. Component Demarcations
+Instead of introducing framework complexity in a pure static workspace, we organized components inside index.html, styles, and controllers using structural header annotations. This categorizes UI elements (like regional tables, clock drop-downs, sentiment Badges, and detail modals) into clear modular zones.
+
 ## Entry 73: Financial Statements Toggle, Quarterly Year Filtering, and Cohesive Pulsing Loading Animations (2026-05-25)
 
 This entry details the design decisions and implementation of the interactive financials view toggle, dynamic year-level filtering for quarterly reports, and the integration of pulsing loading placeholders across the stock lookup dashboard.
