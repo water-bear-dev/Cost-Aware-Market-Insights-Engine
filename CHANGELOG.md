@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.7.0] - 2026-05-25
+
+### Added
+- **System Developer Logs Console** — Built a real-time developer terminal console directly in the bottom-right of the dashboard interface.
+- **In-Memory Thread-Safe Log Buffer** (`src/logging_buffer.py`) — Implemented a thread-safe `collections.deque` buffer (up to 150 items) that captures Python `structlog` output dynamically.
+- **Unified Log Polling API** (`/api/v1/logs`) — Exposed a lightweight endpoint to retrieve captured log snapshots on demand, active across both local and production environments with zero CloudWatch billing overheads.
+- **Terminal Controls** — Integrated terminal features into the sliding Dev Logs drawer, including keyword filtering, pause/resume streaming, and console clearing.
+
 ## [3.6.6] - 2026-05-25
 
 ### Added

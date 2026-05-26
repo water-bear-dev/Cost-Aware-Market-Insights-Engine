@@ -1,5 +1,20 @@
 # Development Blog
 
+## Entry 75: System Developer Logs Console & Zero-Overhead In-Memory Buffer (2026-05-25)
+
+In this entry, we detail the implementation of a real-time Developer Logs Console in the bottom right of the UI. This system captures Python `structlog` events using a thread-safe, zero-overhead in-memory ring buffer (`collections.deque`) and exposes them to the client via a polling API, running identically in local and cloud environments without CloudWatch costs.
+
+### 1. In-Memory Structlog Capture
+To enable developers to watch background tasks (scheduler intervals, ingestion runs, AI synthesis calls) live from the browser without invoking expensive CloudWatch API charges, we built a custom structlog processor:
+- **Thread-Safe Buffer**: We created `LogBufferProcessor` inside `src/logging_buffer.py` using `collections.deque(maxlen=150)` guarded by a Python threading lock.
+- **Structured Snapshots**: The processor extracts timestamps and log levels, appending log dictionaries (with key-values) to the ring buffer.
+- **FastAPI Endpoint**: Exposed a lightweight route `/api/v1/logs` that yields the buffer contents as JSON.
+
+### 2. Frontend Slide-Up Terminal Console
+We designed a glassmorphic sliding drawer console in the bottom-right corner of the dashboard:
+- **Slide-Up Drawer**: Styled with a dark command-line aesthetic, showing monospace font, custom scrollbar, and color-coded level badges (light blue for INFO, orange for WARNING, red for ERROR).
+- **Client-Side Polling**: When expanded, Vanilla JS polls `/api/v1/logs` every 2 seconds.
+- **Drawer Controls**: Added a filter search bar (filters logs by keyword on-the-fly), clear console button, pause/resume streaming button, and close toggle.
 
 ## Entry 74: Intentions Documentation and Reusable Code Annotations (2026-05-25)
 

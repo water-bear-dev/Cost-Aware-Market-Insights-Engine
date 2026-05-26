@@ -656,7 +656,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initDefinitionModal();
     initDiscoverTiming();
     initStockSearch();
+    initDeveloperLogs();
 });
+
 
 function initDiscoverEvents() {
     const refreshBtn = document.getElementById('force-discovery-refresh-btn');
@@ -7055,4 +7057,103 @@ function updateComparisonUI() {
         verdictCard.style.display = 'none';
     }
 }
+
+let devLogsInterval = null;
+let devLogsPaused = false;
+let devLogsCache = [];
+
+function initDeveloperLogs() {
+    const toggleBtn = document.getElementById('dev-logs-toggle-btn');
+    const drawer = document.getElementById('dev-logs-drawer');
+    const closeBtn = document.getElementById('dev-logs-close-btn');
+    const pauseBtn = document.getElementById('dev-logs-pause-btn');
+    const clearBtn = document.getElementById('dev-logs-clear-btn');
+    const searchInput = document.getElementById('dev-logs-search');
+    const container = document.getElementById('dev-logs-container');
+
+    if (!toggleBtn || !drawer) return;
+
+    toggleBtn.addEventListener('click', () => {
+        drawer.classList.add('active');
+        toggleBtn.style.display = 'none';
+        startLogsPolling();
+    });
+
+    closeBtn.addEventListener('click', () => {
+        drawer.classList.remove('active');
+        toggleBtn.style.display = 'flex';
+        stopLogsPolling();
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        devLogsPaused = !devLogsPaused;
+        pauseBtn.textContent = devLogsPaused ? 'Resume' : 'Pause';
+        pauseBtn.classList.toggle('active', devLogsPaused);
+    });
+
+    clearBtn.addEventListener('click', () => {
+        devLogsCache = [];
+        container.innerHTML = '<div class="log-line system-msg">Console cleared by user.</div>';
+    });
+
+    searchInput.addEventListener('input', renderLogsToContainer);
+
+    async function startLogsPolling() {
+        fetchLogs();
+        clearInterval(devLogsInterval);
+        devLogsInterval = setInterval(fetchLogs, 2000);
+    }
+
+    function stopLogsPolling() {
+        clearInterval(devLogsInterval);
+        devLogsInterval = null;
+    }
+
+    async function fetchLogs() {
+        if (devLogsPaused) return;
+        try {
+            const res = await fetch('/api/v1/logs');
+            if (!res.ok) return;
+            const data = await res.json();
+            devLogsCache = data;
+            renderLogsToContainer();
+        } catch (e) {
+            console.error('Failed to fetch developer logs', e);
+        }
+    }
+
+    function renderLogsToContainer() {
+        const filterText = searchInput.value.toLowerCase().trim();
+        const scrollAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 45;
+
+        const filtered = devLogsCache.filter(log => {
+            const msg = (log.event || '').toLowerCase();
+            const level = (log.level || '').toLowerCase();
+            return !filterText || msg.includes(filterText) || level.includes(filterText);
+        });
+
+        if (filtered.length === 0) {
+            container.innerHTML = `<div class="log-line system-msg">No logs matching filter "${filterText}"</div>`;
+            return;
+        }
+
+        container.innerHTML = filtered.map(log => {
+            const ts = log.timestamp ? log.timestamp.split('T')[1].replace('Z', '') : '';
+            const lvl = log.level ? log.level.toLowerCase() : 'info';
+            const extraKeys = Object.keys(log).filter(k => k !== 'event' && k !== 'level' && k !== 'timestamp');
+            const extraStr = extraKeys.map(k => ` <span style="color:#64748b">${k}=</span>${JSON.stringify(log[k])}`).join('');
+            
+            return `<div class="log-line ${lvl}">
+                <span class="log-timestamp">[${ts}]</span>
+                <span class="log-level-badge ${lvl}">${log.level}</span>
+                <span>${log.event}</span>${extraStr}
+            </div>`;
+        }).join('');
+
+        if (scrollAtBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+}
+
 

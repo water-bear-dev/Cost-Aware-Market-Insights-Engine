@@ -3549,3 +3549,143 @@ input[type=number] {
     border-color: var(--accent);
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
 }
+
+/* =====================================================
+   Developer Logs Drawer & Button
+   ===================================================== */
+.dev-logs-toggle-btn {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(12px);
+    cursor: pointer;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dev-logs-toggle-btn:hover {
+    color: #ffffff;
+    border-color: var(--accent);
+    box-shadow: 0 0 15px rgba(14, 165, 233, 0.3);
+    transform: translateY(-2px);
+}
+
+.dev-logs-drawer {
+    position: fixed;
+    bottom: 0;
+    right: 2rem;
+    width: 480px;
+    height: 350px;
+    z-index: 1000;
+    border-radius: 16px 16px 0 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateY(100%);
+}
+
+.dev-logs-drawer.active {
+    transform: translateY(0);
+}
+
+.dev-logs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.5);
+}
+
+.dev-logs-body {
+    flex: 1;
+    padding: 0.75rem;
+    overflow-y: auto;
+    background: rgba(8, 12, 24, 0.95);
+    font-family: 'Fira Code', 'Courier New', Courier, monospace;
+    font-size: 0.75rem;
+    color: #e2e8f0;
+    line-height: 1.5;
+}
+
+.log-line {
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    padding-bottom: 0.25rem;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+.log-line.info {
+    color: #38bdf8;
+}
+
+.log-line.warning {
+    color: #fbbf24;
+}
+
+.log-line.error {
+    color: #f87171;
+}
+
+.log-line.system-msg {
+    color: #a78bfa;
+    font-style: italic;
+}
+
+.log-timestamp {
+    color: #64748b;
+    margin-right: 0.5rem;
+    font-weight: 500;
+}
+
+.log-level-badge {
+    display: inline-block;
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-right: 0.5rem;
+    text-transform: uppercase;
+}
+
+.log-level-badge.info {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.log-level-badge.warning {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+.log-level-badge.error {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+}
+
+@media (max-width: 600px) {
+    .dev-logs-drawer {
+        right: 0;
+        width: 100%;
+        border-radius: 0;
+    }
+}
+

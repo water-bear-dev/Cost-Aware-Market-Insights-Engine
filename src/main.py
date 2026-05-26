@@ -2,10 +2,30 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 import structlog
+import logging
 import os
 import threading
 import time
 import pytz
+from src.logging_buffer import global_log_buffer
+
+# Configure structlog globally
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        global_log_buffer,
+        structlog.dev.ConsoleRenderer()
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=True,
+)
+
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -171,6 +191,11 @@ app.include_router(v2_dag.router, prefix="/api/v2/tickers")
 app.include_router(meta.router, prefix="/api/v1")
 app.include_router(discover.router, prefix="/api/v1")
 app.include_router(screener.router, prefix="/api/v1")
+
+@app.get("/api/v1/logs")
+def get_logs():
+    return global_log_buffer.get_logs()
+
 
 if __name__ == "__main__":
     import uvicorn

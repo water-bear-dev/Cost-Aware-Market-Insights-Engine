@@ -108,6 +108,7 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 *   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure LLM spend never exceeds your daily threshold.
 *   **Multi-Provider LLM Routing**: Unified routing engine with priority fallback — Ollama → OpenAI → Anthropic → Bedrock Converse API. Zero single-provider lock-in.
 *   **Lexical Social Sentiment**: $0-cost, dictionary-based scoring of Reddit WSB posts and news headlines. Live sentiment badges (📈/📉/⚖️) and WSB social volume counters on every watchlist card and discovery pick.
+*   **System Developer Logs Console**: Real-time developer terminal console built into the bottom-right of the dashboard UI. Polls a thread-safe local ring buffer to display real-time backend events (scheduler ticks, ingestion steps, AI synthesis results) without CloudWatch cost overheads.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
 *   **Analytics Warehouse**: dbt-driven data lakehouse architecture for scalable, reproducible financial modeling.
 

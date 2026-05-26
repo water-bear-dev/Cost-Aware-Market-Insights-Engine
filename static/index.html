@@ -1415,6 +1415,30 @@
         </div>
     </div>
 
+    <!-- Developer Logs Console -->
+    <button id="dev-logs-toggle-btn" class="dev-logs-toggle-btn glass">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span>Dev Logs</span>
+    </button>
+
+    <div id="dev-logs-drawer" class="dev-logs-drawer glass">
+        <div class="dev-logs-header">
+            <div style="display:flex;align-items:center;gap:0.5rem;font-weight:600;font-size:0.85rem;color:var(--text-primary);">
+                <span class="pulse-animation" style="width:8px;height:8px;border-radius:50%;background:#eab308;display:inline-block;"></span>
+                <span>SYSTEM DEVELOPER LOGS</span>
+            </div>
+            <div class="dev-logs-actions" style="display:flex;align-items:center;gap:0.75rem;">
+                <input type="text" id="dev-logs-search" class="glass-input" placeholder="Filter..." style="width:120px;padding:0.25rem 0.5rem;font-size:0.75rem;background:rgba(15,23,42,0.8);" />
+                <button id="dev-logs-pause-btn" class="glass-btn" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Pause</button>
+                <button id="dev-logs-clear-btn" class="glass-btn" style="padding:0.25rem 0.5rem;font-size:0.75rem;">Clear</button>
+                <button id="dev-logs-close-btn" class="zoom-btn" style="font-size:1rem;background:none;border:none;cursor:pointer;color:var(--text-secondary);">✕</button>
+            </div>
+        </div>
+        <div class="dev-logs-body custom-scrollbar" id="dev-logs-container">
+            <div class="log-line system-msg">Developer Console ready. Click Pause or filter as needed.</div>
+        </div>
+    </div>
+
     <script src="/static/app.js?v=8"></script>
 </body>
 </html>

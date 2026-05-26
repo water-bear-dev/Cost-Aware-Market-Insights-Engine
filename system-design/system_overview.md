@@ -167,6 +167,11 @@ The **Quality Minus Junk (QMJ)** engine implements the AQR factor strategy to ra
 - **Throttling**: Integrated a global "Force Refresh" button with a 30-second client-side cooldown to manage data ingestion load.
 - **Scope**: Refreshes ticker prices and news headlines without triggering expensive QMJ re-calculations (only quarterly).
 
+#### D. System Developer Logs Console
+- **Zero-Overhead In-Memory Buffer**: Logs are captured in a thread-safe `collections.deque` buffer (up to 150 items) inside the Python memory space using a custom `structlog` processor.
+- **Unified Log Polling API**: Exposes a `/api/v1/logs` endpoint that returns logs as a JSON array. This avoids CloudWatch API reading costs in production and runs identically in local development.
+- **Real-Time Client Terminal**: A sliding drawer in the bottom right of the frontend dashboard polls the API every 2 seconds when open, displaying color-coded log entries and enabling client-side filtering.
+
 ### 4. Component Isolation (MCP)
 To maintain security and execution isolation, external capabilities are decoupled into independent **Model Context Protocol (MCP)** servers:
 1. **Market Data MCP**: Encapsulates `yfinance` logic and Google News RSS parsing.
