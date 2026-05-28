@@ -1129,7 +1129,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
 
                 <!-- Sentiment Analysis Framework Section -->
                 <div class="process-card glass" style="grid-column: 1 / -1; margin-top: 2rem; border-color: rgba(168, 85, 247, 0.2);">
@@ -1139,12 +1138,16 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 3rem; margin-top: 1.5rem;">
                         <div>
                             <p style="margin-bottom: 1.25rem; color: #cbd5e1; line-height: 1.7;">
-                                To provide real-time, qualitative market intelligence without incurring AI API costs, the engine runs an automated, zero-cost <strong>Lexical Sentiment Pipeline</strong>. It cross-references retail chatter and media headlines to capture market mood:
+                                To provide real-time, qualitative market intelligence without incurring AI API costs, the engine runs an automated, zero-cost <strong>Lexical Sentiment Pipeline</strong>. It cross-references retail chatter, media headlines, and microblogging posts to capture market mood:
                             </p>
                             <ul style="list-style: none; padding: 0; font-size: 0.9rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 1rem;">
                                 <li style="display: flex; gap: 0.75rem;">
                                     <span style="color: var(--accent); font-weight: 700;">•</span>
                                     <span><strong>Reddit Ingestion (r/wallstreetbets):</strong> The engine queries the public search API for the last 15 posts matching the ticker, extracting post titles and content to capture active retail sentiment.</span>
+                                </li>
+                                <li style="display: flex; gap: 0.75rem;">
+                                    <span style="color: var(--accent); font-weight: 700;">•</span>
+                                    <span><strong>X (Twitter) Ingestion:</strong> Under Phase 10 multi-agent sentiment reconciliation, a feature-flagged X API adapter scans posts for real-time microblogging market trends (up to 15 posts, degrades dynamically if disabled or credentials/bearer tokens are missing).</span>
                                 </li>
                                 <li style="display: flex; gap: 0.75rem;">
                                     <span style="color: var(--accent); font-weight: 700;">•</span>
@@ -1178,7 +1181,7 @@
                                     <li><strong style="color: var(--text-secondary);">⚖️ Neutral:</strong> Sentiment Score between -0.12 and +0.12</li>
                                 </ul>
                                 <p style="font-size: 0.8rem; line-height: 1.5; color: var(--text-secondary);">
-                                    <strong>Social Volume:</strong> The absolute count of active Reddit post matches and headlines aggregated in the calculation window (displayed on the dashboard as <span style="color: #f59e0b; font-weight: 600;">🔥 r/wallstreetbets: [Count]</span>).
+                                    <strong>Social Volume:</strong> The absolute count of active post matches, news headlines, and recent tweets aggregated in the calculation window across active sources (displayed on the dashboard as <span style="color: #f59e0b; font-weight: 600;">🔥 Social Volume: [Count]</span>).
                                 </p>
                             </div>
                         </div>

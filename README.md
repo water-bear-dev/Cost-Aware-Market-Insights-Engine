@@ -107,7 +107,7 @@ The engine has now evolved into a **Global Quality Screener**, specializing in *
 *   **Agentic Orchestration (Alpha-DAG)**: A multi-agent system powered by LangGraph that autonomously "hunts" for high-quality market opportunities.
 *   **FinOps Budget Gates**: Mandatory pre-flight budget checks in the DAG ensure LLM spend never exceeds your daily threshold.
 *   **Multi-Provider LLM Routing**: Unified routing engine with priority fallback — Ollama → OpenAI → Anthropic → Bedrock Converse API. Zero single-provider lock-in.
-*   **Lexical Social Sentiment**: $0-cost, dictionary-based scoring of Reddit WSB posts and news headlines. Live sentiment badges (📈/📉/⚖️) and WSB social volume counters on every watchlist card and discovery pick.
+*   **Lexical Social Sentiment**: $0-cost, dictionary-based scoring of Reddit WSB posts, news headlines, and recent tweets (via X API v2). Live sentiment badges (📈/📉/⚖️) and social volume counters on every watchlist card and discovery pick.
 *   **System Developer Logs Console**: Real-time developer terminal console built into the bottom-right of the dashboard UI. Polls a thread-safe local ring buffer to display real-time backend events (scheduler ticks, ingestion steps, AI synthesis results) without CloudWatch cost overheads.
 *   **TradingView-UX**: High-density, scrollable terminal dashboard with 24-hour sparklines, multi-timeframe charts, and extended-hours visibility.
 *   **Analytics Warehouse**: dbt-driven data lakehouse architecture for scalable, reproducible financial modeling.
@@ -129,6 +129,30 @@ Scores are calculated via `dbt` and `DuckDB` (local) or `Athena` (production), c
     *   *Leverage Ratio (Inverse)*: `total_assets / total_debt`
 
 **Total QMJ Score** = `(Profitability Percentile + Safety Percentile) / 2`
+
+
+## Sentiment Analysis Framework
+
+To provide real-time, qualitative market intelligence without incurring AI API costs, the engine runs an automated, zero-cost **Lexical Sentiment Pipeline**. It cross-references retail chatter, news headlines, and microblogging posts to capture market mood:
+
+*   **Reddit Ingestion (`r/wallstreetbets`)**: The engine queries the public search API for the last 15 posts matching the ticker, extracting post titles and content to capture active retail sentiment.
+*   **X (Twitter) Ingestion**: Under Phase 10 multi-agent sentiment reconciliation, a feature-flagged X API adapter scans posts for real-time microblogging market trends (up to 15 posts, degrades dynamically if disabled or credentials/bearer tokens are missing).
+*   **News Integration**: Headline text from either the active synthesis queue or `yfinance` fallback is merged with social data to enrich the textual context.
+*   **Tokenization & Matching**: All collected text is normalized and tokenized. Words are checked against predefined financial dictionaries containing optimistic/bullish words and risk-focused/bearish words.
+
+### 1. Retail Sentiment Index Score Formula
+
+$$\text{Score} = \frac{\text{Pos} - \text{Neg}}{\text{Pos} + \text{Neg}}$$
+
+Calculates the normalized ratio of bullish terms (**Pos**) to bearish terms (**Neg**). The resulting score spans from **-1.00 (Maximum Bearish)** to **+1.00 (Maximum Bullish)**.
+
+### 2. Classification Boundaries & Social Volume
+
+*   **📈 Bullish**: Sentiment Score $> +0.12$
+*   **📉 Bearish**: Sentiment Score $< -0.12$
+*   **⚖️ Neutral**: Sentiment Score between $-0.12$ and $+0.12$
+
+**Social Volume**: The absolute count of active post matches, news headlines, and recent tweets aggregated in the calculation window across active sources (displayed on the dashboard as `🔥 Social Volume: [Count]`).
 
 
 ## System Requirements & Prerequisites

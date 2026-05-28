@@ -245,7 +245,7 @@ function renderSentimentBadges(
         html += `<span class="sentiment-badge ${sClass}">${emoji} ${label}${scoreText}</span>`;
     }
     if (social_volume !== undefined && social_volume !== null && social_volume > 0) {
-        html += `<span class="social-volume-badge">🔥 r/wallstreetbets: ${social_volume}</span>`;
+        html += `<span class="social-volume-badge">🔥 Social Volume: ${social_volume}</span>`;
     }
     html += '</div>';
     if (showPointers) {
