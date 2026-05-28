@@ -1,5 +1,90 @@
 # Development Blog
 
+## Entry 77: Sentiment UX Simplification, Explainability Overlay, and Interpretation Guidance (2026-05-28)
+
+This entry documents a usability-focused sentiment UX pass applied after Phase 10 rollout. The goal was to make sentiment outputs understandable to non-technical users while preserving analytical depth for advanced users.
+
+### 1. Overview vs Detail Separation
+We split sentiment presentation into two levels:
+- **Overview cards** now prioritize scan speed and readability (primary sentiment badge + retail volume only).
+- **Detail modal** retains richer diagnostics and explanatory context.
+
+This removed cognitive overload from the primary dashboard while keeping advanced transparency one click away.
+
+### 2. X Disabled-State Behavior
+Users were seeing confusing X placeholders even when X ingestion was intentionally off. We updated rendering logic so that:
+- X source chips are suppressed when `x_sentiment_disabled` or `x_bearer_token_missing` is returned.
+- Disabled-X internal fallback noise is filtered from user-facing pointer rows.
+
+Result: users only see active/meaningful sources in diagnostics.
+
+### 3. Plain-English Sentiment Narratives
+The previous explanation text was technically correct but too jargon-heavy for average users. We replaced it with longer, structured plain-English narrative blocks:
+- what the label means (Bullish/Bearish/Neutral),
+- how current price move relates,
+- what score and volume imply for reliability,
+- source contribution breakdown (Reddit/News/X when available),
+- divergence reason and practical caution.
+
+### 4. In-Context “How It Works” Help
+We added a compact sentiment help toggle (`?`) in the modal to explain:
+- which data sources are used,
+- what reliability means,
+- what mixed signals/divergence means.
+
+This allows user education without forcing the main text to over-explain every term.
+
+### 5. Suggested Interpretation Layer
+A new final paragraph now provides practical guidance tailored to state:
+- constructive context (bullish + aligned),
+- risk-off context (bearish + aligned),
+- mixed-signals caution (divergence),
+- moderate-conviction context (otherwise).
+
+This turns raw diagnostics into actionable interpretation while remaining non-prescriptive.
+
+## Entry 76: Phase 10 Multi-Agent Sentiment Refinement, X Integration, and Reconciliation Gate (2026-05-28)
+
+This entry documents the completion of Phase 10, where sentiment moved from a single lexical pass to a structured multi-source agent workflow with reconciliation before recommendation synthesis.
+
+### 1. Structured Sentiment Contract (Reddit + News + X)
+The old sentiment implementation returned only three top-line fields (`sentiment_score`, `sentiment_label`, and `social_volume`), which made debugging and trust calibration difficult. We replaced it with a source-aware contract:
+- **Per-source diagnostics**: each source now reports `ok`, `volume`, `score`, `label`, and `error`.
+- **Aggregate outputs**: retained legacy fields while adding `divergence`, `confidence`, and `errors`.
+- **Backward compatibility**: all existing UI/API consumers continue to function on unchanged core fields.
+
+### 2. Optional X Ingestion With Guardrails
+X sentiment ingestion is now integrated as a first-class source, but remains explicitly optional:
+- **Feature flag**: `ENABLE_X_SENTIMENT=false` by default.
+- **Credential gate**: no runtime failure if `X_BEARER_TOKEN` is absent.
+- **Non-blocking path**: if X is disabled, misconfigured, rate-limited, or down, Reddit/News sentiment still executes normally.
+
+### 3. Discovery DAG Collaboration Upgrade
+The discovery graph now includes a dedicated sentiment reconciliation stage before budget-gated synthesis:
+- Added `sentiment_reconciler_node` after raw sentiment collection.
+- Reconciler computes:
+  - source divergence,
+  - quant/fundamental conflict alignment,
+  - final confidence score.
+- Reconciled sentiment is then injected into the recommendation prompt to improve quality and consistency.
+
+### 4. Persistence and API Surface Expansion
+To preserve observability across the pipeline:
+- Discovery and tracked-asset persistence now include structured sentiment metadata.
+- API responses expose additive fields:
+  - `sentiment_sources`
+  - `sentiment_divergence`
+  - `sentiment_confidence`
+  - `sentiment_errors`
+- Existing consumers that only read legacy fields remain fully compatible.
+
+### Lessons Learned
+1. **Fallback-first design beats source-first design**: alternative data feeds are noisy and brittle; stability comes from graceful degradation, not perfect source uptime.
+2. **Observability is part of model quality**: source-level sentiment diagnostics made it much easier to diagnose weak recommendations than aggregate scores alone.
+3. **Budget safety should remain orthogonal**: FinOps gate placement should not be bypassed or diluted when adding new agent branches.
+4. **Additive contracts reduce deployment risk**: preserving legacy keys while introducing richer metadata avoided frontend breakage and enabled progressive adoption.
+5. **Agent collaboration needs explicit reconciliation**: simply running parallel agents is not true collaboration unless their outputs are reconciled with clear conflict rules.
+
 ## Entry 75: System Developer Logs Console & Zero-Overhead In-Memory Buffer (2026-05-25)
 
 In this entry, we detail the implementation of a real-time Developer Logs Console in the bottom right of the UI. This system captures Python `structlog` events using a thread-safe, zero-overhead in-memory ring buffer (`collections.deque`) and exposes them to the client via a polling API, running identically in local and cloud environments without CloudWatch costs.

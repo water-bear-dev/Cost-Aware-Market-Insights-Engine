@@ -1263,9 +1263,22 @@
 
                     <!-- Market Sentiment & Activity -->
                     <div class="modal-section" id="modal-sentiment-section" style="display: none;">
-                        <h4>Sentiment</h4>
+                        <h4 style="display:flex; align-items:center; gap:0.5rem;">
+                            <span>Sentiment</span>
+                            <button id="modal-sentiment-help-btn" type="button" class="sentiment-help-btn" aria-label="How sentiment works" title="How this works">?</button>
+                        </h4>
                         <div id="modal-sentiment-badges" class="sentiment-row" style="margin-top: 0.5rem;"></div>
                         <div id="modal-sentiment-explanation" style="margin-top: 0.75rem; font-size: 0.85rem; line-height: 1.6; color: #cbd5e1; padding: 0.75rem; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border-left: 3px solid var(--accent);"></div>
+                        <div id="modal-sentiment-help" class="sentiment-help-card" style="display:none;">
+                            <div class="sentiment-help-title">How this sentiment works</div>
+                            <p>We combine three public signals: Reddit discussion, financial news headlines, and X posts (if enabled).</p>
+                            <ul>
+                                <li><strong>Bullish / Bearish / Neutral</strong>: overall mood from combined text signals.</li>
+                                <li><strong>How reliable</strong>: confidence based on message volume and source agreement.</li>
+                                <li><strong>Mixed signals</strong>: sources disagree, or price action conflicts with sentiment.</li>
+                            </ul>
+                            <p style="margin-bottom:0;">Use this as context only, not financial advice.</p>
+                        </div>
                     </div>
 
                     <!-- About the Company -->

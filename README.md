@@ -245,6 +245,7 @@ The application behavior is controlled via environment variables (see `src/confi
 | :--- | :--- | :--- |
 | `LLM_PROVIDER` | `mock`, `ollama`, or `bedrock` | Auto-detected |
 | `ENVIRONMENT`  | `local` or `production` | `local` |
+| `LOG_LEVEL` | Backend log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | Auto (`DEBUG` local / `INFO` production) |
 | `OLLAMA_URL` | Endpoint for Ollama API | `http://host.docker.internal:11434` |
 | `OLLAMA_MODEL` | Local model to invoke | `llama3.2` |
 | `DAILY_BUDGET_USD` | Hard cap on AI spend (Default if DB is empty) | `5.00` |
@@ -252,6 +253,8 @@ The application behavior is controlled via environment variables (see `src/confi
 | `DYNAMODB_ENDPOINT_URL`| Point to local DynamoDB (local only) | `None` |
 
 > **Note on Auto-Detection:** If `LLM_PROVIDER` is left blank, the engine will automatically switch to `bedrock` when running in AWS (detected via `AWS_EXECUTION_ENV`) or when `ENVIRONMENT=production`. Otherwise, it defaults to `ollama`.
+>
+> **Developer Logs Tip:** The in-dashboard Developer Logs Console reflects the backend log stream and now includes `DEBUG` events when `LOG_LEVEL=DEBUG` (default in local mode).
 
 ## Project Structure
 
@@ -292,8 +295,8 @@ The Docker configuration automatically executes `./scripts/syntax_check.sh`:
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
 - **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
-- **[COMPLETE] Phase 10: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
-- **[PLANNED] Phase 11: Multi-Agent Collaborative Refinement** - Introducing specialized "Sentiment Agent" nodes to ingest alternative data (Reddit/X).
+- **[COMPLETE] Phase 9: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
+- **[COMPLETE] Phase 10: Multi-Agent Collaborative Refinement** - Added multi-source sentiment agents (Reddit + News + optional X), sentiment reconciliation before recommendation synthesis, and backward-compatible sentiment diagnostics in API responses.
 
 
 ---

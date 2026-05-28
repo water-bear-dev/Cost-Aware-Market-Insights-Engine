@@ -105,6 +105,10 @@ def synthesize_single_insight(latest_data: dict) -> bool:
     sentiment_score = sentiment_result["sentiment_score"]
     sentiment_label = sentiment_result["sentiment_label"]
     social_volume = sentiment_result["social_volume"]
+    sentiment_sources = sentiment_result.get("sources", {})
+    sentiment_divergence = bool(sentiment_result.get("divergence", False))
+    sentiment_confidence = float(sentiment_result.get("confidence", 0.0))
+    sentiment_errors = sentiment_result.get("errors", [])
     
     prompt = (
         f"You are a senior equity research analyst. Analyze {ticker} using the provided data and news context as of {datetime.utcnow().strftime('%Y-%m-%d')}.\n\n"
@@ -194,6 +198,10 @@ def synthesize_single_insight(latest_data: dict) -> bool:
         'sentiment_score': Decimal(str(sentiment_score)),
         'sentiment_label': sentiment_label,
         'social_volume': social_volume,
+        'sentiment_sources': json.dumps(sentiment_sources),
+        'sentiment_divergence': sentiment_divergence,
+        'sentiment_confidence': Decimal(str(sentiment_confidence)),
+        'sentiment_errors': json.dumps(sentiment_errors),
         'ttl': ttl
     }
     

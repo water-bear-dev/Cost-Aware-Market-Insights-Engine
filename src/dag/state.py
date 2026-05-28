@@ -26,6 +26,10 @@ class AlphaDagState(TypedDict):
     sentiment_score: Optional[float]
     sentiment_label: Optional[str]
     social_volume: Optional[int]
+    sentiment_sources: Optional[dict]
+    sentiment_divergence: Optional[bool]
+    sentiment_confidence: Optional[float]
+    sentiment_errors: Optional[list]
     risk_approved: bool
     
     # Final generated payload

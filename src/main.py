@@ -8,8 +8,11 @@ import threading
 import time
 import pytz
 from src.logging_buffer import global_log_buffer
+from src.config import settings
 
 # Configure structlog globally
+resolved_level = getattr(logging, (settings.log_level or "INFO").upper(), logging.INFO)
+
 structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
@@ -20,7 +23,7 @@ structlog.configure(
         global_log_buffer,
         structlog.dev.ConsoleRenderer()
     ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    wrapper_class=structlog.make_filtering_bound_logger(resolved_level),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
     cache_logger_on_first_use=True,
@@ -42,6 +45,7 @@ from slowapi import _rate_limit_exceeded_handler
 from src.limiter import limiter
 
 logger = structlog.get_logger(__name__)
+logger.info("Structured logging configured", log_level=settings.log_level)
 
 scheduler = BackgroundScheduler()
 
@@ -166,6 +170,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="AI Market Insights Engine", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def debug_request_logging(request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = round((time.time() - start) * 1000, 1)
+    logger.debug(
+        "HTTP request completed",
+        method=request.method,
+        path=str(request.url.path),
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+    )
+    return response
 
 app.add_middleware(
     CORSMiddleware,

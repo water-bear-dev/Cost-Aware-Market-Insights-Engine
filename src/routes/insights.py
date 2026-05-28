@@ -37,6 +37,10 @@ def get_insights(request: Request, ticker: Optional[str] = None):
                 "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
                 "sentiment_label": item.get("sentiment_label", "Neutral"),
                 "social_volume": int(item.get("social_volume", 0)),
+                "sentiment_sources": json.loads(item.get("sentiment_sources", "{}")) if item.get("sentiment_sources") else {},
+                "sentiment_divergence": bool(item.get("sentiment_divergence", False)),
+                "sentiment_confidence": float(item.get("sentiment_confidence", 0.0)) if item.get("sentiment_confidence") is not None else 0.0,
+                "sentiment_errors": json.loads(item.get("sentiment_errors", "[]")) if item.get("sentiment_errors") else [],
             }
         else:
             # Only return insights for actively tracked tickers (prevents ghost data)
@@ -64,6 +68,10 @@ def get_insights(request: Request, ticker: Optional[str] = None):
                     "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
                     "sentiment_label": item.get("sentiment_label", "Neutral"),
                     "social_volume": int(item.get("social_volume", 0)),
+                    "sentiment_sources": json.loads(item.get("sentiment_sources", "{}")) if item.get("sentiment_sources") else {},
+                    "sentiment_divergence": bool(item.get("sentiment_divergence", False)),
+                    "sentiment_confidence": float(item.get("sentiment_confidence", 0.0)) if item.get("sentiment_confidence") is not None else 0.0,
+                    "sentiment_errors": json.loads(item.get("sentiment_errors", "[]")) if item.get("sentiment_errors") else [],
                 })
             return results
 
@@ -121,6 +129,10 @@ def get_daily_picks(request: Request):
                     "sentiment_score": float(item.get("sentiment_score", 0.0)) if item.get("sentiment_score") is not None else 0.0,
                     "sentiment_label": item.get("sentiment_label", "Neutral"),
                     "social_volume": int(item.get("social_volume", 0)),
+                    "sentiment_sources": json.loads(item.get("sentiment_sources", "{}")) if item.get("sentiment_sources") else {},
+                    "sentiment_divergence": bool(item.get("sentiment_divergence", False)),
+                    "sentiment_confidence": float(item.get("sentiment_confidence", 0.0)) if item.get("sentiment_confidence") is not None else 0.0,
+                    "sentiment_errors": json.loads(item.get("sentiment_errors", "[]")) if item.get("sentiment_errors") else [],
                 })
         return picks
     except Exception as e:

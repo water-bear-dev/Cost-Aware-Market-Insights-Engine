@@ -72,5 +72,9 @@ def validation_node(state: AlphaDagState) -> dict:
         "sentiment_score": sent["sentiment_score"],
         "sentiment_label": sent["sentiment_label"],
         "social_volume": sent["social_volume"],
+        "sentiment_sources": sent.get("sources", {}),
+        "sentiment_divergence": bool(sent.get("divergence", False)),
+        "sentiment_confidence": float(sent.get("confidence", 0.0)),
+        "sentiment_errors": sent.get("errors", []),
         "final_insight": last_content
     }

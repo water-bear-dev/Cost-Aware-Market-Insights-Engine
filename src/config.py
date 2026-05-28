@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     aws_default_region: str = "us-east-1"
     dynamodb_endpoint_url: Optional[str] = None
     daily_budget_usd: float = 5.00
+    log_level: Optional[str] = None  # auto: DEBUG in local, INFO in production
     llm_provider: Optional[str] = None # will be auto-detected if None
     ollama_url: str = "http://host.docker.internal:11434"
     ollama_model: str = "llama3.2"
@@ -18,10 +19,20 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-3-5-haiku-20241022"
+    enable_x_sentiment: bool = False
+    x_bearer_token: Optional[str] = None
+    x_api_base_url: str = "https://api.x.com"
+    x_sentiment_max_results: int = 15
     tickers: str = "META,AAPL,AMZN,NFLX,GOOGL"
     
     @model_validator(mode='after')
     def detect_environment_networking(self) -> 'Settings':
+        # 0. Determine default log level by environment unless explicitly set
+        if not self.log_level:
+            self.log_level = "DEBUG" if self.environment == "local" else "INFO"
+        else:
+            self.log_level = self.log_level.upper()
+
         # 1. Auto-detect LLM Provider
         if not self.llm_provider:
             if os.environ.get("AWS_EXECUTION_ENV") or self.environment == "production":

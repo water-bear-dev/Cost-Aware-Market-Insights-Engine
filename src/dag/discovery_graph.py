@@ -21,6 +21,7 @@ class DiscoveryState(TypedDict):
     research: Dict[str, dict]
     news: Dict[str, List[str]]
     sentiment: Dict[str, dict]
+    sentiment_reconciled: Dict[str, dict]
     estimated_cost: float
     budget_cleared: bool
     recommendations: List[dict]
@@ -158,6 +159,50 @@ def sentiment_agent_node(state: DiscoveryState) -> dict:
             
     return {"sentiment": sentiment_data}
 
+
+def sentiment_reconciler_node(state: DiscoveryState) -> dict:
+    """
+    Reconciles sentiment signals with quant/research context.
+    Flags divergence and computes a simple confidence score per ticker.
+    """
+    metrics = state.get("metrics", {})
+    research = state.get("research", {})
+    sentiment = state.get("sentiment", {})
+    all_tickers = state.get("sp500_universe", []) + state.get("international_universe", []) + state.get("hidden_gems_universe", [])
+
+    reconciled = {}
+    for ticker in all_tickers:
+        m = metrics.get(ticker, {})
+        r = research.get(ticker, {})
+        s = sentiment.get(ticker, {})
+
+        score = float(s.get("sentiment_score", 0.0))
+        label = s.get("sentiment_label", "Neutral")
+        volume = int(s.get("social_volume", 0))
+        source_div = bool(s.get("divergence", False))
+
+        momentum = float(m.get("momentum_1mo", 0.0)) if isinstance(m.get("momentum_1mo"), (int, float)) else 0.0
+        target_upside = float(r.get("target_upside", 0.0)) if isinstance(r.get("target_upside"), (int, float)) else 0.0
+
+        # Divergence when sentiment direction conflicts with quant/fundamental context
+        quant_conflict = (score > 0.2 and momentum < -0.05) or (score < -0.2 and momentum > 0.05)
+        research_conflict = (score > 0.2 and target_upside < -0.05) or (score < -0.2 and target_upside > 0.05)
+        divergence = source_div or quant_conflict or research_conflict
+
+        base_conf = float(s.get("confidence", 0.0)) if isinstance(s.get("confidence"), (int, float)) else min(1.0, volume / 20.0)
+        confidence = round(base_conf * (0.7 if divergence else 1.0), 2)
+
+        reconciled[ticker] = {
+            **s,
+            "sentiment_score": round(score, 2),
+            "sentiment_label": label,
+            "social_volume": volume,
+            "divergence": divergence,
+            "confidence": confidence,
+        }
+
+    return {"sentiment_reconciled": reconciled}
+
 def finops_gate_node(state: DiscoveryState) -> dict:
     estimated_cost = 0.0005 
     is_approved = check_budget(estimated_cost)
@@ -172,7 +217,7 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
     metrics = state.get("metrics", {})
     research = state.get("research", {})
     news = state.get("news", {})
-    sentiment = state.get("sentiment", {})
+    sentiment = state.get("sentiment_reconciled", state.get("sentiment", {}))
 
     def get_best(tickers):
         valid = [t for t in tickers if t in metrics]
@@ -204,7 +249,8 @@ def bedrock_recommend_node(state: DiscoveryState) -> dict:
             f"targetUpside={r.get('target_upside', '?'):.1%}, ROE={r.get('roe', '?')}, "
             f"revGrowth={r.get('rev_growth', '?')}, trailingPE={r.get('pe_trailing', '?')}, "
             f"divYield={r.get('div_yield', '?')}, "
-            f"socialSentimentScore={s.get('sentiment_score', 0.0)}, socialSentimentLabel={s.get('sentiment_label', 'Neutral')}, socialVolume={s.get('social_volume', 0)}"
+            f"socialSentimentScore={s.get('sentiment_score', 0.0)}, socialSentimentLabel={s.get('sentiment_label', 'Neutral')}, socialVolume={s.get('social_volume', 0)}, "
+            f"sentimentConfidence={s.get('confidence', 0.0)}, sentimentDivergence={s.get('divergence', False)}"
         ) if isinstance(m.get("rsi_14"), (int, float)) else "quantitative data limited"
 
         return (
@@ -297,7 +343,7 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
     insights_table = get_table('Insights')
     timestamp = datetime.utcnow().isoformat() + "Z"
     ttl = int(datetime.utcnow().timestamp()) + (7 * 24 * 60 * 60)
-    sentiment = state.get("sentiment", {})
+    sentiment = state.get("sentiment_reconciled", state.get("sentiment", {}))
 
     cat_to_id = {
         "S&P 500": "_DAILY_SP500_",
@@ -383,6 +429,10 @@ def save_recommendations_node(state: DiscoveryState) -> dict:
                     'sentiment_score': str(s.get("sentiment_score", 0.0)),
                     'sentiment_label': s.get("sentiment_label", "Neutral"),
                     'social_volume': int(s.get("social_volume", 0)),
+                    'sentiment_sources': json.dumps(s.get("sources", {})),
+                    'sentiment_divergence': bool(s.get("divergence", False)),
+                    'sentiment_confidence': str(s.get("confidence", 0.0)),
+                    'sentiment_errors': json.dumps(s.get("errors", [])),
                     'ttl': ttl
                 }
                 
@@ -415,6 +465,7 @@ def build_discovery_graph():
     workflow.add_node("quant", quant_analyst_node)
     workflow.add_node("research", xvary_research_node)
     workflow.add_node("sentiment", sentiment_agent_node)
+    workflow.add_node("sentiment_reconcile", sentiment_reconciler_node)
     workflow.add_node("finops", finops_gate_node)
     workflow.add_node("bedrock", bedrock_recommend_node)
     workflow.add_node("save", save_recommendations_node)
@@ -426,7 +477,8 @@ def build_discovery_graph():
     
     workflow.add_edge("quant", "finops")
     workflow.add_edge("research", "finops")
-    workflow.add_edge("sentiment", "finops")
+    workflow.add_edge("sentiment", "sentiment_reconcile")
+    workflow.add_edge("sentiment_reconcile", "finops")
     
     workflow.add_edge("finops", "bedrock")
     workflow.add_edge("bedrock", "save")

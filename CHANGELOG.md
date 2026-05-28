@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.8.1] - 2026-05-28
+
+### Added
+- **Sentiment UX Help Overlay** — Added a compact “How this works” explainer toggle (`?`) in the sentiment modal section so users can quickly understand labels, reliability, and mixed-signal behavior.
+- **Suggested Interpretation Block** — Added a new closing interpretation paragraph in AI sentiment explanations (momentum-friendly, risk-off, mixed-signals, or moderate-conviction guidance).
+
+### Changed
+- **Plain-English Sentiment Narratives** — Refactored sentiment explanation text to longer, structured, non-technical language suitable for average users across bullish/bearish/neutral states.
+- **Source Clarity & Divergence Context** — Expanded source contribution wording (Reddit/News/X) and divergence reasoning so users can see why signals conflict.
+- **Overview Card Simplification** — Removed diagnostic pointer chips from overview cards while retaining primary sentiment and social-volume badges; detailed diagnostics remain in modal context.
+- **X Disabled Handling in UI** — When X sentiment is disabled or bearer token is missing, X chips are hidden and internal disabled-state fallback noise is suppressed.
+
+
+## [3.8.0] - 2026-05-28
+
+### Added
+- **Phase 10 Multi-Agent Sentiment Pipeline** — Introduced a structured sentiment contract with source-level diagnostics for Reddit, News, and optional X ingestion.
+- **Optional X Sentiment Adapter** — Added feature-flagged X source support with credential checks and non-blocking fallbacks.
+- **Sentiment Reconciler Node** — Added a reconciliation stage in the Discovery DAG to compute divergence and confidence before recommendation synthesis.
+- **Extended Sentiment Diagnostics** — Added `sentiment_sources`, `sentiment_divergence`, `sentiment_confidence`, and `sentiment_errors` to persisted and returned insight payloads.
+
+### Changed
+- **Discovery DAG Wiring** — Updated orchestration to route `sentiment -> sentiment_reconcile -> finops`, preserving budget-gate order while injecting reconciled sentiment into prompts.
+- **V2 DAG Response Contract** — Extended `/v2/dag/{ticker}/synthesize` to return enriched sentiment diagnostics.
+- **Environment Configuration** — Added optional X sentiment environment settings to `.env.example` and runtime settings.
+
+### Fixed
+- **Sentiment Source Resilience** — Hardened sentiment collection so Reddit/News continue operating when X is disabled, missing credentials, rate-limited, or unavailable.
+- **Backward Compatibility for Clients** — Preserved existing sentiment fields (`sentiment_score`, `sentiment_label`, `social_volume`) while adding new diagnostics as additive metadata.
+
+
 ## [3.7.0] - 2026-05-25
 
 ### Added

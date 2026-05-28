@@ -155,15 +155,88 @@ function isGlobalOrCommodity(ticker) {
            DISCOVER_COMMODITY_SYMBOLS.includes(t);
 }
 
-function renderSentimentBadges(sentiment_label, sentiment_score, social_volume, ticker = null) {
+function resolveSentimentConfidence(sentiment_confidence, social_volume, sentiment_divergence) {
+    const parsed = parseFloat(sentiment_confidence);
+    if (!isNaN(parsed) && parsed > 0) {
+        return Math.max(0, Math.min(1, parsed));
+    }
+
+    const volume = parseInt(social_volume, 10);
+    if (!isNaN(volume) && volume > 0) {
+        // Backfill confidence for legacy rows that do not persist sentiment_confidence.
+        const base = Math.min(1, volume / 20);
+        return Math.max(0, Math.min(1, base * (sentiment_divergence ? 0.65 : 1.0)));
+    }
+    return null;
+}
+
+function isXSourceDisabled(source) {
+    if (!source || typeof source !== 'object') return false;
+    if (source.ok) return false;
+    return source.error === 'x_sentiment_disabled' || source.error === 'x_bearer_token_missing';
+}
+
+function renderSentimentPointers(sentiment_sources, sentiment_confidence, sentiment_divergence, sentiment_errors, social_volume = 0) {
+    const hasSources = sentiment_sources && typeof sentiment_sources === 'object' && Object.keys(sentiment_sources).length > 0;
+    const resolvedConfidence = resolveSentimentConfidence(sentiment_confidence, social_volume, sentiment_divergence);
+    const hasConfidence = resolvedConfidence !== null;
+    const hasDivergence = sentiment_divergence === true;
+    const filteredErrors = Array.isArray(sentiment_errors)
+        ? sentiment_errors.filter((err) => !String(err).includes('x:x_sentiment_disabled') && !String(err).includes('x:x_bearer_token_missing'))
+        : [];
+    const hasErrors = filteredErrors.length > 0;
+
+    if (!hasSources && !hasConfidence && !hasDivergence && !hasErrors) return '';
+
+    let html = '<div class="sentiment-pointers-row">';
+    if (hasConfidence) {
+        const pct = Math.round(resolvedConfidence * 100);
+        html += `<span class="sentiment-pointer-chip">🎯 Confidence: ${pct}%</span>`;
+    }
+    if (hasDivergence) {
+        html += `<span class="sentiment-pointer-chip warn">⚠️ Divergence</span>`;
+    }
+    if (hasSources) {
+        [['reddit', 'R'], ['news', 'N'], ['x', 'X']].forEach(([key, short]) => {
+            const src = sentiment_sources[key];
+            if (!src) return;
+            if (key === 'x' && isXSourceDisabled(src)) return;
+            const score = (src.score !== undefined && src.score !== null && !isNaN(parseFloat(src.score)))
+                ? `${parseFloat(src.score) >= 0 ? '+' : ''}${parseFloat(src.score).toFixed(2)}`
+                : 'n/a';
+            const vol = (src.volume !== undefined && src.volume !== null) ? parseInt(src.volume, 10) : 0;
+            const dot = src.ok ? '●' : '○';
+            html += `<span class="sentiment-pointer-chip source">${dot} ${short}:${score} (${vol})</span>`;
+        });
+    }
+    if (hasErrors) {
+        html += `<span class="sentiment-pointer-chip muted">ℹ️ fallback active</span>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function renderSentimentBadges(
+    sentiment_label,
+    sentiment_score,
+    social_volume,
+    ticker = null,
+    sentiment_sources = null,
+    sentiment_confidence = null,
+    sentiment_divergence = false,
+    sentiment_errors = null,
+    showPointers = true
+) {
     if (ticker && isGlobalOrCommodity(ticker)) {
         return '';
     }
-    if (!sentiment_label && sentiment_score === undefined && social_volume === undefined) {
+    const hasLegacy = sentiment_label || sentiment_score !== undefined || social_volume !== undefined;
+    const hasDiagnostics = sentiment_sources || sentiment_confidence !== null || sentiment_divergence || (Array.isArray(sentiment_errors) && sentiment_errors.length > 0);
+    if (!hasLegacy && !hasDiagnostics) {
         return '';
     }
     
-    let html = '<div class="sentiment-row">';
+    let html = '<div class="sentiment-stack"><div class="sentiment-row">';
     if (sentiment_label) {
         const label = sentiment_label.toUpperCase();
         const sClass = label.includes('BULLISH') ? 'bullish' : (label.includes('BEARISH') ? 'bearish' : 'neutral');
@@ -175,181 +248,185 @@ function renderSentimentBadges(sentiment_label, sentiment_score, social_volume, 
         html += `<span class="social-volume-badge">🔥 r/wallstreetbets: ${social_volume}</span>`;
     }
     html += '</div>';
+    if (showPointers) {
+        html += renderSentimentPointers(sentiment_sources, sentiment_confidence, sentiment_divergence, sentiment_errors, social_volume);
+    }
+    html += '</div>';
     return html;
 }
 
-function generateSentimentExplanation(label, score, volume, ticker = null, changePct = null) {
+function generateSentimentExplanation(
+    label,
+    score,
+    volume,
+    ticker = null,
+    changePct = null,
+    sentiment_sources = null,
+    sentiment_confidence = null,
+    sentiment_divergence = false
+) {
     if (!label && score === undefined && volume === undefined) return '';
 
     const labelUpper = (label || '').toUpperCase();
     const isBullish = labelUpper.includes('BULL');
     const isBearish = labelUpper.includes('BEAR');
     const tickerName = ticker ? ticker.toUpperCase() : 'this asset';
-    
-    // Hash of the ticker name to select unique comment variants
-    const hash = ticker ? (ticker.split('').reduce((acc, char) => (acc << 5) - acc + char.charCodeAt(0), 0) >>> 0) : 0;
-    
-    let sentimentDescription = '';
-    if (isBullish) {
-        const bullishVariants = [
-            `retail interest in <strong>${tickerName}</strong> is surging on expectations of near-term growth catalysts and bullish options positioning. Retail traders on r/wallstreetbets are actively discussing call option sweeps and positive earnings momentum.`,
-            `momentum buyers are clustering around <strong>${tickerName}</strong>, driving a wave of retail FOMO. Discussion threads highlight strong volume spikes and retail hype, with traders targeting key resistance levels.`,
-            `retail sentiment indicates a strong belief that <strong>${tickerName}</strong> is currently undervalued or primed for a turnaround. Board discussions focus on accumulation, with long-term retail holders expressing confidence in the asset's underlying recovery story.`,
-            `chatter around <strong>${tickerName}</strong> centers on new product launches, expansion updates, and high retail popularity, causing buyers to dominate discussions with highly optimistic short-term price targets.`
-        ];
-        sentimentDescription = bullishVariants[hash % bullishVariants.length];
-    } else if (isBearish) {
-        const bearishVariants = [
-            `retail traders are increasingly defensive on <strong>${tickerName}</strong>, with discussions focusing heavily on buying downside protection (puts) and hedging. Caution is driven by perceived overhead resistance and negative technical patterns.`,
-            `negative chatter dominates the forums for <strong>${tickerName}</strong>, reflecting concerns over industry-wide headwinds, margin pressures, or disappointing news flow. Active retail short-sellers are targeting support levels.`,
-            `a wave of retail disappointment or panic-selling discussions has emerged for <strong>${tickerName}</strong>. Sentiment is weighed down by recent news, with many retail accounts reporting stop-losses being triggered or de-risking positions.`,
-            `retail sentiment leans negative as discussions point to overvaluation concerns or sector rotations away from assets like <strong>${tickerName}</strong>, leading to a general consensus of cautious or bearish expectations.`
-        ];
-        sentimentDescription = bearishVariants[hash % bearishVariants.length];
-    } else {
-        const neutralVariants = [
-            `retail discussion around <strong>${tickerName}</strong> suggests a period of consolidation. Traders are generally on the sidelines, waiting for a definitive breakout or fresh fundamental news before taking new directional positions.`,
-            `the retail community is highly divided on the outlook for <strong>${tickerName}</strong>, leading to a balanced, range-bound sentiment. Debate remains active between bulls advocating for accumulation and bears arguing for further correction.`,
-            `interest in <strong>${tickerName}</strong> is relatively muted in retail forums, indicating a lack of near-term speculative hype or major retail-driven catalysts. Trading activity is primarily driven by institutional action rather than retail momentum.`,
-            `chatter regarding <strong>${tickerName}</strong> is largely macro-focused, with retail investors taking a wait-and-see approach. Discussions are centered on broader interest rate decisions, inflation data, or upcoming industry conferences rather than company-specific events.`
-        ];
-        sentimentDescription = neutralVariants[hash % neutralVariants.length];
+    const resolvedConfidence = resolveSentimentConfidence(sentiment_confidence, volume, sentiment_divergence);
+    const confidencePct = resolvedConfidence !== null ? Math.round(resolvedConfidence * 100) : null;
+
+    let confidenceBand = 'low';
+    if (confidencePct !== null) {
+        if (confidencePct >= 70) confidenceBand = 'high';
+        else if (confidencePct >= 40) confidenceBand = 'moderate';
     }
 
-    let dynamicAnalysis = '';
-    if (ticker && changePct !== null && changePct !== undefined) {
-        const changeVal = parseFloat(changePct);
-        const percentStr = `${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(2)}%`;
-        
-        if (isBullish) {
-            if (changeVal > 1.5) {
-                const variants = [
-                    ` For <strong>${tickerName}</strong>, this retail optimism is highly correlated with the strong upward price momentum (<strong>${percentStr}</strong>) observed in today's trading session, suggesting that retail FOMO and buying pressure are supporting the rally.`,
-                    ` The price advance of <strong>${percentStr}</strong> matches the positive buzz in r/wallstreetbets, indicating that retail momentum is acting as a strong wind in the sails of today's upward movement.`,
-                    ` As <strong>${tickerName}</strong> advances by <strong>${percentStr}</strong>, the bullish retail commentary shows strong support from momentum-chasers who are targeting higher breakout levels.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            } else if (changeVal < -1.5) {
-                const variants = [
-                    ` Notably, despite <strong>${tickerName}</strong>'s price decline of <strong>${percentStr}</strong> today, the bullish retail sentiment indicates strong dip-buying behavior or options accumulation (calls) in r/wallstreetbets, pointing to a contrarian retail view.`,
-                    ` Interestingly, while the market has pushed <strong>${tickerName}</strong> down by <strong>${percentStr}</strong> today, the retail crowd is expressing high conviction, viewing the drop as a discount buy opportunity.`,
-                    ` Even with <strong>${tickerName}</strong> down <strong>${percentStr}</strong>, retail comments remain stubbornly bullish, suggesting that retail options traders are loading up on calls in anticipation of a fast bounce.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            } else {
-                const variants = [
-                    ` For <strong>${tickerName}</strong>, the optimistic retail outlook matches the relatively stable intraday price action (<strong>${percentStr}</strong>), reflecting steady accumulation and constructive expectations for the stock's near-term performance.`,
-                    ` With <strong>${tickerName}</strong>'s price consolidating near <strong>${percentStr}</strong> today, the bullish sentiment suggests that the retail community is quietly accumulating shares, anticipating a breakout.`,
-                    ` Retail chatter remains positive despite the flat intraday movement of <strong>${percentStr}</strong>, suggesting underlying support and retail patience for the next catalyst.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            }
-        } else if (isBearish) {
-            if (changeVal < -1.5) {
-                const variants = [
-                    ` For <strong>${tickerName}</strong>, this retail negativity aligns with today's sharp price decline of <strong>${percentStr}</strong>, showing that retail traders are actively pricing in negative news, de-risking positions, or purchasing downside protection (puts).`,
-                    ` The slide of <strong>${percentStr}</strong> today has reinforced the bearish view in retail channels, with many traders on r/wallstreetbets expressing concern over further downside risks.`,
-                    ` As <strong>${tickerName}</strong> drops <strong>${percentStr}</strong>, bearish discussions are surging, with retail users pointing to technical breakdowns and negative news headlines.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            } else if (changeVal > 1.5) {
-                const variants = [
-                    ` Interestingly, despite <strong>${tickerName}</strong> rallying <strong>${percentStr}</strong> today, the bearish retail sentiment indicates a significant degree of skepticism or active short-selling/put positioning among retail traders, anticipating a potential trend reversal.`,
-                    ` While <strong>${tickerName}</strong> is up <strong>${percentStr}</strong>, the retail crowd remains highly skeptical, treating this rise as a temporary rally to short rather than a sustainable breakout.`,
-                    ` The price advance of <strong>${percentStr}</strong> has been met with retail disbelief, with r/wallstreetbets threads focusing on overbought indicators and buying puts.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            } else {
-                const variants = [
-                    ` For <strong>${tickerName}</strong>, the defensive retail outlook matches the quiet or flat price movement of <strong>${percentStr}</strong>, reflecting caution and risk-reduction rather than aggressive selling.`,
-                    ` With the price consolidating near <strong>${percentStr}</strong>, the bearish sentiment suggests retail traders are slowly trimming their exposure to <strong>${tickerName}</strong>, anticipating near-term pressure.`,
-                    ` Quiet price action of <strong>${percentStr}</strong> coincides with retail caution, indicating that market participants are reluctant to enter long positions at current levels.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            }
-        } else { // Neutral
-            if (Math.abs(changeVal) > 2) {
-                const variants = [
-                    ` For <strong>${tickerName}</strong>, despite significant price volatility today (<strong>${percentStr}</strong>), retail sentiment remains neutral, indicating mixed reactions or consensus uncertainty.`,
-                    ` Although <strong>${tickerName}</strong> experienced a sharp move of <strong>${percentStr}</strong> today, retail chatter is highly divided, leaving the overall sentiment index in neutral territory as bulls and bears fight for control.`,
-                    ` The intraday swing of <strong>${percentStr}</strong> has generated balanced arguments, with retail discussions showing no clear consensus on whether the move represents a breakout or a trap.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            } else {
-                const variants = [
-                    ` This neutral sentiment aligns with the range-bound price action of <strong>${percentStr}</strong> today, indicating that retail interest is in a holding pattern awaiting clearer macro or fundamental catalysts.`,
-                    ` The quiet trading session (<strong>${percentStr}</strong>) matches the lack of retail conviction, as discussion forums focus on other market sectors instead of <strong>${tickerName}</strong>.`,
-                    ` With <strong>${tickerName}</strong> trading flat at <strong>${percentStr}</strong>, the neutral retail response highlights a lack of momentum and a general wait-and-see attitude from retail investors.`
-                ];
-                dynamicAnalysis = variants[hash % variants.length];
-            }
-        }
+    let sentimentDescription = '';
+    let directionalTakeaway = '';
+    if (isBullish) {
+        sentimentDescription = `<strong>${tickerName}</strong> is currently attracting more positive than negative market discussion. In practical terms, the crowd tone is optimistic and skewed toward upside expectations rather than defensive positioning.`;
+        directionalTakeaway = `A bullish read does not guarantee a price increase, but it usually means recent conversation flow is supportive of momentum continuation if other fundamentals and price action align.`;
+    } else if (isBearish) {
+        sentimentDescription = `<strong>${tickerName}</strong> is currently attracting more negative than positive market discussion. In practical terms, the crowd tone is cautious and skewed toward downside risk or weaker near-term expectations.`;
+        directionalTakeaway = `A bearish read does not guarantee a price drop, but it indicates that discussion flow is risk-off and may pressure sentiment-sensitive moves if uncertainty persists.`;
+    } else {
+        sentimentDescription = `<strong>${tickerName}</strong> discussion is currently balanced, with no strong positive or negative tilt. In practice, this usually points to a wait-and-see environment where conviction is split.`;
+        directionalTakeaway = `A neutral read often appears when participants are waiting for a catalyst (earnings, guidance, macro news, or technical breakout) before committing directionally.`;
+    }
+
+    let marketContext = '';
+    const parsedChange = (changePct !== null && changePct !== undefined && !isNaN(parseFloat(changePct))) ? parseFloat(changePct) : null;
+    if (parsedChange !== null) {
+        const percentStr = `${parsedChange >= 0 ? '+' : ''}${parsedChange.toFixed(2)}%`;
+        marketContext = `Today's price move is <strong>${percentStr}</strong>, which provides useful context for whether current sentiment is confirming price action or moving against it.`;
+    } else {
+        marketContext = `Recent price context is limited, so sentiment should be interpreted with extra caution until market direction is clearer.`;
     }
 
     let scoreExplanation = '';
-    if (score !== undefined && score !== null) {
-        const absScore = Math.abs(parseFloat(score));
-        let strength = 'mild';
-        if (absScore > 0.6) strength = 'extreme';
-        else if (absScore > 0.3) strength = 'moderate';
-        
-        if (isBullish) {
-            const scoreVariants = [
-                ` A sentiment index score of <strong>+${parseFloat(score).toFixed(2)}</strong> reflects a <strong>${strength}</strong> concentration of bullish terms, particularly words like <em>growth, calls, surge, and rally</em>.`,
-                ` The positive score of <strong>${parseFloat(score).toFixed(2)}</strong> confirms a <strong>${strength}</strong> dominance of optimistic language (e.g. <em>buy, moon, profit</em>) across scanned retail comments.`,
-                ` The score stands at <strong>+${parseFloat(score).toFixed(2)}</strong>, highlighting a <strong>${strength}</strong> preference for bullish setups and long options sentiment among active traders.`
-            ];
-            scoreExplanation = scoreVariants[hash % scoreVariants.length];
-        } else if (isBearish) {
-            const scoreVariants = [
-                ` A sentiment index score of <strong>${parseFloat(score).toFixed(2)}</strong> reflects a <strong>${strength}</strong> concentration of bearish terms, particularly words like <em>risk, puts, drop, and pressure</em>.`,
-                ` The negative score of <strong>${parseFloat(score).toFixed(2)}</strong> confirms a <strong>${strength}</strong> dominance of pessimistic language (e.g. <em>sell, loss, decline</em>) across scanned retail comments.`,
-                ` The score stands at <strong>${parseFloat(score).toFixed(2)}</strong>, highlighting a <strong>${strength}</strong> preference for bearish setups and short positioning/puts among active traders.`
-            ];
-            scoreExplanation = scoreVariants[hash % scoreVariants.length];
-        } else {
-            const scoreVariants = [
-                ` The lexical score of <strong>${parseFloat(score).toFixed(2)}</strong> indicates a balanced density of positive and negative keywords, reflecting uncertainty or lack of directional bias.`,
-                ` A score of <strong>${parseFloat(score).toFixed(2)}</strong> shows keyword counts are evenly split, confirming mixed expectations and low directional conviction.`,
-                ` Standing at <strong>${parseFloat(score).toFixed(2)}</strong>, the score reveals that neither side is dominant in the current discussion stream.`
-            ];
-            scoreExplanation = scoreVariants[hash % scoreVariants.length];
-        }
+    if (score !== undefined && score !== null && !isNaN(parseFloat(score))) {
+        const parsedScore = parseFloat(score);
+        const scoreMagnitude = Math.abs(parsedScore);
+        let scoreStrength = 'light';
+        if (scoreMagnitude >= 0.6) scoreStrength = 'strong';
+        else if (scoreMagnitude >= 0.3) scoreStrength = 'moderate';
+        scoreExplanation = `The aggregate sentiment score is <strong>${parsedScore >= 0 ? '+' : ''}${parsedScore.toFixed(2)}</strong>, which represents a <strong>${scoreStrength}</strong> language tilt in recent text sources. Higher positive values indicate more optimistic wording, while lower negative values indicate more pessimistic wording.`;
+    } else {
+        scoreExplanation = `A precise sentiment score is unavailable for this sample, so the label should be treated as directional context only.`;
     }
 
     let volumeExplanation = '';
     if (volume !== undefined && volume !== null && volume > 0) {
-        if (volume > 50) {
-            const volumeVariants = [
-                ` A high r/wallstreetbets volume of <strong>${volume}</strong> mentions reveals a massive spike in retail attention, making it a highly discussed meme or high-beta candidate today.`,
-                ` The substantial volume of <strong>${volume}</strong> posts shows that <strong>${tickerName}</strong> is currently a hot topic, ranking high in trending retail discussions.`,
-                ` With <strong>${volume}</strong> active discussions, <strong>${tickerName}</strong> is attracting intense retail eyes, signifying high liquidity and retail crowd interest.`
-            ];
-            volumeExplanation = volumeVariants[hash % volumeVariants.length];
-        } else if (volume >= 10) {
-            const volumeVariants = [
-                ` The r/wallstreetbets volume of <strong>${volume}</strong> indicates an active level of discussions in retail communities.`,
-                ` Scanned retail forums show a moderate volume of <strong>${volume}</strong> mentions, showing steady interest but not a runaway retail frenzy.`,
-                ` The volume of <strong>${volume}</strong> posts indicates that <strong>${tickerName}</strong> remains on the radar of active retail option and swing traders.`
-            ];
-            volumeExplanation = volumeVariants[hash % volumeVariants.length];
+        const vol = parseInt(volume, 10);
+        if (vol >= 30) {
+            volumeExplanation = `We found <strong>${vol}</strong> recent mentions, which is a healthy sample size and generally improves reading stability versus very small samples.`;
+        } else if (vol >= 10) {
+            volumeExplanation = `We found <strong>${vol}</strong> recent mentions, which is a usable but mid-sized sample; the signal is informative, though still sensitive to short-term narrative swings.`;
         } else {
-            const volumeVariants = [
-                ` A low volume of <strong>${volume}</strong> mentions suggests that while <strong>${tickerName}</strong> is discussed, it is not currently the primary focus of retail speculative flow.`,
-                ` The <strong>${volume}</strong> posts detected indicate sparse retail chatter, pointing to institutional or fundamental drivers rather than retail speculation.`,
-                ` Low volume (<strong>${volume}</strong> posts) shows that the stock is flying under the radar of the main r/wallstreetbets discussion boards.`
-            ];
-            volumeExplanation = volumeVariants[hash % volumeVariants.length];
+            volumeExplanation = `We found only <strong>${vol}</strong> recent mentions, so this is a lower-depth signal and should be treated as early context rather than a high-conviction read.`;
         }
+    } else {
+        volumeExplanation = `Retail mention volume is currently low, so this reading should be interpreted as weak context and combined with additional evidence.`;
+    }
+
+    const pointers = [];
+    if (resolvedConfidence !== null) {
+        pointers.push(`Signal confidence is <strong>${confidencePct}%</strong> (<strong>${confidenceBand}</strong>).`);
+    }
+    let sourceRows = [];
+    let sourceSpread = null;
+    if (sentiment_sources && typeof sentiment_sources === 'object') {
+        sourceRows = ['reddit', 'news', 'x'].map((k) => {
+            const src = sentiment_sources[k];
+            if (!src) return null;
+            if (k === 'x' && isXSourceDisabled(src)) return null;
+            const srcScore = (src.score !== undefined && src.score !== null && !isNaN(parseFloat(src.score)))
+                ? `${parseFloat(src.score) >= 0 ? '+' : ''}${parseFloat(src.score).toFixed(2)}`
+                : 'n/a';
+            const srcVol = (src.volume !== undefined && src.volume !== null) ? parseInt(src.volume, 10) : 0;
+            const srcState = src.ok ? 'online' : 'fallback';
+            return { key: k, text: `${k.toUpperCase()}: ${srcScore} (${srcVol}, ${srcState})`, score: src.score, ok: !!src.ok, vol: srcVol };
+        }).filter(Boolean);
+        const validScores = sourceRows
+            .map((r) => parseFloat(r.score))
+            .filter((n) => !isNaN(n));
+        if (validScores.length >= 2) {
+            sourceSpread = Math.max(...validScores) - Math.min(...validScores);
+        }
+    }
+
+    if (sourceRows.length > 0) {
+        const reddit = sourceRows.find((r) => r.key === 'reddit');
+        const x = sourceRows.find((r) => r.key === 'x');
+        const news = sourceRows.find((r) => r.key === 'news');
+
+        if (reddit) {
+            pointers.push(`Reddit contribution: <strong>${reddit.text}</strong>.`);
+        }
+        if (x && x.ok && x.vol > 0) {
+            pointers.push(`X contribution (if available): <strong>${x.text}</strong>.`);
+        } else if (x) {
+            pointers.push(`X contribution is currently limited (<strong>${x.text}</strong>), so this reading leans more on Reddit and news inputs.`);
+        } else {
+            pointers.push(`X contribution is currently not included (disabled or unavailable in this environment).`);
+        }
+        if (news) {
+            pointers.push(`News contribution: <strong>${news.text}</strong>.`);
+        }
+    }
+
+    if (sentiment_divergence) {
+        const divergenceReasons = [];
+        if (sourceSpread !== null && sourceSpread >= 0.5) {
+            divergenceReasons.push(`source scores are far apart (spread ${sourceSpread.toFixed(2)})`);
+        }
+        const changeVal = (changePct !== null && changePct !== undefined && !isNaN(parseFloat(changePct))) ? parseFloat(changePct) : null;
+        if (changeVal !== null) {
+            const directionalConflict =
+                (isBullish && changeVal < -1) || (isBearish && changeVal > 1);
+            if (directionalConflict) {
+                divergenceReasons.push(`price action (${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(2)}%) conflicts with sentiment direction`);
+            }
+        }
+        const fallbackSources = sourceRows.filter((r) => !r.ok);
+        if (fallbackSources.length > 0) {
+            divergenceReasons.push(`${fallbackSources.map((s) => s.key.toUpperCase()).join('/')} running in fallback mode`);
+        }
+        if (divergenceReasons.length === 0) {
+            divergenceReasons.push('source and market signals are mixed');
+        }
+        pointers.push(`Cross-source <strong>divergence</strong> is present because ${divergenceReasons.join('; ')}. This means directional conviction should be treated more conservatively until signals re-align.`);
+    } else {
+        pointers.push(`Source agreement is relatively stable right now, which improves consistency of the current sentiment read.`);
+    }
+
+    let interpretationText = '';
+    if (isBullish && !sentiment_divergence && (confidencePct === null || confidencePct >= 60)) {
+        interpretationText = `Suggested interpretation: sentiment context is constructive. If price structure remains supportive, this can be treated as a momentum-friendly backdrop rather than a standalone buy trigger.`;
+    } else if (isBearish && !sentiment_divergence && (confidencePct === null || confidencePct >= 60)) {
+        interpretationText = `Suggested interpretation: sentiment context is risk-off. Treat this as a caution flag for downside sensitivity until both price action and source tone stabilize.`;
+    } else if (sentiment_divergence) {
+        interpretationText = `Suggested interpretation: signals are mixed. Prioritize confirmation (trend direction, volume follow-through, and fresh headlines) before making directional decisions.`;
+    } else {
+        interpretationText = `Suggested interpretation: conviction is moderate. Use this signal as supporting context alongside technical and fundamental checks rather than in isolation.`;
     }
 
     return `
         <div style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; color: var(--accent); letter-spacing: 0.05em; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem;">
             <span>🤖 AI Explanation</span>
         </div>
-        <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.6;">
-            Retail sentiment is classified as <strong>${labelUpper || 'NEUTRAL'}</strong>. This means ${sentimentDescription}${dynamicAnalysis}${scoreExplanation}${volumeExplanation}
+        <p style="margin: 0; color: #e2e8f0; font-size: 0.85rem; line-height: 1.68;">
+            Retail sentiment is <strong>${labelUpper || 'NEUTRAL'}</strong>. ${sentimentDescription}
         </p>
+        <p style="margin: 0.5rem 0 0; color: #dbeafe; font-size: 0.84rem; line-height: 1.65;">
+            ${directionalTakeaway} ${marketContext}
+        </p>
+        <p style="margin: 0.5rem 0 0; color: #cbd5e1; font-size: 0.83rem; line-height: 1.62;">
+            ${scoreExplanation} ${volumeExplanation}
+        </p>
+        <p style="margin: 0.55rem 0 0; color: #bfdbfe; font-size: 0.83rem; line-height: 1.62;">
+            ${interpretationText}
+        </p>
+        ${pointers.length ? `<div style="margin-top:0.6rem; padding-top:0.55rem; border-top:1px solid rgba(255,255,255,0.08); color:var(--text-secondary); font-size:0.82rem; line-height:1.45;">${pointers.join(' ')}</div>` : ''}
     `;
 }
 
@@ -1770,7 +1847,17 @@ async function fetchDailyPicks() {
                     ${catalystsHtml}
 
                     <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-                        ${renderSentimentBadges(pick.sentiment_label, pick.sentiment_score, pick.social_volume, pick.actual_ticker)}
+                        ${renderSentimentBadges(
+                            pick.sentiment_label,
+                            pick.sentiment_score,
+                            pick.social_volume,
+                            pick.actual_ticker,
+                            pick.sentiment_sources,
+                            pick.sentiment_confidence,
+                            pick.sentiment_divergence,
+                            pick.sentiment_errors,
+                            false
+                        )}
                         <div style="font-size:0.6rem; color:var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.6; flex-shrink: 0;">
                             VIEW REPORT &rarr;
                         </div>
@@ -2497,7 +2584,17 @@ function updateCard(wrapper, mkt, insight) {
     // Refresh card-level sentiment badges
     const sentimentContainer = inner.querySelector('.card-sentiment-container');
     if (sentimentContainer && insight) {
-        sentimentContainer.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker);
+        sentimentContainer.innerHTML = renderSentimentBadges(
+            insight.sentiment_label,
+            insight.sentiment_score,
+            insight.social_volume,
+            mkt.ticker,
+            insight.sentiment_sources,
+            insight.sentiment_confidence,
+            insight.sentiment_divergence,
+            insight.sentiment_errors,
+            false
+        );
     }
 
     // Update data attributes for filtering/sorting
@@ -2604,7 +2701,17 @@ function cardInnerHtml(mkt, insight) {
         </div>
         <div id="sparkline-card-${mkt.ticker}" class="card-sparkline-bg"></div>
         <div class="card-sentiment-container">
-            ${insight ? renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker) : ''}
+            ${insight ? renderSentimentBadges(
+                insight.sentiment_label,
+                insight.sentiment_score,
+                insight.social_volume,
+                mkt.ticker,
+                insight.sentiment_sources,
+                insight.sentiment_confidence,
+                insight.sentiment_divergence,
+                insight.sentiment_errors,
+                false
+            ) : ''}
         </div>
         <div class="insight-text" style="margin-top: 0; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.25rem;">
             ${insight ? formatInsight(insight.insight_text, null, ['WhatsHappening']) : 'Awaiting AI synthesis — click to view history.'}
@@ -3329,12 +3436,40 @@ function renderModalContent(mkt, insight) {
     const sentimentSection = document.getElementById('modal-sentiment-section');
     const sentimentBadges = document.getElementById('modal-sentiment-badges');
     const sentimentExplanation = document.getElementById('modal-sentiment-explanation');
+    const sentimentHelpBtn = document.getElementById('modal-sentiment-help-btn');
+    const sentimentHelpCard = document.getElementById('modal-sentiment-help');
+    if (sentimentHelpBtn && sentimentHelpCard && !sentimentHelpBtn.dataset.bound) {
+        sentimentHelpBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const open = sentimentHelpCard.style.display !== 'none';
+            sentimentHelpCard.style.display = open ? 'none' : 'block';
+        });
+        sentimentHelpBtn.dataset.bound = '1';
+    }
     if (sentimentSection && sentimentBadges) {
         const hasSentiment = !isGlobalComm && insight && (insight.sentiment_label || insight.sentiment_score !== undefined || insight.social_volume !== undefined);
         if (hasSentiment && !isDiscover) {
-            sentimentBadges.innerHTML = renderSentimentBadges(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker);
+            sentimentBadges.innerHTML = renderSentimentBadges(
+                insight.sentiment_label,
+                insight.sentiment_score,
+                insight.social_volume,
+                mkt.ticker,
+                insight.sentiment_sources,
+                insight.sentiment_confidence,
+                insight.sentiment_divergence,
+                insight.sentiment_errors
+            );
             if (sentimentExplanation) {
-                sentimentExplanation.innerHTML = generateSentimentExplanation(insight.sentiment_label, insight.sentiment_score, insight.social_volume, mkt.ticker, mkt.change_pct);
+                sentimentExplanation.innerHTML = generateSentimentExplanation(
+                    insight.sentiment_label,
+                    insight.sentiment_score,
+                    insight.social_volume,
+                    mkt.ticker,
+                    mkt.change_pct,
+                    insight.sentiment_sources,
+                    insight.sentiment_confidence,
+                    insight.sentiment_divergence
+                );
                 const label = (insight.sentiment_label || '').toUpperCase();
                 if (label.includes('BULL')) {
                     sentimentExplanation.style.borderLeftColor = '#22c55e'; // green
@@ -3347,8 +3482,10 @@ function renderModalContent(mkt, insight) {
                     sentimentExplanation.style.background = 'rgba(255, 255, 255, 0.03)';
                 }
             }
+            if (sentimentHelpCard) sentimentHelpCard.style.display = 'none';
             sentimentSection.style.display = 'block';
         } else {
+            if (sentimentHelpCard) sentimentHelpCard.style.display = 'none';
             sentimentSection.style.display = 'none';
         }
     }

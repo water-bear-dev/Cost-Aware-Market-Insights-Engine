@@ -31,6 +31,14 @@
 ### Get AI Insights
 `GET /insights`
 - **Description**: Returns the latest AI-synthesized investment theses for tracked assets.
+- **Sentiment Fields**:
+  - Backward-compatible: `sentiment_score`, `sentiment_label`, `social_volume`
+  - Extended: `sentiment_sources`, `sentiment_divergence`, `sentiment_confidence`, `sentiment_errors`
+
+### Trigger V2 DAG Synthesis
+`POST /v2/dag/{ticker}/synthesize`
+- **Description**: Triggers the LangGraph Alpha-DAG synthesis workflow for a specific ticker.
+- **Response**: Includes FinOps gate result, generated insight, and sentiment diagnostics.
 
 ### Force Ticker Ingestion
 `POST /tickers/{ticker}/ingest`

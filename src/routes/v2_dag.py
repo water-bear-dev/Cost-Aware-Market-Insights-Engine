@@ -17,6 +17,10 @@ class DagSynthesisResponse(BaseModel):
     sentiment_score: Optional[float] = None
     sentiment_label: Optional[str] = None
     social_volume: Optional[int] = None
+    sentiment_sources: Optional[dict] = None
+    sentiment_divergence: Optional[bool] = None
+    sentiment_confidence: Optional[float] = None
+    sentiment_errors: Optional[list] = None
 
 @router.post("/{ticker}/synthesize", response_model=DagSynthesisResponse)
 async def trigger_dag_synthesis(ticker: str):
@@ -34,6 +38,10 @@ async def trigger_dag_synthesis(ticker: str):
         "sentiment_score": None,
         "sentiment_label": None,
         "social_volume": 0,
+        "sentiment_sources": {},
+        "sentiment_divergence": False,
+        "sentiment_confidence": 0.0,
+        "sentiment_errors": [],
         "risk_approved": False,
         "final_insight": None
     }
@@ -50,7 +58,11 @@ async def trigger_dag_synthesis(ticker: str):
             cost=final_state.get("estimated_cost", 0.0),
             sentiment_score=final_state.get("sentiment_score"),
             sentiment_label=final_state.get("sentiment_label"),
-            social_volume=final_state.get("social_volume")
+            social_volume=final_state.get("social_volume"),
+            sentiment_sources=final_state.get("sentiment_sources"),
+            sentiment_divergence=final_state.get("sentiment_divergence"),
+            sentiment_confidence=final_state.get("sentiment_confidence"),
+            sentiment_errors=final_state.get("sentiment_errors"),
         )
     except Exception as e:
         logger.error("DAG Execution Failed", ticker=ticker, error=str(e), exc_info=True)
