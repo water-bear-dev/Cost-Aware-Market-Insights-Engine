@@ -63,3 +63,6 @@ htmlcov/
 # Security
 secrets/
 *.pem
+
+# Agentic Handoff
+agent_handoff.md
