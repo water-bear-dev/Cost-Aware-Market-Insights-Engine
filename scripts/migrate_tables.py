@@ -1,6 +1,13 @@
 import boto3
 import os
-from scripts.seed_universes import SP500_TICKERS, ASX200_TICKERS
+from scripts.seed_universes import (
+    SP500_TICKERS, 
+    ASX200_TICKERS, 
+    TOKYO_TICKERS, 
+    HANGSENG_TICKERS, 
+    DAX_TICKERS, 
+    FTSE_TICKERS
+)
 
 DYNAMODB_ENDPOINT = "http://dynamodb-local:8000"
 REGION = "us-east-1"
@@ -8,8 +15,8 @@ REGION = "us-east-1"
 def migrate():
     dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_ENDPOINT, region_name=REGION)
     
-    # 1. Migrate all 613 tickers to QMJUniverse
-    all_tickers = sorted(list(set(SP500_TICKERS + ASX200_TICKERS)))
+    # 1. Migrate all tickers to QMJUniverse
+    all_tickers = sorted(list(set(SP500_TICKERS + ASX200_TICKERS + TOKYO_TICKERS + HANGSENG_TICKERS + DAX_TICKERS + FTSE_TICKERS)))
     print(f"Migrating {len(all_tickers)} tickers to QMJUniverse...")
     qmj_table = dynamodb.Table('QMJUniverse')
     with qmj_table.batch_writer() as batch:

@@ -106,6 +106,7 @@
                                 <option value="GBP">GBP (£)</option>
                                 <option value="AUD">AUD (A$)</option>
                                 <option value="JPY">JPY (¥)</option>
+                                <option value="HKD">HKD (HK$)</option>
                             </select>
                         </div>
                         <span class="badge" id="ticker-count" style="margin: 0;">0/30 Tracked</span>
@@ -331,6 +332,10 @@
                         <option value="all">All Universes</option>
                         <option value="sp500">S&P 500</option>
                         <option value="asx">ASX</option>
+                        <option value="tokyo">Tokyo</option>
+                        <option value="hangseng">Hang Seng</option>
+                        <option value="dax">DAX</option>
+                        <option value="ftse">FTSE</option>
                     </select>
                     
                     <span class="dim-label" style="font-size:0.75rem; text-transform:uppercase; margin-left: 1rem;">Period:</span>
@@ -352,6 +357,7 @@
                         <option value="EUR">EUR (€)</option>
                         <option value="GBP">GBP (£)</option>
                         <option value="JPY">JPY (¥)</option>
+                        <option value="HKD">HKD (HK$)</option>
                     </select>
                 </div>
             </div>
@@ -364,6 +370,7 @@
                                 <th class="sortable" data-sort="ticker">Ticker ↕</th>
                                 <th class="sortable" data-sort="company_name">Company ↕</th>
                                 <th class="sortable" data-sort="report_date">Reported ↕</th>
+                                <th class="sortable qmj-exchange-col" data-sort="exchange" style="display: none;">Exchange ↕</th>
                                 <th class="sortable" data-sort="industry">Industry ↕</th>
                                 <th class="sortable numeric" data-sort="market_cap">Market Cap ↕</th>
                                 <th class="sortable numeric highlight-col" data-sort="qmj_score">

@@ -52,23 +52,54 @@ ASX200_TICKERS = [
     "WES.AX", "WHC.AX", "WOR.AX", "WOW.AX", "WPL.AX", "WSA.AX", "XRO.AX", "ZEL.AX"
 ]
 
+# Tokyo Tickers (Nikkei 225 representative)
+TOKYO_TICKERS = [
+    "7203.T", "9984.T", "6758.T", "9983.T", "8035.T", 
+    "7974.T", "8306.T", "8058.T", "8001.T", "6861.T", 
+    "4502.T", "6902.T", "6981.T", "7751.T", "7267.T", 
+    "6501.T", "6367.T", "4519.T", "4063.T", "6273.T"
+]
+
+# Hang Seng Tickers (HSI representative)
+HANGSENG_TICKERS = [
+    "0700.HK", "9988.HK", "3690.HK", "1299.HK", "0005.HK", 
+    "9618.HK", "1810.HK", "2318.HK", "0939.HK", "1398.HK", 
+    "3988.HK", "0883.HK", "0941.HK", "2269.HK", "2015.HK", 
+    "9888.HK", "2688.HK", "0388.HK", "1093.HK", "1109.HK"
+]
+
+# DAX Tickers (DAX 40 representative)
+DAX_TICKERS = [
+    "SAP.DE", "SIE.DE", "ALV.DE", "DTE.DE", "MBG.DE", 
+    "BMW.DE", "BAS.DE", "BAYN.DE", "MRK.DE", "VOW3.DE", 
+    "DHL.DE", "MUV2.DE", "IFX.DE", "EON.DE", "RWE.DE", 
+    "HEI.DE", "DB1.DE", "CON.DE", "MTX.DE", "HNR1.DE"
+]
+
+# FTSE Tickers (FTSE 100 representative)
+FTSE_TICKERS = [
+    "AZN.L", "SHEL.L", "HSBA.L", "ULVR.L", "BP.L", 
+    "GSK.L", "RIO.L", "DGE.L", "BATS.L", "BARC.L", 
+    "AHT.L", "LLOY.L", "REL.L", "PRU.L", "VOD.L", 
+    "NG.L", "UU.L", "TSCO.L", "GLEN.L", "ANTO.L"
+]
+
 def seed():
-    print(f"Seeding {len(SP500_TICKERS)} S&P 500 tickers and {len(ASX200_TICKERS)} ASX tickers...")
+    print(f"Seeding {len(SP500_TICKERS)} S&P 500, {len(ASX200_TICKERS)} ASX, {len(TOKYO_TICKERS)} Tokyo, {len(HANGSENG_TICKERS)} Hang Seng, {len(DAX_TICKERS)} DAX, and {len(FTSE_TICKERS)} FTSE tickers...")
     
     dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_ENDPOINT, region_name=REGION)
     table = dynamodb.Table('Tickers')
     
-    all_tickers = list(set(SP500_TICKERS + ASX200_TICKERS))
+    all_tickers = list(set(SP500_TICKERS + ASX200_TICKERS + TOKYO_TICKERS + HANGSENG_TICKERS + DAX_TICKERS + FTSE_TICKERS))
     
     # [DISABLED] Seeding mass tickers into DynamoDB is disabled to keep dashboard focused.
     # The QMJ Screener now uses DuckDB populated by ingest_universe.py.
     # with table.batch_writer() as batch:
     #     for ticker in all_tickers:
     #         batch.put_item(Item={'ticker': ticker})
-            # except Exception as e:
-            #     print(f"Failed to add {ticker}: {e}")
             
     print("Seeding complete.")
+
 
 if __name__ == "__main__":
     seed()

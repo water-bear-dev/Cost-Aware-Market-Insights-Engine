@@ -15,11 +15,18 @@ structlog.configure(
 logger = structlog.get_logger()
 
 # Import universes from seed_universes
-from scripts.seed_universes import SP500_TICKERS, ASX200_TICKERS
+from scripts.seed_universes import (
+    SP500_TICKERS, 
+    ASX200_TICKERS,
+    TOKYO_TICKERS,
+    HANGSENG_TICKERS,
+    DAX_TICKERS,
+    FTSE_TICKERS
+)
 
 def ingest_universe():
-    """Ingest financials for the full S&P 500 and ASX 200 universes."""
-    all_tickers = sorted(list(set(SP500_TICKERS + ASX200_TICKERS)))
+    """Ingest financials for the full QMJ universes."""
+    all_tickers = sorted(list(set(SP500_TICKERS + ASX200_TICKERS + TOKYO_TICKERS + HANGSENG_TICKERS + DAX_TICKERS + FTSE_TICKERS)))
     logger.info("Starting bulk ingestion", total_tickers=len(all_tickers))
     
     os.makedirs("scratch/bronze/financials", exist_ok=True)
@@ -45,7 +52,7 @@ def ingest_universe():
             
             # Check if we have enough
             current_count = len([f for f in os.listdir("scratch/bronze/financials") if f.endswith(".json")])
-            if current_count >= 600:
+            if current_count >= 1000:
                 logger.info("Reached target count", count=current_count)
                 # We can't easily break the executor, but we can stop submitting
                 break

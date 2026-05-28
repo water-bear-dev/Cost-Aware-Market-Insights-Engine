@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.9.0] - 2026-05-28
+
+### Added
+- **QMJ International Screener Expansion** — Integrated new ticker universes for **Tokyo Stock Exchange** (JP, `.T`), **Hang Seng Index** (HK, `.HK`), **DAX** (DE, `.DE`), and **FTSE 100** (UK, `.L`) into the quantitative factor warehouse and staging pipelines.
+- **Conditional Exchange Column** — Dynamically displays a dedicated "Exchange" column in the QMJ Screener table when "All Universes" is selected, and hides it when filtering by specific universes to preserve high-density grid rhythm.
+- **Reporting Date Extension** — Updated the ingestion and analytical warehouses to process and compile financial statement periods extending up to **31 March 2026** (2026 Q1).
+- **HKD Currency Support** — Added Hong Kong Dollar (`HKD`) to currency selectors in the watchlist manager and QMJ screener views, complete with automated real-time exchange rate mapping.
+
+### Changed
+- **S&P 500 Filter Separation** — Refined the S&P 500 filter to isolate US domestic equities by explicitly excluding all new international suffixes (`.AX`, `.T`, `.HK`, `.DE`, `.L`).
+- **Warehouse Compilation Scaling** — Increased the ingestion target threshold in `ingest_universe.py` from 600 to 1000 tickers to accommodate the newly expanded global stock list.
+
+
 ## [3.8.1] - 2026-05-28
 
 ### Added

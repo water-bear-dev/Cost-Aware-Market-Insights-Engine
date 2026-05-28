@@ -22,7 +22,15 @@ class WarehouseClient:
         if universe == 'asx':
             where_clause = "WHERE ticker LIKE '%.AX'"
         elif universe == 'sp500':
-            where_clause = "WHERE ticker NOT LIKE '%.AX'"
+            where_clause = "WHERE ticker NOT LIKE '%.AX' AND ticker NOT LIKE '%.T' AND ticker NOT LIKE '%.HK' AND ticker NOT LIKE '%.DE' AND ticker NOT LIKE '%.L'"
+        elif universe == 'tokyo':
+            where_clause = "WHERE ticker LIKE '%.T'"
+        elif universe == 'hangseng':
+            where_clause = "WHERE ticker LIKE '%.HK'"
+        elif universe == 'dax':
+            where_clause = "WHERE ticker LIKE '%.DE'"
+        elif universe == 'ftse':
+            where_clause = "WHERE ticker LIKE '%.L'"
             
         query = f"""
             SELECT * FROM fct_qmj_screener

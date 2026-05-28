@@ -801,6 +801,7 @@ async function fetchQMJScreener() {
     if (!tbody) return;
 
     const universe = document.getElementById('qmj-filter-universe')?.value || 'all';
+    const colCount = (universe === 'all') ? 12 : 11;
 
     try {
         const res = await fetch(`/api/v1/screener/qmj?universe=${universe}`);
@@ -812,14 +813,14 @@ async function fetchQMJScreener() {
                 initQmjTableEvents();
                 applyQmjFilters();
             } else {
-                tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No QMJ data available. Ensure ingestion has run.</td></tr>`;
             }
         } else {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--negative);">Failed to load screener data.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 4rem; color: var(--negative);">Failed to load screener data.</td></tr>`;
         }
     } catch (e) {
         console.error("Screener fetch failed:", e);
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--negative);">Network error: ${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 4rem; color: var(--negative);">Network error: ${e.message}</td></tr>`;
     }
 }
 
@@ -932,6 +933,13 @@ function renderQMJScreener() {
     const paginationInfo = document.getElementById('qmj-pagination-info');
     if (!tbody) return;
 
+    const universe = document.getElementById('qmj-filter-universe')?.value || 'all';
+    const showExchange = (universe === 'all');
+    const exchangeHeader = document.querySelector('.qmj-exchange-col');
+    if (exchangeHeader) {
+        exchangeHeader.style.display = showExchange ? '' : 'none';
+    }
+
     const total = filteredQmjData.length;
     const totalPages = Math.ceil(total / qmjPageSize) || 1;
     if (qmjCurrentPage > totalPages) qmjCurrentPage = totalPages;
@@ -942,8 +950,10 @@ function renderQMJScreener() {
 
     paginationInfo.innerText = total > 0 ? `Showing ${startIdx + 1}-${endIdx} of ${total} companies` : 'Showing 0-0 of 0 companies';
 
+    const colCount = showExchange ? 12 : 11;
+
     if (total === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No results match your filters.</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 4rem; color: var(--text-secondary);">No results match your filters.</td></tr>`;
     } else {
         tbody.innerHTML = pageData.map(row => {
             const reportDate = row.report_date ? row.report_date.split(/[T ]/)[0] : '—';
@@ -952,6 +962,7 @@ function renderQMJScreener() {
                     <td><a href="https://finance.yahoo.com/quote/${row.ticker}" target="_blank" class="screener-ticker" onclick="event.stopPropagation()">${row.ticker}</a></td>
                     <td><div class="screener-company" title="${row.company_name}">${row.company_name}</div></td>
                     <td style="font-size:0.75rem; color:var(--text-secondary);">${reportDate}</td>
+                    ${showExchange ? `<td style="font-size:0.75rem; font-weight: 500; color: var(--accent);">${row.exchange || '—'}</td>` : ''}
                     <td style="font-size:0.75rem;">${row.industry}</td>
                     <td class="numeric" style="font-family: monospace;">${formatLargePrice(row.market_cap, 'USD')}</td>
                     <td class="numeric highlight-col">${renderZPill(row.qmj_score, true)}</td>

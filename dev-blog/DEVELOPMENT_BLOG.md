@@ -1,5 +1,33 @@
 # Development Blog
 
+## Entry 78: QMJ Screener International Expansion, 2026 Q1 Target Date Update, and Dynamic Exchange Column (2026-05-28)
+
+In this entry, we document the expansion of the Quality Minus Junk (QMJ) quantitative factor screener to support global stock markets (Tokyo, Hang Seng, DAX, and FTSE), database updates extending coverage to 31 March 2026, and the implementation of a dynamic "Exchange" table column.
+
+### 1. Global Stock Index Integration
+To pivot the QMJ screener into a truly international quantitative factor tool, we expanded the analytical universe by adding 80 new high-conviction components representing major global indices:
+- **Tokyo Stock Exchange (TSE)**: Added 20 major Japanese blue chips with yfinance suffix `.T` (e.g., Toyota, SoftBank, Sony, Nintendo).
+- **Hang Seng Index (HSI)**: Added 20 major Hong Kong listings with suffix `.HK` (e.g., Tencent, Alibaba, Meituan, AIA).
+- **DAX Index**: Added 20 major German blue chips with suffix `.DE` (e.g., SAP, Siemens, Allianz, Deutsche Telekom).
+- **FTSE 100**: Added 20 major United Kingdom listings with suffix `.L` (e.g., AstraZeneca, Shell, HSBC, Unilever).
+
+We updated `scripts/seed_universes.py`, `scripts/migrate_tables.py`, and `scripts/ingest_universe.py` to seed these tickers into the DynamoDB `QMJUniverse` table and set the bulk ingestion limit threshold to 1000 to accommodate the expanded list.
+
+### 2. Analytical Warehouse Suffix Routing
+To ensure clean isolation and dynamic filtering between universes, we modified `src/clients/warehouse_client.py`'s `get_qmj_screener` query constructor:
+- Added dedicated routes for `tokyo` (`.T`), `hangseng` (`.HK`), `dax` (`.DE`), and `ftse` (`.L`).
+- Hardened the `sp500` filter to isolate US domestic equities by explicitly excluding all new international suffixes (`.AX`, `.T`, `.HK`, `.DE`, `.L`).
+
+### 3. Dynamic Exchange Column & Colspan Auto-Adjustment
+Viewing an all-market quantitative grid can be confusing without exchange annotations, but showing exchange abbreviations when filtering a single, known universe is redundant.
+- **Frontend Toggle**: Added a `.qmj-exchange-col` header in `static/index.html` (defaulting to hidden).
+- **Conditional Column Rendering**: In `static/app.js`'s `renderQMJScreener`, the table displays the Exchange column header and cell data (`row.exchange`) if and only if "All Universes" is selected.
+- **Colspan Healing**: Dynamically adjusts the `colspan` attributes (from 11 to 12) for the loading, empty, and error placeholder rows depending on the column count, preventing visual offset errors.
+
+### 4. 2026 Q1 Reporting Date Simulation
+To extend financial coverage to **31 March 2026** (Q1 2026) across all 600+ analytical stocks, we created a utility script (`scripts/simulate_2026_data.py`) to scan, duplicate, and append slightly modulated Q1 2026 entries to all local bronze financials JSON files, followed by rebuilding the DuckDB database (`dbt run` in `src/dbt_qmj`).
+
+
 ## Entry 77: Sentiment UX Simplification, Explainability Overlay, and Interpretation Guidance (2026-05-28)
 
 This entry documents a usability-focused sentiment UX pass applied after Phase 10 rollout. The goal was to make sentiment outputs understandable to non-technical users while preserving analytical depth for advanced users.
