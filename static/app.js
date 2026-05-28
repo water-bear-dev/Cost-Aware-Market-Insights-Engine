@@ -2152,6 +2152,18 @@ function drawSparkline(elementId, dataset, color) {
         }
     }
 
+    // Helper to extract RGB numbers from hex dynamically
+    const getRgbStr = (hex) => {
+        if (!hex || !hex.startsWith('#')) return '16, 185, 129';
+        let c = hex.substring(1);
+        if (c.length === 3) {
+            c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+        }
+        const num = parseInt(c, 16);
+        if (isNaN(num)) return '16, 185, 129';
+        return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+    };
+
     if (!sparklineInstances[elementId]) {
         container.innerHTML = '<canvas></canvas>';
         const ctx = container.querySelector('canvas').getContext('2d');
@@ -2165,7 +2177,7 @@ function drawSparkline(elementId, dataset, color) {
         // Build gradient fill for premium background look (matches Gold commodity card)
         const gradCanvas = container.querySelector('canvas');
         const gradCtx = gradCanvas.getContext('2d');
-        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const rgb = getRgbStr(color);
         const gradient = gradCtx.createLinearGradient(0, 0, 0, 90);
         gradient.addColorStop(0, `rgba(${rgb}, 0.3)`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
@@ -2203,7 +2215,7 @@ function drawSparkline(elementId, dataset, color) {
         // Recalculate gradient to match new color
         const gradCanvas = sparklineInstances[elementId].canvas;
         const gradCtx = gradCanvas.getContext('2d');
-        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const rgb = getRgbStr(color);
         const gradient = gradCtx.createLinearGradient(0, 0, 0, 90);
         gradient.addColorStop(0, `rgba(${rgb}, 0.3)`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
@@ -4330,6 +4342,18 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         }
     }
 
+    // Helper to extract RGB numbers from hex dynamically
+    const getRgbStr = (hex) => {
+        if (!hex || !hex.startsWith('#')) return '16, 185, 129';
+        let c = hex.substring(1);
+        if (c.length === 3) {
+            c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+        }
+        const num = parseInt(c, 16);
+        if (isNaN(num)) return '16, 185, 129';
+        return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+    };
+
     if (!discoverSparklineInstances[symbol]) {
         container.innerHTML = '<canvas></canvas>';
         const canvas = container.querySelector('canvas');
@@ -4344,7 +4368,7 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         const padding = range === 0 ? (minVal * 0.01 || 1) : range * 0.02;
 
         // Premium Gradient Aesthetic
-        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const rgb = getRgbStr(color);
         const gradient = ctx.createLinearGradient(0, 0, 0, 80);
         gradient.addColorStop(0, `rgba(${rgb}, 0.28)`);
         gradient.addColorStop(0.6, `rgba(${rgb}, 0.05)`);
@@ -4387,7 +4411,7 @@ function drawDiscoverSparkline(container, symbol, dataset, color) {
         const ctx = chart.ctx;
 
         // Recalculate gradient to match new color
-        const rgb = color === '#10b981' ? '16, 185, 129' : '244, 63, 94';
+        const rgb = getRgbStr(color);
         const gradient = ctx.createLinearGradient(0, 0, 0, 52);
         gradient.addColorStop(0, `rgba(${rgb}, 0.25)`);
         gradient.addColorStop(1, `rgba(${rgb}, 0)`);
