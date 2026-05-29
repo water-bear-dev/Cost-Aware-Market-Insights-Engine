@@ -51,6 +51,7 @@ COMMODITIES = [
 ]
 
 MOVERS_UNIVERSE = [
+    # US (Americas)
     "AAPL","MSFT","GOOGL","AMZN","META","NVDA","TSLA","JPM","V","UNH",
     "JNJ","WMT","PG","MA","HD","DIS","NFLX","ADBE","CRM","INTC",
     "AMD","QCOM","CSCO","TXN","MCD","NKE","SBUX","COST","AMGN","ABBV",
@@ -58,17 +59,25 @@ MOVERS_UNIVERSE = [
     "C","WFC","BLK","AXP","SPGI","BA","CAT","GE","HON","RTX",
     "LMT","DE","T","VZ","TMUS","CHTR","CMCSA","PYPL","SQ","SHOP",
     "UBER","LYFT","ABNB","COIN","PLTR","RIVN","LCID","NIO","BABA","JD",
-    # Australia (ASX)
+    "AVGO","SMCI","MU","INTU","AMAT","ISRG","LRCX","BKNG","MDLZ","REGN",
+    "VRTX","PANW","SNPS","CDNS","PDD","MELI","LULU","CRWD",
+    # Canada (TSX - Americas)
+    "RY.TO","TD.TO","SHOP.TO","CP.TO","CNQ.TO","CNR.TO","ENB.TO","BNS.TO","BMO.TO","ABX.TO","MFC.TO","SU.TO",
+    # Australia (ASX - Asia)
     "CBA.AX","BHP.AX","CSL.AX","NAB.AX","ANZ.AX","WBC.AX","RIO.AX","WES.AX","MQG.AX","WOW.AX",
-    "FMG.AX","TLS.AX","WDS.AX","XRO.AX","REH.AX",
-    # Asia (HK, JP)
-    "9984.T","7203.T","6758.T","0700.HK","9988.HK","3690.HK","1299.HK","2318.HK","1810.HK",
-    # Europe (LSE, Euronext)
-    "VOD.L","HSBA.L","BP.L","SHEL.L","AZN.L","GSK.L","MC.PA","OR.PA","ASML.AS","SAP.DE",
-    # India (NSE)
-    "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS",
-    # Canada (TSX)
-    "RY.TO","TD.TO","SHOP.TO","CP.TO","CNQ.TO"
+    "FMG.AX","TLS.AX","WDS.AX","XRO.AX","REH.AX","GMG.AX","ALL.AX","QAN.AX","COH.AX","APA.AX","TCL.AX","SUN.AX","IAG.AX","STO.AX",
+    # Japan (TSE - Asia)
+    "9984.T","7203.T","6758.T","8035.T","9983.T","6857.T","4502.T","8306.T","8316.T","7974.T","6902.T","4063.T",
+    # Hong Kong (HKEX - Asia)
+    "0700.HK","9988.HK","3690.HK","1299.HK","2318.HK","1810.HK","9618.HK","9888.HK","1211.HK","0388.HK","0005.HK","0939.HK","1398.HK","3988.HK",
+    # India (NSE - Asia)
+    "RELIANCE.NS","TCS.NS","HDFCBANK.NS","INFY.NS","ICICIBANK.NS","BHARTIARTL.NS","SBIN.NS","WIPRO.NS","ITC.NS","HINDUNILVR.NS",
+    # United Kingdom (LSE - Europe)
+    "VOD.L","HSBA.L","BP.L","SHEL.L","AZN.L","GSK.L","ULVR.L","RIO.L","DGE.L","BARC.L","LLOY.L",
+    # France / Netherlands (Euronext - Europe)
+    "MC.PA","OR.PA","ASML.AS","RMS.PA","CDI.PA","TTE.PA","SAN.PA","AIR.PA","PRX.AS","UNA.AS",
+    # Germany (DAX - Europe)
+    "SAP.DE","ALV.DE","SIE.DE","DTG.DE","MBG.DE","BAS.DE","BAYN.DE","VOW3.DE","DTE.DE"
 ]
 
 # ─── In-memory caches ─────────────────────────────────────────────────────────

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.9.1] - 2026-05-29
+
+### Changed
+- **Expanded Curated Movers Universe** — Expanded the curated list of stock tickers in `MOVERS_UNIVERSE` inside `src/routes/discover.py` by adding ~80 major international and US stock symbols (including AVGO, SMCI, and leading TSX, ASX, TSE, HKEX, NSE, LSE, Euronext, and DAX constituents) to improve the statistical quality of daily movers listings.
+- **Indian Ticker Symbol Corrections** — Corrected typographical errors in Indian equity tickers (`BHARTIENTL.NS` -> `BHARTIARTL.NS` and `LTIM.NS` -> `WIPRO.NS`) in `discover.py` to prevent data download failures.
+
+
 ## [3.9.0] - 2026-05-28
 
 ### Added

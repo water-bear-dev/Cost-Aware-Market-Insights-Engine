@@ -1,5 +1,27 @@
 # Development Blog
 
+## Entry 79: Expanded Curated Movers Universe and Symbol Corrections (2026-05-29)
+
+In this entry, we document the expansion of the curated movers universe used to fetch the top 10 gainers and losers globally, along with critical ticker spelling corrections.
+
+### 1. Curated Movers Expansion (Approach A)
+To provide a more comprehensive and statistically representative set of gainers and losers for global markets, we expanded the list of stock tickers in `MOVERS_UNIVERSE` inside `src/routes/discover.py` by adding ~80 new high-volume, liquid assets. This brings the total pool of monitored equities to ~160+.
+- **Americas**: Added high-cap/high-beta US assets (such as AVGO, SMCI, MU, CRWD, etc.) and leading Canadian TSX stocks (e.g. CNR.TO, ENB.TO).
+- **Europe**: Added prominent UK (LSE), France/Netherlands (Euronext), and German (DAX) constituents (e.g., ULVR.L, RMS.PA, ALV.DE).
+- **Asia-Pacific**: Added leading Australian (ASX), Japanese (TSE), Hong Kong (HKEX), and Indian (NSE) equities (e.g. GMG.AX, 8035.T, 9618.HK, WIPRO.NS).
+
+### 2. Suffix-Based Auto-Routing
+Because the newly added symbols adhere to established regional suffix patterns (e.g. `.L`, `.PA`, `.DE` for Europe; `.AX`, `.T`, `.HK`, `.NS` for Asia-Pacific; `.TO` or suffix-free for Americas), the regional classification code in `_fetch_movers()` automatically routed all new tickers to the correct regional buckets (`americas`, `europe`, `asia`) without any logic modifications.
+
+### 3. Indian Ticker Fixes
+We resolved two typographical errors in the Indian stock ticker lists that were triggering Yahoo Finance download failures:
+- Corrected `BHARTIENTL.NS` to the valid symbol `BHARTIARTL.NS` (Bharti Airtel).
+- Replaced `LTIM.NS` with `WIPRO.NS` (Wipro) to ensure error-free historical updates.
+
+### 4. Performance & Validation
+A custom verification script was compiled and run to check that the expanded universe does not introduce significant network overhead. The entire set of 160+ tickers downloaded and compiled in under **10 seconds** via parallel thread execution, successfully delivering 10 gainers and 10 losers for each category.
+
+
 ## Entry 78: QMJ Screener International Expansion, 2026 Q1 Target Date Update, and Dynamic Exchange Column (2026-05-28)
 
 In this entry, we document the expansion of the Quality Minus Junk (QMJ) quantitative factor screener to support global stock markets (Tokyo, Hang Seng, DAX, and FTSE), database updates extending coverage to 31 March 2026, and the implementation of a dynamic "Exchange" table column.

@@ -1,50 +1,35 @@
-# Agent Handoff: Sentiment UX Explainability Pass (v3.8.1)
+# Agent Handoff: Expanded Global Movers Universe (v3.9.1)
 
-This document summarizes the latest sentiment UX/explainability refinements layered on top of Phase 10 sentiment reconciliation.
+This document summarizes the changes made to expand the daily global market movers universe (Approach A) in the Cost-Aware Market Insights Engine.
 
 ## Current Project State
-The project now includes a dual-layer sentiment presentation model:
-- **Overview cards**: simplified for quick scan (sentiment label + retail volume).
-- **Modal detail**: expanded plain-English explanation, source contribution diagnostics, divergence reasons, confidence, and a contextual interpretation paragraph.
+The project has been upgraded to scan a much broader and more statistically representative pool of global equities (~160+ tickers) to select the daily top 10 gainers and losers.
 
 ### What Was Built (Latest Pass)
-1. **Sentiment Explanation Expansion (`static/app.js`)**
-   - `generateSentimentExplanation(...)` now outputs longer, structured, non-technical narrative blocks.
-   - Includes:
-     - state meaning (Bullish/Bearish/Neutral),
-     - score and volume interpretation,
-     - source contribution summaries (Reddit/News/X),
-     - divergence cause analysis,
-     - final “Suggested interpretation” guidance paragraph.
+1. **Movers Universe Expansion (`src/routes/discover.py`)**
+   - Expanded `MOVERS_UNIVERSE` by adding ~80 new highly liquid, high-volume stock symbols from international indices (TSX, ASX, TSE, HKEX, NSE, LSE, Euronext, DAX) and high-cap US stocks.
+   - Leveraged yfinance's single-request bulk download features to prevent rate-limiting and minimize latency.
+   - Suffix-based regional routing (`.L`/`.PA`/`.DE` for Europe, `.AX`/`.T`/`.HK`/`.NS` for Asia, `.TO` or suffix-free for Americas) automatically categorizes all new tickers correctly without logic updates.
 
-2. **X Disabled-State UX Guard (`static/app.js`)**
-   - X source chips are hidden when `x_sentiment_disabled` or `x_bearer_token_missing`.
-   - Disabled-X fallback noise is filtered from user-facing fallback indicators.
+2. **Ticker Data Corrections (`src/routes/discover.py`)**
+   - Corrected typographical errors in Indian stock tickers to prevent data download failures:
+     - Fixed `BHARTIENTL.NS` to the valid symbol `BHARTIARTL.NS` (Bharti Airtel).
+     - Replaced the failing `LTIM.NS` symbol with the liquid `WIPRO.NS` (Wipro) symbol.
 
-3. **Modal Sentiment Help Overlay**
-   - `static/index.html`: Added `?` help button and inline “How this sentiment works” card in the sentiment section.
-   - `static/style.css`: Added help-button and help-card styles.
-   - `static/app.js`: Added toggle binding and state reset behavior on section hide/show.
-
-4. **Documentation Updates**
-   - `CHANGELOG.md`: Added `3.8.1` entry for sentiment UX and explainability updates.
-   - `dev-blog/DEVELOPMENT_BLOG.md`: Added Entry 77 with design rationale and outcomes.
-   - `agent_handoff.md`: Updated to this current handoff state.
+3. **Documentation Updates**
+   - `CHANGELOG.md`: Added version entry `[3.9.1] - 2026-05-29`.
+   - `dev-blog/DEVELOPMENT_BLOG.md`: Added Entry 79 detailing implementation findings and timing metrics.
 
 ---
 
 ## File Map & Coordinates
-
-- **Sentiment rendering + explanation logic**: `static/app.js`
-- **Sentiment modal help markup**: `static/index.html`
-- **Sentiment/help styling**: `static/style.css`
-- **Release notes**: `CHANGELOG.md`
-- **Implementation narrative**: `dev-blog/DEVELOPMENT_BLOG.md`
+- **Movers Ticker definitions and fetching logic**: [discover.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/routes/discover.py)
+- **Release notes**: [CHANGELOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/CHANGELOG.md)
+- **Implementation narrative**: [dev-blog/DEVELOPMENT_BLOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/dev-blog/DEVELOPMENT_BLOG.md)
 
 ---
 
 ## Technical Instructions for Next Agent
-- Keep overview cards concise; place advanced diagnostics in modal context.
-- If further sentiment wording changes are requested, update only `generateSentimentExplanation(...)` to preserve consistency.
-- Preserve X-disabled suppression behavior unless product requirements explicitly ask to surface disabled sources.
-- Recommended verification: `bash scripts/syntax_check.sh` plus manual modal check on at least one bullish, bearish, and divergence case.
+- Keep the `MOVERS_UNIVERSE` list aligned with highly liquid stocks. Avoid adding penny stocks or illiquid assets that could return zero-volume swings.
+- If ticker errors arise, check that the ticker suffixes match Yahoo Finance patterns.
+- Recommended verification: `bash scripts/syntax_check.sh`.
