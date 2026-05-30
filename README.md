@@ -318,9 +318,10 @@ The Docker configuration automatically executes `./scripts/syntax_check.sh`:
 - **[COMPLETE] Phase 4: UX Polish & Global Access** - Multi-currency support, interactive visualizations, live discovery pick hydration, and educational infrastructure animations.
 - **[COMPLETE] Phase 5: Discover & Manage Redesign** - Restructuring the dashboard navigation into dedicated Manage (tracked assets) and Discover (global market intelligence) tabs. Adding regional indices, commodities, top movers, and a live news feed.
 - **[COMPLETE] Phase 6: Global Localization & Resilience** - Multi-currency support (HKD, CAD, SGD, NZD), exchange-aware price formatting, and robust local LLM (Ollama) stability patches for the Discovery Agent.
-- **[COMPLETE] Phase 8: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
-- **[COMPLETE] Phase 9: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
-- **[COMPLETE] Phase 10: Multi-Agent Collaborative Refinement** - Added multi-source sentiment agents (Reddit + News + optional X), sentiment reconciliation before recommendation synthesis, and backward-compatible sentiment diagnostics in API responses.
+- **[COMPLETE] Phase 7: Global Quality Screener & Institutional Pivot** - Integrated S&P 500 and ASX universe toggle for the QMJ Screener, implemented a resilient "permissive" ingestion engine with quarterly fallbacks, and executed an institutional pivot to focus the dashboard on FAANG assets while isolating the 600-ticker screener logic.
+- **[COMPLETE] Phase 8: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
+- **[COMPLETE] Phase 9: Multi-Provider LLM Routing & Lexical Sentiment Pipeline** - Integrated a provider-agnostic router (local Ollama fallback, OpenAI, Anthropic, Bedrock Converse) and zero-cost, dictionary-based sentiment scoring for Reddit & news with frontend sentiment badges.
+- **[COMPLETE] Phase 10: Multi-Agent Collaborative Refinement & Reconciliation** - Added multi-source sentiment agents (Reddit + News + optional X), sentiment reconciliation before recommendation synthesis, and backward-compatible sentiment diagnostics in API responses.
 
 
 ---

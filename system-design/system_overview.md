@@ -1,6 +1,6 @@
 # AI Market Insights Engine -- Final System Architecture
 
-## Final Production State (Phase 8 Complete)
+## Final Production State (Phase 10 Complete)
 **Status:** Institutional-Grade QMJ Screener & Alpha-DAG Pivot [COMPLETE]
 
 ### 1. High-Level Architecture
@@ -99,41 +99,8 @@ The engine leverages a distributed agentic architecture (Alpha-DAG) combined wit
 *   **Persistence**: DynamoDB (Tables: MarketData, TrackedAssets, QMJUniverse, Insights, CostTracking).
 *   **Frontend**: Vanilla JS (Diff-Patch Renderer) + Chart.js + CSS Grid.
 
-### 2. Tangible Milestones & Roadmap
-
-#### Phase 1: Local FinOps MVP (Completed)
-- [x] Python APScheduler + yfinance ingestion logic.
-- [x] Pydantic schemas + DynamoDB-local integration.
-- [x] Logic-driven AI Synthesis Mocking with local budget gates.
-
-#### Phase 2: Cloud Synthesis (Completed)
-- [x] AWS Bedrock (Anthropic Claude 3 Haiku) integration.
-- [x] Production IAM task roles + ECR containerization.
-- [x] Infrastructure-as-Code via CloudFormation.
-
-#### Phase 3: Alpha-DAG Orchestration (Completed)
-- [x] Transition from loops to LangGraph stateful orchestrator.
-- [x] Implementation of the "Discovery Agent" node.
-- [x] Model Context Protocol (MCP) isolation for Quant Compute.
-
-#### Phase 4: Discovery & Portfolio (Completed)
-- [x] Real-time Search & Autocomplete proxy for Yahoo Finance.
-- [x] 24-hour Sparklines + Interactive Portfolio Area Chart.
-- [x] Daily Discovery Agent: S&P 500 "Hidden Gem" analysis.
-
-#### Phase 5: Global Intelligence (Completed)
-- [x] Multi-tab navigation: Manage vs. Discover.
-- [x] Global Discovery Hub (Indices, Commodities, Movers, News).
-- [x] Pre/Post-Market Price Visibility + Cron-driven hydration.
-
-#### Phase 8: Global Quality Screener & Institutional Pivot (Completed)
-- [x] Integration of dbt-DuckDB for analytical modeling across 600+ tickers.
-- [x] Implementation of 5-Factor QMJ Model (Profitability, Growth, Safety, Valuation, Momentum).
-- [x] Universal Screen (S&P 500 + ASX comparison) with sticky-header scrollable UI.
-- [x] **Institutional Pivot**: Decoupled "Broad Screening" from "Active Monitoring".
-- [x] **Universe Scaling**: Expansion to 600+ companies with decoupled DynamoDB storage.
-- [x] **Automated Cadence**: Implementation of quarterly financial ingestion and dbt re-ranking.
-- [x] Python 3.9 compatibility hardening for institutional runtime environments.
+### 2. Centralized Roadmap
+To avoid document desynchronization, the project roadmap and status of all development phases are centralized in the main [README.md](../README.md#%EF%B8%8F-phased-rollout-roadmap). Please refer there for the complete, up-to-date checklist of project milestones and features.
 
 ### 3. Advanced Engine Architecture
 
