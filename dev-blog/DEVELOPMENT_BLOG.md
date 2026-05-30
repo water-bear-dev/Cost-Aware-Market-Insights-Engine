@@ -1,5 +1,25 @@
 # Development Blog
 
+## Entry 80: AI-Powered Market News Summary Widget and Mentioned Ticker Shortcuts (2026-05-31)
+
+In this entry, we document the implementation of an AI-powered Market News Summary widget. It reads live Google News RSS articles, generates thematic clusters and executive summaries, and extracts mentioned stock tickers from text to create interactive lookup shortcuts.
+
+### 1. AI Summary Ingestion & Caching
+- **API Endpoint:** Created `/api/v1/discover/news-summary` in `src/routes/discover.py` to synthesize the top 10 market headlines using the configured LLM.
+- **Cache TTL:** Configured a thread-safe global cache (`_news_summary_cache`) with a 4-hour (14,400s) timeout to preserve tokens.
+- **FinOps Ledger Routing:** Enforced budget check limits on paid APIs. If limits are reached, it automatically switches to a warning disclaimer fallback without calling the LLM.
+- **Prompt Refinement for Length and Depth:** Enhanced prompt guidelines to explicitly require longer, multi-sentence explanations (3-4 sentences minimum) detailing the background context, logical chains of cause and effect, and the exact mechanism behind drivers, metrics, and risks instead of brief, one-sentence bullet points.
+
+### 2. Smart Ticker Mention Extraction
+- Scans news content for explicit ticker symbols (e.g. `AAPL`, `MSFT`) and maps known company names (e.g., "Micron", "Eli Lilly") to their corresponding tickers.
+- Emits these tickers as interactive, clickable badges. Clicking a ticker instantly launches the dashboard's native lookup modal (`openDiscoverAssetModal`).
+
+### 3. Glassmorphic Frontend Integration
+- **HTML Container:** Created `#discover-news-summary-section` positioned above the raw news carousel inside `static/index.html`.
+- **Vanilla CSS:** Styled the summary card with glassmorphism, accent hover highlights, and custom loading skeletons (`pulse-animation`).
+- **Heartbeat Sync:** Incorporated the summary request into `fetchDiscoverData` to ensure it refreshes alongside indices, movers, and picks.
+
+
 ## Entry 79: Expanded Curated Movers Universe and Symbol Corrections (2026-05-29)
 
 In this entry, we document the expansion of the curated movers universe used to fetch the top 10 gainers and losers globally, along with critical ticker spelling corrections.

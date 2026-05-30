@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.9.2] - 2026-05-31
+
+### Added
+- **AI-Powered Market News Summary Widget** — Added a brand new collapsible glassmorphic panel to the Discover dashboard displaying a 3-sentence executive summary, dynamic themes, news sentiment, and mentioned tickers.
+- **Dynamic Ticker Mention Extraction** — Implemented an extraction algorithm in `discover.py` that scans raw news headlines and descriptions for both explicit ticker mentions (e.g., `$AAPL`, `$MU`) and matching company names (e.g., "Micron", "Eli Lilly"), rendering them as interactive click-to-lookup badges in the UI.
+- **Cost-Aware Cache Layer** — Configured a 4-hour backend cache (`_news_summary_cache`) and budget-checking logic to enforce the FinOps daily limit before making LLM calls.
+
 ## [3.9.1] - 2026-05-29
 
 ### Changed

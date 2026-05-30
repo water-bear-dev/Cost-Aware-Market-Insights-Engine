@@ -4169,6 +4169,7 @@ async function fetchDiscoverData() {
     fetchDiscoverIndices();
     fetchDiscoverMovers();
     fetchDiscoverNews();
+    fetchDiscoverNewsSummary();
     fetchDailyPicks();  // also refresh daily picks when switching to Discover
 
     // Auto-refresh ALL Discover info every 30 minutes
@@ -4178,9 +4179,11 @@ async function fetchDiscoverData() {
         fetchDiscoverIndices();
         fetchDiscoverMovers();
         fetchDiscoverNews();
+        fetchDiscoverNewsSummary();
         fetchDailyPicks();
     }, 30 * 60 * 1000);
 }
+
 
 async function fetchDiscoverIndices() {
     try {
@@ -4267,6 +4270,127 @@ async function fetchDiscoverNews() {
         }
     } catch (e) { console.error('Discover news failed', e); }
 }
+
+async function fetchDiscoverNewsSummary() {
+    const section = document.getElementById('discover-news-summary-section');
+    if (!section) return;
+
+    // Show section and show loading skeleton
+    section.style.display = 'block';
+    const contentEl = document.getElementById('news-summary-content');
+    contentEl.innerHTML = `
+        <div class="pulse-animation" style="height: 1.2rem; background: rgba(255,255,255,0.05); border-radius: 4px; width: 100%; margin-bottom: 0.5rem;"></div>
+        <div class="pulse-animation" style="height: 1.2rem; background: rgba(255,255,255,0.05); border-radius: 4px; width: 90%; margin-bottom: 0.5rem;"></div>
+        <div class="pulse-animation" style="height: 1.2rem; background: rgba(255,255,255,0.05); border-radius: 4px; width: 75%;"></div>
+    `;
+    
+    const badgesEl = document.getElementById('news-summary-badges');
+    badgesEl.innerHTML = '';
+    
+    const modelEl = document.getElementById('news-summary-model');
+    modelEl.textContent = 'Analyzing headlines...';
+
+    const tickersSection = document.getElementById('news-summary-tickers-section');
+    const tickersList = document.getElementById('news-summary-tickers-list');
+    tickersSection.style.display = 'none';
+    tickersList.innerHTML = '';
+
+    try {
+        const res = await fetch('/api/v1/discover/news-summary');
+        if (!res.ok) throw new Error('Failed to fetch summary');
+        const data = await res.json();
+        
+        // 1. Render Structured Executive Summary
+        let structuredHtml = '';
+        
+        // Section 1: TL;DR
+        structuredHtml += `
+            <div style="margin-bottom: 1.25rem;">
+                <h4 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 0 0 0.4rem 0; font-weight: 700;">1. Executive TL;DR</h4>
+                <p style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary); margin: 0;">${data.tldr || 'No overview available.'}</p>
+            </div>
+        `;
+        
+        // Section 2: Key Market Drivers
+        if (data.drivers && Array.isArray(data.drivers) && data.drivers.length > 0) {
+            const driversList = data.drivers.map(d => `<li style="margin-bottom: 0.35rem;">${d}</li>`).join('');
+            structuredHtml += `
+                <div style="margin-bottom: 1.25rem;">
+                    <h4 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 0 0 0.4rem 0; font-weight: 700;">2. Key Market Drivers</h4>
+                    <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.88rem; line-height: 1.5; color: var(--text-primary);">${driversList}</ul>
+                </div>
+            `;
+        }
+        
+        // Section 3: Financial Metrics & Data
+        if (data.metrics && Array.isArray(data.metrics) && data.metrics.length > 0) {
+            const metricsList = data.metrics.map(m => `<li style="margin-bottom: 0.35rem;">${m}</li>`).join('');
+            structuredHtml += `
+                <div style="margin-bottom: 1.25rem;">
+                    <h4 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 0 0 0.4rem 0; font-weight: 700;">3. Financial Metrics & Data</h4>
+                    <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.88rem; line-height: 1.5; color: var(--text-primary);">${metricsList}</ul>
+                </div>
+            `;
+        }
+        
+        // Section 4: Emerging Risks & Catalysts
+        if (data.risks_catalysts && Array.isArray(data.risks_catalysts) && data.risks_catalysts.length > 0) {
+            const risksList = data.risks_catalysts.map(r => `<li style="margin-bottom: 0.35rem;">${r}</li>`).join('');
+            structuredHtml += `
+                <div>
+                    <h4 style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin: 0 0 0.4rem 0; font-weight: 700;">4. Emerging Risks & Catalysts</h4>
+                    <ul style="margin: 0; padding-left: 1.2rem; font-size: 0.88rem; line-height: 1.5; color: var(--text-primary);">${risksList}</ul>
+                </div>
+            `;
+        }
+
+        contentEl.innerHTML = structuredHtml;
+        
+        // 2. Render Model metadata
+        if (data.model_used && data.as_of) {
+            const d = new Date(data.as_of);
+            const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            modelEl.textContent = `Generated via ${data.model_used} · updated ${timeStr}`;
+        } else {
+            modelEl.textContent = 'Generated via AI';
+        }
+
+        // 3. Render Badges (Only Sentiment - Thematic Tags Removed)
+        let badgesHtml = '';
+        if (data.sentiment) {
+            const sens = data.sentiment.toUpperCase();
+            const sensClass = sens.toLowerCase();
+            badgesHtml += `<span class="sentiment-badge ${sensClass}">${sens} NEWS SENTIMENT</span>`;
+        }
+        badgesEl.innerHTML = badgesHtml;
+
+        // 4. Render Mentioned Tickers with 1-sentence explanation
+        if (data.mentioned_tickers && Array.isArray(data.mentioned_tickers) && data.mentioned_tickers.length > 0) {
+            tickersList.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; width: 100%;">
+                    ${data.mentioned_tickers.map(item => {
+                        const ticker = typeof item === 'object' ? item.ticker : item;
+                        const reason = typeof item === 'object' ? item.reason : 'Mentioned in current news feed.';
+                        return `
+                            <div style="display: flex; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap;">
+                                <span class="news-summary-ticker-badge" style="min-width: 48px; text-align: center;" onclick="openDiscoverAssetModal('${ticker}')">${ticker}</span>
+                                <span style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.45; flex: 1; min-width: 200px;">${reason}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            tickersSection.style.display = 'block';
+        } else {
+            tickersSection.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('Discover news summary failed', e);
+        contentEl.innerHTML = '<p style="color:var(--text-secondary);">Could not load news summary. Raw headlines are available below.</p>';
+        modelEl.textContent = 'Offline';
+    }
+}
+
 
 /**
  * Async orchestrator: fetches batch sparkline data for all Discover cards in one API call,

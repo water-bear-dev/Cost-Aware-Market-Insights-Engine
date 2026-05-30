@@ -84,6 +84,8 @@ MOVERS_UNIVERSE = [
 _indices_cache: dict = {"data": None, "last_fetch": 0.0}
 _movers_cache: dict  = {"data": None, "last_fetch": 0.0}
 _news_cache: dict    = {"data": None, "last_fetch": 0.0}
+_news_summary_cache: dict = {"data": None, "last_fetch": 0.0}
+
 
 
 # ─── Internal fetch helpers ───────────────────────────────────────────────────
@@ -495,3 +497,244 @@ def get_news(request: Request):
         _news_cache["data"] = _fetch_news()
         _news_cache["last_fetch"] = time.time()
     return _news_cache["data"]
+
+
+def _extract_mentioned_tickers(news_articles: list) -> list:
+    """Scan news headlines and descriptions for mentions of tickers in MOVERS_UNIVERSE."""
+    import re
+    mentioned = set()
+    
+    ticker_map = {}
+    for t in MOVERS_UNIVERSE:
+        base = t.split('.')[0].upper()
+        ticker_map[base] = t
+        ticker_map[t.upper()] = t
+
+    COMPANY_NAME_MAP = {
+        "APPLE": "AAPL",
+        "MICROSOFT": "MSFT",
+        "GOOGLE": "GOOGL",
+        "ALPHABET": "GOOGL",
+        "AMAZON": "AMZN",
+        "META": "META",
+        "NVIDIA": "NVDA",
+        "TESLA": "TSLA",
+        "JPMORGAN": "JPM",
+        "VISA": "V",
+        "WALMART": "WMT",
+        "DISNEY": "DIS",
+        "NETFLIX": "NFLX",
+        "INTEL": "INTC",
+        "MICRON": "MU",
+        "ELI LILLY": "LLY",
+        "LILLY": "LLY",
+        "SHOPIFY": "SHOP",
+        "UBER": "UBER",
+        "COINBASE": "COIN",
+        "PALANTIR": "PLTR",
+        "BROADCOM": "AVGO",
+        "CROWDSTRIKE": "CRWD",
+    }
+
+    for art in news_articles:
+        text = (art.get("title", "") + " " + art.get("description", "")).upper()
+        
+        # 1. Match standard word-bounded potential tickers
+        words = re.findall(r'\b[A-Z0-9\.\-=]+\b', text)
+        for w in words:
+            if len(w) > 1 and w in ticker_map:
+                if w in ["OR", "BY", "AM", "IT", "GO", "ME", "SO", "DO", "AN"]:
+                    continue
+                mentioned.add(ticker_map[w])
+        
+        # 2. Support dollar-prefixed $V, $T, etc.
+        dollar_words = re.findall(r'\$([A-Z0-9\.\-=]+)\b', text)
+        for dw in dollar_words:
+            if dw in ticker_map:
+                mentioned.add(ticker_map[dw])
+
+        # 3. Match common company names
+        for cname, ticker in COMPANY_NAME_MAP.items():
+            if cname in text:
+                mentioned.add(ticker)
+                
+    return sorted(list(mentioned))
+
+
+
+@router.get("/discover/news-summary")
+@limiter.limit("5/minute")
+def get_news_summary(request: Request):
+    """
+    Returns an AI-synthesized summary of the top 10 market news headlines.
+    Cache TTL: 4 hours (14400 seconds).
+    """
+    global _news_summary_cache
+    
+    current_time = time.time()
+    ttl = 14400  # 4 hours
+    
+    if _news_summary_cache["data"] and current_time - _news_summary_cache["last_fetch"] < ttl:
+        logger.info("News Summary: serving from cache")
+        return _news_summary_cache["data"]
+        
+    logger.info("News Summary: cache miss or expired, generating new summary")
+    
+    # 1. Get raw news feed articles
+    news_data = get_news(request)
+    articles = news_data.get("articles", [])
+    
+    if not articles:
+        return {
+            "tldr": "No market news available to summarize at the moment.",
+            "drivers": [],
+            "metrics": [],
+            "risks_catalysts": [],
+            "sentiment": "NEUTRAL",
+            "mentioned_tickers": [],
+            "model_used": "none",
+            "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+        
+    # Extract mentioned tickers
+    mentioned = _extract_mentioned_tickers(articles)
+    
+    # 2. Check settings and environment
+    from src.config import settings
+    from src.synthesis.llm import call_llm
+    from src.cost_tracking.service import check_budget, log_cost
+    import json
+    import re
+    
+    # If in mock mode, return mock summary instantly
+    if settings.llm_provider == "mock":
+        mock_data = {
+            "tldr": "Global stock markets capped off a record-breaking month fueled by relentless AI hardware demand and expanding health sector coverage. Momentum trades are achieving record gains despite warnings from strategists regarding bubble-like behavior in retail channels.",
+            "drivers": [
+                "AI-fueled momentum continues to act as the primary catalyst, pushing semiconductor and technology stocks to new high levels. This is driven by heavy institutional accumulation expecting structural demand to persist throughout 2026.",
+                "Eli Lilly shares surged to record highs following the expansion of insurance coverage for its weight-loss drug Zepbound. The policy shifts significantly expand the addressable market, driving upward revisions in near-term revenue forecasts.",
+                "Charles Schwab chief strategist warned of casino-like speculative behavior in retail channels. High retail options volume and leveraged momentum chasing could trigger volatility even as major indices log record closes."
+            ],
+            "metrics": [
+                "Eli Lilly's stock reached all-time high valuation closes, cementing its position in the healthcare sector. This rally was directly supported by expanded commercial insurer lists.",
+                "The Technology sector index registered a strong 1.5% weekly gain. This outperformance highlights persistent rotation away from defensive sectors into growth assets.",
+                "Micron Technology hit new record highs ahead of its June 24 earnings release, reflecting intense pre-earnings accumulation by options dealers."
+            ],
+            "risks_catalysts": [
+                "Overbought conditions in semiconductor leaders like Micron could trigger a profit-taking pullback. Technical momentum indexes are showing extreme levels, increasing risk for late-stage buyers.",
+                "Charles Schwab's warnings highlight systemic risks of a retail-driven sentiment reversal. Option leverage at current multiples leaves the market vulnerable to sharp downside corrections if macro indicators change.",
+                "Micron's upcoming quarterly financial release on June 24 represents a critical test of AI demand sustainability. Markets will closely monitor updates to cap-ex guidance and production volumes."
+            ],
+            "sentiment": "BULLISH",
+            "mentioned_tickers": [
+                {"ticker": "MU", "reason": "Mentioned due to hitting overbought levels following a massive weekly rally ahead of its June 24 report date."},
+                {"ticker": "LLY", "reason": "Mentioned as its stock reached record highs driven by expanded insurance coverage for Zepbound."}
+            ],
+            "model_used": "local-mock",
+            "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+        _news_summary_cache["data"] = mock_data
+        _news_summary_cache["last_fetch"] = current_time
+        return mock_data
+        
+    # Enforce budget checks for paid LLMs
+    if settings.llm_provider in ["bedrock", "openai", "anthropic"]:
+        estimated_cost = 0.0006  # Slight buffer for larger summary prompt
+        if not check_budget(estimated_cost):
+            logger.warning("Skipping news summary AI call due to cost budget limits")
+            return {
+                "tldr": "AI News Summary is temporarily offline to preserve remaining token budget. Raw headlines are visible below.",
+                "drivers": ["Budget Gated - summaries are temporarily paused."],
+                "metrics": [],
+                "risks_catalysts": [],
+                "sentiment": "NEUTRAL",
+                "mentioned_tickers": [{"ticker": t, "reason": "Mentioned in current news feed."} for t in mentioned],
+                "model_used": "budget-fallback",
+                "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+
+    # Format news items for prompt context
+    news_lines = []
+    for idx, art in enumerate(articles[:10]):
+        title = art.get("title", "")
+        desc = art.get("description", "")
+        news_lines.append(f"[{idx+1}] Title: {title}\nDescription: {desc}")
+    context_text = "\n\n".join(news_lines)
+    
+    prompt = (
+        "You are an expert financial market analyst. Analyze the following 10 recent market news headlines and descriptions.\n\n"
+        "Your task is to synthesize this information into a structured, executive-level summary.\n\n"
+        "Generate a valid JSON object matching this structure exactly:\n"
+        "{\n"
+        '  "tldr": "A detailed 3-4 sentence paragraph providing a comprehensive overview of the current overarching narrative and market sentiment surrounding the stock markets or specific stocks based only on the retrieved articles.",\n'
+        '  "drivers": [\n'
+        '    "An extremely detailed explanation (3-4 sentences minimum) of a significant news event, product update, or macro factor driving momentum. You MUST explain the background context, WHY it is driving momentum, and the implications of this driver on the market. Do not use short bullet points or brief summaries. Detail the logical chain of cause and effect. You must generate EXACTLY 3 driver items in this array."\n'
+        '  ],\n'
+        '  "metrics": [\n'
+        '    "An extremely detailed explanation (3-4 sentences minimum) of a specific financial number extracted from the articles (e.g., revenue growth, price targets, or valuation ratios). You MUST explain what this number means, what it implies for the company\'s valuation, its source, and the historical or market context surrounding it. You must generate EXACTLY 3 metric items in this array."\n'
+        '  ],\n'
+        '  "risks_catalysts": [\n'
+        '    "An extremely detailed explanation (3-4 sentences minimum) of an upcoming event, regulatory hurdle, or competitor threat. You MUST explain the exact mechanism of how this risk or catalyst could affect near-term performance and why this represents a significant threat or opportunity. You must generate EXACTLY 3 risk/catalyst items in this array."\n'
+        '  ],\n'
+        '  "sentiment": "BULLISH" or "BEARISH" or "NEUTRAL",\n'
+        '  "mentioned_tickers": [\n'
+        '    {\n'
+        '      "ticker": "TICKER_SYMBOL",\n'
+        '      "reason": "A 1-sentence summary on why this specific stock is being mentioned in the news."\n'
+        '    }\n'
+        '  ]\n'
+        "}\n\n"
+        "Rules:\n"
+        "1. Do NOT summarize the articles one by one. You must cross-reference the information and synthesize the common themes.\n"
+        "2. Ignore generic market commentary; focus strictly on actionable, company-specific information.\n"
+        "3. If a specific metric or claim conflicts between articles, point out the discrepancy.\n"
+        "4. Output ONLY the raw JSON object. Do not include markdown formatting or wrapping outside the JSON.\n"
+        "5. The 'metrics', 'drivers', and 'risks_catalysts' fields MUST be simple arrays containing EXACTLY 3 detailed, multi-sentence paragraph strings (at least 3 sentences each) detailing the WHY and the background context. NEVER use short phrases or single-sentence bullet points.\n"
+        f"6. The tickers found in the news are: {', '.join(mentioned) if mentioned else 'none'}. For each of these tickers, populate an entry in 'mentioned_tickers' with a 1-sentence reason why they are mentioned.\n\n"
+        f"News Feed Context:\n{context_text}"
+    )
+    
+    try:
+        result = call_llm(prompt)
+        text_out = result["text"]
+        input_tokens = result["input_tokens"]
+        output_tokens = result["output_tokens"]
+        model_used = result["model_used"]
+        
+        # Log the cost
+        log_cost("GLOBAL_NEWS", input_tokens, output_tokens)
+        
+        # Parse JSON output
+        json_match = re.search(r'\{.*\}', text_out, re.DOTALL)
+        if json_match:
+            data = json.loads(json_match.group())
+            summary_data = {
+                "tldr": data.get("tldr", ""),
+                "drivers": data.get("drivers", []),
+                "metrics": data.get("metrics", []),
+                "risks_catalysts": data.get("risks_catalysts", []),
+                "sentiment": str(data.get("sentiment", "NEUTRAL")).upper().strip(),
+                "mentioned_tickers": data.get("mentioned_tickers", []),
+                "model_used": model_used,
+                "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            }
+        else:
+            raise ValueError("No JSON block found in LLM response")
+            
+    except Exception as e:
+        logger.error("Failed to generate AI news summary", error=str(e))
+        summary_data = {
+            "tldr": "Markets are showing active trading sessions across tech and healthcare segments with record index levels. Refer to raw headlines below for detail.",
+            "drivers": ["Market volatility and sector shifting dominates context."],
+            "metrics": [],
+            "risks_catalysts": [],
+            "sentiment": "NEUTRAL",
+            "mentioned_tickers": [{"ticker": t, "reason": "Mentioned in raw news articles."} for t in mentioned],
+            "model_used": "error-fallback",
+            "as_of": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+
+    _news_summary_cache["data"] = summary_data
+    _news_summary_cache["last_fetch"] = current_time
+    return summary_data
+
