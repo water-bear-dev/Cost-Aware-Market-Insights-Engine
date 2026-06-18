@@ -3185,8 +3185,11 @@ function renderMarketTimeline(timeline) {
         const start = seg.start_pct;
         const end = seg.end_pct;
         const width = end - start;
-        const typeClass = seg.type === 'active' ? 'active' : 'lunch';
-        const title = seg.type === 'active' ? 'Trading Session' : 'Lunch Break';
+        const typeClass = seg.type;
+        let title = 'Trading Session';
+        if (seg.type === 'lunch') title = 'Lunch Break';
+        else if (seg.type === 'pre') title = 'Pre-Market';
+        else if (seg.type === 'post') title = 'Post-Market';
         
         segmentsHtml += `<div class="timeline-segment ${typeClass}" style="left: ${start}%; width: ${width}%;" title="${title}"></div>`;
     });
@@ -3210,43 +3213,61 @@ function getMarketStatusDetails(ticker) {
     let openHour = 9, openMin = 30;
     let closeHour = 16, closeMin = 0;
     let lunchStart = null, lunchEnd = null;
+    let preHour = 4, preMin = 0;
+    let postHour = 20, postMin = 0;
     
     if (isFutures) {
         tzName = "America/New_York";
         openHour = 18; openMin = 0;
         closeHour = 17; closeMin = 0;
+        preHour = null; preMin = null;
+        postHour = null; postMin = null;
     } else if (t.endsWith('.AX') || t === '^AXJO') {
         tzName = "Australia/Sydney";
         openHour = 10; openMin = 0;
         closeHour = 16; closeMin = 0;
+        preHour = 7; preMin = 0;
+        postHour = 16; postMin = 15;
     } else if (t.endsWith('.L') || t === '^FTSE') {
         tzName = "Europe/London";
         openHour = 8; openMin = 0;
         closeHour = 16; closeMin = 30;
+        preHour = 7; preMin = 15;
+        postHour = 16; postMin = 40;
     } else if (t.endsWith('.T') || t === '^N225') {
         tzName = "Asia/Tokyo";
         openHour = 9; openMin = 0;
         closeHour = 15; closeMin = 30;
         lunchStart = { hour: 11, minute: 30 };
         lunchEnd = { hour: 12, minute: 30 };
+        preHour = 8; preMin = 0;
+        postHour = 16; postMin = 0;
     } else if (t.endsWith('.HK') || t === '^HSI') {
         tzName = "Asia/Hong_Kong";
         openHour = 9; openMin = 30;
         closeHour = 16; closeMin = 0;
         lunchStart = { hour: 12, minute: 0 };
         lunchEnd = { hour: 13, minute: 0 };
+        preHour = 9; preMin = 0;
+        postHour = 16; postMin = 10;
     } else if (t.endsWith('.PA') || t.endsWith('.AS') || t.endsWith('.BR') || t === '^STOXX50E') {
         tzName = "Europe/Paris";
         openHour = 9; openMin = 0;
         closeHour = 17; closeMin = 30;
+        preHour = 7; preMin = 15;
+        postHour = 17; postMin = 40;
     } else if (t.endsWith('.DE') || t === '^GDAXI') {
         tzName = "Europe/Berlin";
         openHour = 9; openMin = 0;
         closeHour = 17; closeMin = 30;
+        preHour = 7; preMin = 30;
+        postHour = 17; postMin = 45;
     } else if (t.endsWith('.TO') || t === '^GSPTSE') {
         tzName = "America/Toronto";
         openHour = 9; openMin = 30;
         closeHour = 16; closeMin = 0;
+        preHour = 7; preMin = 0;
+        postHour = 17; postMin = 0;
     }
     
     const now = new Date();
@@ -3271,6 +3292,8 @@ function getMarketStatusDetails(ticker) {
     const currentMins = localTime.getHours() * 60 + localTime.getMinutes();
     const openMins = openHour * 60 + openMin;
     const closeMins = closeHour * 60 + closeMin;
+    const preMins = preHour !== null ? preHour * 60 + preMin : null;
+    const postMins = postHour !== null ? postHour * 60 + postMin : null;
     
     const timeToMins = (h, m) => h * 60 + m;
     
@@ -3298,14 +3321,14 @@ function getMarketStatusDetails(ticker) {
             else if (weekday === 6) daysToSunday = 1;
             
             const totalRemaining = daysToSunday * 1440 + (timeToMins(18, 0) - currentMins);
-            return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         } else if (isMaintenance) {
             const totalRemaining = timeToMins(18, 0) - currentMins;
-            return { status: "Closed", message: `re-opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Closed", message: `re-opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         } else {
             let remaining = timeToMins(17, 0) - currentMins;
             if (remaining < 0) remaining += 1440;
-            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         }
     }
     
@@ -3314,7 +3337,7 @@ function getMarketStatusDetails(ticker) {
         const endMins = timeToMins(lunchEnd.hour, lunchEnd.minute);
         if (currentMins >= startMins && currentMins < endMins) {
             const remaining = endMins - currentMins;
-            return { status: "Lunch", message: `re-opening in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Lunch", message: `re-opening in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         }
     }
     
@@ -3323,10 +3346,10 @@ function getMarketStatusDetails(ticker) {
         if (lunchStart && currentMins < timeToMins(lunchStart.hour, lunchStart.minute)) {
             const lStartMins = timeToMins(lunchStart.hour, lunchStart.minute);
             const remaining = lStartMins - currentMins;
-            return { status: "Open", message: `closing for lunch in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Open", message: `closing for lunch in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         } else {
             const remaining = closeMins - currentMins;
-            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+            return { status: "Open", message: `closing in ${formatDiff(remaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
         }
     }
     
@@ -3341,24 +3364,34 @@ function getMarketStatusDetails(ticker) {
     }
     
     const totalRemaining = daysToAdd * 1440 + (openMins - currentMins);
-    return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins), tzName, localTime };
+    return { status: "Closed", message: `opening in ${formatDiff(totalRemaining)}`, segments: getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins), tzName, localTime };
 }
 
-function getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins) {
+function getSegments(isFutures, lunchStart, lunchEnd, openMins, closeMins, preMins, postMins) {
     const open_pct = parseFloat(((openMins / 1440) * 100).toFixed(2));
     const close_pct = parseFloat(((closeMins / 1440) * 100).toFixed(2));
     const segments = [];
     if (isFutures) {
         segments.push({ start_pct: 0, end_pct: parseFloat(((1020 / 1440) * 100).toFixed(2)), type: "active" });
         segments.push({ start_pct: parseFloat(((1080 / 1440) * 100).toFixed(2)), end_pct: 100, type: "active" });
-    } else if (lunchStart && lunchEnd) {
-        const l_start_mins = lunchStart.hour * 60 + lunchStart.minute;
-        const l_end_mins = lunchEnd.hour * 60 + lunchEnd.minute;
-        segments.push({ start_pct: open_pct, end_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), type: "active" });
-        segments.push({ start_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), end_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), type: "lunch" });
-        segments.push({ start_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), end_pct: close_pct, type: "active" });
     } else {
-        segments.push({ start_pct: open_pct, end_pct: close_pct, type: "active" });
+        if (preMins !== undefined && preMins !== null) {
+            const pre_pct = parseFloat(((preMins / 1440) * 100).toFixed(2));
+            segments.push({ start_pct: pre_pct, end_pct: open_pct, type: "pre" });
+        }
+        if (lunchStart && lunchEnd) {
+            const l_start_mins = lunchStart.hour * 60 + lunchStart.minute;
+            const l_end_mins = lunchEnd.hour * 60 + lunchEnd.minute;
+            segments.push({ start_pct: open_pct, end_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), type: "active" });
+            segments.push({ start_pct: parseFloat(((l_start_mins / 1440) * 100).toFixed(2)), end_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), type: "lunch" });
+            segments.push({ start_pct: parseFloat(((l_end_mins / 1440) * 100).toFixed(2)), end_pct: close_pct, type: "active" });
+        } else {
+            segments.push({ start_pct: open_pct, end_pct: close_pct, type: "active" });
+        }
+        if (postMins !== undefined && postMins !== null) {
+            const post_pct = parseFloat(((postMins / 1440) * 100).toFixed(2));
+            segments.push({ start_pct: close_pct, end_pct: post_pct, type: "post" });
+        }
     }
     return segments;
 }

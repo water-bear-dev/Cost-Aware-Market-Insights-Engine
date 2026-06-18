@@ -2924,6 +2924,12 @@ input[type=number] {
     box-shadow: 0 0 8px rgba(234, 179, 8, 0.04);
 }
 
+.timeline-segment.pre, .timeline-segment.post {
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.08) 0%, rgba(148, 163, 184, 0.14) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.04);
+}
+
 /* 24h markings (00:00, 06:00, 12:00, 18:00, 24:00) */
 .timeline-marker {
     position: absolute;
