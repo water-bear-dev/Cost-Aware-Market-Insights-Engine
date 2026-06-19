@@ -354,3 +354,7 @@ The Docker configuration automatically executes `./scripts/syntax_check.sh`:
 
 ## License
 MIT License - See [LICENSE](LICENSE) for details.
+
+---
+
+[![Support me on Ko-fi](./public/waterbear9999-Sharable-Profile-Horizontal.jpg)](https://ko-fi.com/waterbear9999)
