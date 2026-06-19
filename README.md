@@ -8,6 +8,25 @@ The dashboard is structured around three core views:
 - **Discover** — Global market briefing room: regional indices, commodities, top daily movers, and an hourly news feed.
 - **Costs / How it Works** — FinOps observability and architecture education.
 
+## Dashboard Preview
+
+### Manage & Tracked Assets
+![Manage Dashboard](./public/manage-dashboard.png)
+
+### Global Discovery & News
+![Daily Discovery Picks](./public/daily-discovery-picks.png)
+![Discover News](./public/discover-news.png)
+
+### Search & Compare
+![Asset Details](./public/asset-details.png)
+
+### Quantitative Screener (QMJ)
+![QMJ Screener](./public/qmj-screener.png)
+
+### FinOps & Architecture
+![FinOps Dashboard](./public/finops-dashboard.png)
+![Architecture Diagram](./public/architecture-diagram.png)
+
 ## System Architecture
 
 ```mermaid
