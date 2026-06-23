@@ -39,18 +39,26 @@ flowchart TB
 
     subgraph Intelligence ["Alpha-DAG Orchestration (LangGraph)"]
         direction LR
+        UniverseNode["Universe Node\n(Movers & Daily Picks)"]
+        QuantNode["Quant Analyst Node\n(Technical Indicators)"]
+        ResearchNode["Research Analyst Node\n(Macro/News Extraction)"]
+        SentimentNode["Sentiment Node\n(Zero-Cost Lexical)"]
+        ReconcilerNode["Sentiment Reconciler\n(Confidence & Divergence)"]
         Gate["FinOps Gate\n(USD Budget Enforcement)"]
-        Hunter["Discovery Hunter\n(Global Ticker Filter)"]
-        Synth["AI Synthesis"]
-        Bedrock["Amazon Bedrock"]
+        Synth["AI Synthesis\n(Bedrock/Ollama Converse)"]
+        BacktestNode["Strategy Backtester\n(Portfolio Simulation)"]
 
-        Gate --> Hunter --> Synth --> Bedrock
+        UniverseNode --> QuantNode --> Gate
+        UniverseNode --> ResearchNode --> Gate
+        UniverseNode --> SentimentNode --> ReconcilerNode --> Gate
+        Gate --> Synth --> BacktestNode
     end
 
     subgraph DataLayer ["Quantitative & Data Layer"]
         direction TB
         MarketMCP["MCP: Market Data\n(Sandboxed Docker)"]
         QuantMCP["MCP: Quant Compute\n(Sandboxed Docker)"]
+        VibeMCP["MCP: Vibe-Trading\n(SSE Docker)"]
         DBT["dbt Pipeline\n(QMJ Z-Scores)"]
         Warehouse["Analytics Warehouse\n(DuckDB -> Athena)"]
 
@@ -59,6 +67,7 @@ flowchart TB
 
     subgraph Ingestion ["Ingestion"]
         YFinance["Global Market Ingestion\n(yfinance)"]
+        Reddit["Reddit Search API\n(r/wallstreetbets)"]
     end
 
     subgraph AWS ["AWS Cloud Infrastructure"]
@@ -82,9 +91,17 @@ flowchart TB
     %% Connections
     YFinance -- "real-time prices" --> DDB_Market
     YFinance -- "quarterly financials" --> Warehouse
-    Warehouse -- "QMJ scores" --> Hunter
-    QuantMCP -- "technical metrics" --> Hunter
-    Synth -- "insights" --> Dash
+    Warehouse -- "QMJ scores" --> UniverseNode
+    QuantMCP -- "technical metrics" --> QuantNode
+    Reddit -- "social chatter" --> SentimentNode
+    YFinance -- "news headlines" --> SentimentNode
+    VibeMCP -- "backtest simulations" --> BacktestNode
+    VibeMCP -- "analyst swarm reviews" --> FastAPI
+    BacktestNode -- "backtesting stats" --> DDB_Insights
+    Synth -- "narrative insights" --> DDB_Insights
+    DDB_Insights -- "hydrate dashboard" --> Dash
+    Dash -- "interactive chat / exports" --> FastAPI
+    FastAPI -- "invoke swarm / generate" --> VibeMCP
     Dash -- "feedback loop" --> Gate
     Gate -- "debit budget" --> DDB_Costs
     
@@ -99,8 +116,8 @@ flowchart TB
     classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
     classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
 
-    class Gate,Hunter,Synth,Bedrock intelligence;
-    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance datalayer;
+    class UniverseNode,QuantNode,ResearchNode,SentimentNode,ReconcilerNode,Gate,Synth,BacktestNode intelligence;
+    class MarketMCP,QuantMCP,VibeMCP,DBT,Warehouse,YFinance,Reddit datalayer;
     class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
     class DDB_Costs,DDB_Tracked,DDB_QMJ cost;
     class Presentation presentation;
@@ -179,7 +196,7 @@ Calculates the normalized ratio of bullish terms (**Pos**) to bearish terms (**N
 To ensure the engine runs successfully in a local or cloud environment, verify the following prerequisites:
 
 ### 1. Core Runtime
-- **Python 3.10+**: The application leverages modern typing features and async patterns.
+- **Python 3.11+**: The application leverages modern typing features and async patterns.
 - **Docker & Docker Compose**: Essential for orchestrating the local DynamoDB ledger and the FastAPI container.
 - **Node.js (Optional)**: Only required if you intend to run standalone frontend build tools.
 
@@ -302,20 +319,22 @@ The application behavior is controlled via environment variables (see `src/confi
 ## Project Structure
 
 ```text
-├── docker-compose.yml       # Local execution with DynamoDB-local
+├── docker-compose.yml       # Local execution with DynamoDB-local and Vibe-Trading MCP
 ├── Dockerfile               # Multi-stage production environment (ARM64)
-├── requirements.txt         # App dependencies (FastAPI, LangGraph, MCP, pytz, etc.)
+├── requirements.txt         # App dependencies (FastAPI, LangGraph, MCP, vibe-trading-ai, etc.)
 ├── scripts/                 # DevOps automation for AWS Deploy/Teardown
 │   ├── docker-entrypoint.sh # Docker startup entrypoint script running syntax check
 │   └── syntax_check.sh      # Python, JS, and Docker Compose syntax validator
-├── static/                  # Glassmorphic frontend dashboard
+├── static/                  # Glassmorphic frontend dashboard with Research Lab tab
 ├── src/                     # Core Alpha-DAG application logic
 │   ├── main.py              # Entrypoint & 8 AM AEST Scheduler
-│   ├── dag/                 # LangGraph orchestration and Discovery Agent
+│   ├── dag/                 # LangGraph orchestration (Movers, Sentiment, Backtest)
 │   ├── mcp/                 # Market Data and Quant Compute MCP servers
+│   ├── clients/             # Bedrock, DynamoDB, DuckDB, and Vibe MCP clients
 │   ├── cost_tracking/       # FinOps logic and budget gates
 │   └── routes/              # Client-facing API v1/v2 endpoints
 │       ├── discover.py      # Market indices, movers & news endpoints
+│       ├── chat.py          # Interactive analyst swarm chatbot and strategy exporters
 │       └── meta.py          # Exchange rates endpoint
 └── system-design/           # Architecture diagrams and system overview
 ```
@@ -341,7 +360,7 @@ The Docker configuration automatically executes `./scripts/syntax_check.sh`:
 - **[COMPLETE] Phase 8: Discovery Stabilization & Timeframe Standardization** - Standardized the Discovery dashboard on a 3-month daily-data minimum to resolve high-frequency data regressions and MultiIndex parsing issues.
 - **[COMPLETE] Phase 9: Multi-Provider LLM Routing & Lexical Sentiment Pipeline** - Integrated a provider-agnostic router (local Ollama fallback, OpenAI, Anthropic, Bedrock Converse) and zero-cost, dictionary-based sentiment scoring for Reddit & news with frontend sentiment badges.
 - **[COMPLETE] Phase 10: Multi-Agent Collaborative Refinement & Reconciliation** - Added multi-source sentiment agents (Reddit + News + optional X), sentiment reconciliation before recommendation synthesis, and backward-compatible sentiment diagnostics in API responses.
-
+- **[COMPLETE] Phase 11: Multi-Agent Swarm Research & Backtesting Integration** - Integrated HKUDS Vibe-Trading components: a containerized `vibe-trading-mcp` server, collaborative research swarms (macro, investment, risk, catalyst), interactive research chatbot in the UI, strategy artifact exporters (Pine Script, MT5, PDF), and a 3-month portfolio backtesting loop embedded in the Costs tab.
 
 ---
 

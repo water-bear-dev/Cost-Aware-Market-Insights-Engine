@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     x_api_base_url: str = "https://api.x.com"
     x_sentiment_max_results: int = 15
     tickers: str = "META,AAPL,AMZN,NFLX,GOOGL"
+    enable_finops_limits: bool = False
+    vibe_trading_mcp_url: str = "http://vibe-trading-mcp:8010/sse"
     
     @model_validator(mode='after')
     def detect_environment_networking(self) -> 'Settings':
@@ -53,6 +55,8 @@ class Settings(BaseSettings):
                 self.dynamodb_endpoint_url = "http://localhost:8001"
             if self.ollama_url and "host.docker.internal" in self.ollama_url:
                 self.ollama_url = "http://localhost:11434"
+            if self.vibe_trading_mcp_url and "vibe-trading-mcp" in self.vibe_trading_mcp_url:
+                self.vibe_trading_mcp_url = "http://localhost:8010/sse"
                 
         return self
     

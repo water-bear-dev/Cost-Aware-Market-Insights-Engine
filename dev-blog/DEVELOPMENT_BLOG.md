@@ -1,5 +1,24 @@
 # Development Blog
 
+## Entry 81: Phase 11 — HKUDS Vibe-Trading Swarm, Backtesting Integration, and Strategy Artifact Export (2026-06-23)
+
+In this entry, we document the implementation of Phase 11, which integrates the HKUDS Vibe-Trading repository capabilities. This introduces collaborative multi-agent analyst swarms (Macro, Investment, Quant, Crypto, Risk), strategy artifact exporters (TradingView Pine Script v5, MT5 MQL5 code, and Markdown reports), an interactive research chatbot tab in the UI, and a 3-month portfolio backtesting engine whose results are embedded in the Costs tab of the dashboard.
+
+### 1. Dockerized SSE Vibe-Trading MCP Server
+- **Service Orchestration:** Added a new containerized service `vibe-trading-mcp` to `docker-compose.yml` communicating via SSE transport on port `8010`.
+- **FastAPI MCP Client:** Developed `VibeMcpClient` in `src/clients/vibe_mcp.py` to query tools on the containerized server asynchronously and perform thread-safe sync wrapper mappings.
+- **FinOps Controls Bypass:** Configured setting `enable_finops_limits` (defaulting to `False`) in `src/config.py` and modified `discovery_graph.py` and `nodes.py` to bypass budget gating checks when disabled.
+
+### 2. Multi-Agent Swarm & Portfolio Backtesting
+- **Discovery DAG Integration:** Added `backtest_picks_node` in the LangGraph discovery DAG, running 3-month strategy simulation backtests via MCP on daily picks and writing metrics (Sharpe ratio, Max drawdown, Cumulative returns, Beta) into DynamoDB.
+- **Dynamic Cost Hydration:** Updated `/api/v1/daily_picks` and frontend javascript to load and render these backtesting metrics inside a new dedicated visual panel in the Costs tab.
+
+### 3. Interactive Research Lab & Chatbot
+- **Interactive Chat:** Added `/api/v1/chat` endpoint supporting a context-aware multi-agent chatbot. Clear session buttons allow refreshing dialogue state.
+- **Strategy Artifact Exporters:** Added `/api/v1/artifacts/export` endpoint to programmatically generate and package TradingView Pine Script, MetaTrader 5 code, and PDF/Markdown research reports.
+- **Glassmorphic Frontend Tab:** Added a dedicated **Research Lab** tab inside `static/index.html` and bound state controls/listeners in `static/app.js` (`initResearchLab()`) to handle analyst swarm selections, interactive chat, and download exports.
+
+
 ## Entry 80: AI-Powered Market News Summary Widget and Mentioned Ticker Shortcuts (2026-05-31)
 
 In this entry, we document the implementation of an AI-powered Market News Summary widget. It reads live Google News RSS articles, generates thematic clusters and executive summaries, and extracts mentioned stock tickers from text to create interactive lookup shortcuts.

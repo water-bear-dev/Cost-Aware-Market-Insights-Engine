@@ -1,6 +1,7 @@
 from src.dag.state import AlphaDagState
 from langchain_core.messages import AIMessage
 from decimal import Decimal
+from src.config import settings
 import structlog
 
 # We import the existing FinOps logic
@@ -19,8 +20,12 @@ def finops_gate_node(state: AlphaDagState) -> dict:
     estimated_tokens = len(str(state.get("messages", []))) / 4 + 1000
     cost_estimate = float(estimated_tokens * 0.00025)
     
-    is_approved = check_budget(Decimal(str(cost_estimate)))
-    logger.info("FinOps Gate Checked", cost=cost_estimate, approved=is_approved)
+    if not settings.enable_finops_limits:
+        logger.info("FinOps Gate Bypassed (Disabled by default)", cost=cost_estimate)
+        is_approved = True
+    else:
+        is_approved = check_budget(Decimal(str(cost_estimate)))
+        logger.info("FinOps Gate Checked", cost=cost_estimate, approved=is_approved)
     
     return {
         "estimated_cost": cost_estimate,

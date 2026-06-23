@@ -1,7 +1,7 @@
 # AI Market Insights Engine -- Final System Architecture
 
-## Final Production State (Phase 10 Complete)
-**Status:** Institutional-Grade QMJ Screener & Alpha-DAG Pivot [COMPLETE]
+## Final Production State (Phase 11 Complete)
+**Status:** Multi-Agent Swarm & Backtesting Integration [COMPLETE]
 
 ### 1. High-Level Architecture
 The system has evolved from a monolithic background loop to a **stateful, agentic discovery engine** orchestrated via **LangGraph**. It combines institutional-grade factor analysis (QMJ) with cost-aware AI synthesis.
@@ -16,20 +16,26 @@ flowchart TB
 
     subgraph Intelligence ["Alpha-DAG Orchestration (LangGraph)"]
         direction LR
+        UniverseNode["Universe Node\n(Movers & Daily Picks)"]
+        QuantNode["Quant Analyst Node\n(Technical Indicators)"]
+        ResearchNode["Research Analyst Node\n(Macro/News Extraction)"]
+        SentimentNode["Sentiment Node\n(Zero-Cost Lexical)"]
+        ReconcilerNode["Sentiment Reconciler\n(Confidence & Divergence)"]
         Gate["FinOps Gate\n(USD Budget Enforcement)"]
-        Hunter["Discovery Hunter\n(Global Ticker Filter)"]
-        Synth["AI Synthesis"]
-        Bedrock["Amazon Bedrock"]
-        SentimentEngine["Sentiment Engine\n(Zero-Cost Lexical)"]
+        Synth["AI Synthesis\n(Bedrock/Ollama Converse)"]
+        BacktestNode["Strategy Backtester\n(Portfolio Simulation)"]
 
-        Gate --> Hunter --> Synth --> Bedrock
-        Hunter --> SentimentEngine
+        UniverseNode --> QuantNode --> Gate
+        UniverseNode --> ResearchNode --> Gate
+        UniverseNode --> SentimentNode --> ReconcilerNode --> Gate
+        Gate --> Synth --> BacktestNode
     end
 
     subgraph DataLayer ["Quantitative & Data Layer"]
         direction TB
         MarketMCP["MCP: Market Data\n(Sandboxed Docker)"]
         QuantMCP["MCP: Quant Compute\n(Sandboxed Docker)"]
+        VibeMCP["MCP: Vibe-Trading\n(SSE Docker)"]
         DBT["dbt Pipeline\n(QMJ Z-Scores)"]
         Warehouse["Analytics Warehouse\n(DuckDB -> Athena)"]
 
@@ -62,20 +68,23 @@ flowchart TB
     %% Connections
     YFinance -- "real-time prices" --> DDB_Market
     YFinance -- "quarterly financials" --> Warehouse
-    Warehouse -- "QMJ scores" --> Hunter
-    QuantMCP -- "technical metrics" --> Hunter
-    Reddit -- "social chatter" --> SentimentEngine
-    YFinance -- "news headlines" --> SentimentEngine
-    SentimentEngine -- "sentiment scores" --> DDB_Insights
-    SentimentEngine -- "sentiment badges" --> Dash
-    Synth -- "insights" --> Dash
+    Warehouse -- "QMJ scores" --> UniverseNode
+    QuantMCP -- "technical metrics" --> QuantNode
+    Reddit -- "social chatter" --> SentimentNode
+    YFinance -- "news headlines" --> SentimentNode
+    VibeMCP -- "backtest simulations" --> BacktestNode
+    VibeMCP -- "analyst swarm reviews" --> FastAPI
+    BacktestNode -- "backtesting stats" --> DDB_Insights
+    Synth -- "narrative insights" --> DDB_Insights
+    DDB_Insights -- "hydrate dashboard" --> Dash
+    Dash -- "interactive chat / exports" --> FastAPI
+    FastAPI -- "invoke swarm / generate" --> VibeMCP
     Dash -- "feedback loop" --> Gate
     Gate -- "debit budget" --> DDB_Costs
     
     Fargate -- "runs on" --> Intelligence
     CW -- "observability + alarms" --> Intelligence
     CW -- "observability + alarms" --> AWS
-
 
     %% Styling
     classDef intelligence fill:#6a4c93,color:#fff,stroke:#333,stroke-width:2px;
@@ -84,10 +93,10 @@ flowchart TB
     classDef cost fill:#ffca3a,color:#000,stroke:#333,stroke-width:2px;
     classDef presentation fill:#e0e0e0,color:#000,stroke:#333,stroke-width:2px;
 
-    class Gate,Hunter,Synth,Bedrock,SentimentEngine intelligence;
-    class MarketMCP,QuantMCP,DBT,Warehouse,YFinance,Reddit datalayer;
+    class UniverseNode,QuantNode,ResearchNode,SentimentNode,ReconcilerNode,Gate,Synth,BacktestNode intelligence;
+    class MarketMCP,QuantMCP,VibeMCP,DBT,Warehouse,YFinance,Reddit datalayer;
     class Fargate,Athena,CW,DDB_Market,DDB_Insights aws;
-    class DDB_Costs cost;
+    class DDB_Costs,DDB_Tracked,DDB_QMJ cost;
     class Presentation presentation;
 ```
 The engine leverages a distributed agentic architecture (Alpha-DAG) combined with a high-performance analytical warehouse.
@@ -143,6 +152,7 @@ The **Quality Minus Junk (QMJ)** engine implements the AQR factor strategy to ra
 To maintain security and execution isolation, external capabilities are decoupled into independent **Model Context Protocol (MCP)** servers:
 1. **Market Data MCP**: Encapsulates `yfinance` logic and Google News RSS parsing.
 2. **Quant Compute MCP**: A network-restricted Docker container running Pandas/Numpy for heavy math, completely insulated from AWS credentials.
+3. **Vibe-Trading MCP**: Runs vibe-trading-mcp over SSE to delegate multi-agent analyst reviews (investment, quant, crypto, macro, risk) and portfolio backtest simulations.
 
 ### 5. Project Structure
 ```text
@@ -153,12 +163,12 @@ market-insights-engine/
 ├── dev-blog/                         # Architectural decision logs
 ├── src/
 │   ├── main.py                       # FastAPI entry point
-│   ├── dag/                          # LangGraph state machine & nodes
+│   ├── dag/                          # LangGraph state machine & nodes (Discovery, Portfolio)
 │   ├── dbt_qmj/                      # dbt models for Quality-Minus-Junk
 │   ├── mcp/                          # MCP servers (Quant, Market)
 │   ├── cost_tracking/                # FinOps Budget Gate
-│   ├── routes/                       # API Endpoints (Insights, Screener, Costs)
-│   ├── clients/                      # AWS (Dynamo, Bedrock) & Warehouse (DuckDB)
+│   ├── routes/                       # API Endpoints (Insights, Screener, Costs, Chat)
+│   ├── clients/                      # AWS (Dynamo, Bedrock), Warehouse (DuckDB) & vibe_mcp client
 │   └── models.py                     # Pydantic data schemas
 └── static/                           # Glassmorphic Frontend Dashboard
 ```

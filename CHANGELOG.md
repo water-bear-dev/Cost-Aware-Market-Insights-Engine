@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.10.0] - 2026-06-23
+
+### Added
+- **HKUDS Vibe-Trading MCP Integration** — Integrated containerized `vibe-trading-mcp` service using Server-Sent Events (SSE) transport protocol on port `8010` to query and direct collaborative analyst swarms.
+- **Interactive Research Lab Chatbot** — Implemented `/api/v1/chat` endpoint and a glassmorphic chat interface in the frontend to let users run analyst teams (investment, quant, crypto, macro, and risk) and ask questions with session-level memory.
+- **Strategy & Code Artifact Exporters** — Added `/api/v1/artifacts/export` supporting download requests for TradingView Pine Script v5 code, MetaTrader 5 MQL5 EA scripts, and detailed Markdown research reports.
+- **Portfolio Strategy Backtesting** — Integrated a 3-Month portfolio backtesting loop node (`backtest_picks_node`) inside the LangGraph Discovery DAG. Simulation metrics (Sharpe ratio, Max drawdown, Cumulative returns, Beta) are fetched from the MCP server and saved to DynamoDB.
+- **Backtesting Observe Dashboard** — Added a visual panel inside the Costs view of the dashboard, showing live backtesting performance statistics dynamically loaded from the latest daily discovery picks.
+- **Toggleable FinOps Constraints** — Added an `enable_finops_limits` setting flag (defaulting to `False`) that bypasses budget enforcement gates on nodes when disabled, ensuring uninterrupted local research cycles.
+- **Python 3.11/3.12 Runtime Support** — Hardened libraries and config schemas to support Python 3.11+ runtimes.
+
+### Changed
+- **LangGraph DAG Execution** — Refined the state machine in `discovery_graph.py` to route daily picks through the strategy backtesting logic.
+- **Dashboard Tab Layout** — Added the "Research Lab" navigation menu tab and its associated workspace components (analyst swarms select, export download panel, and interactive chat console).
+
 ## [3.9.2] - 2026-05-31
 
 ### Added

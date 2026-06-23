@@ -1,45 +1,38 @@
-# Agent Handoff: AI News Summary Widget (v3.9.2)
+# Agent Handoff: HKUDS Vibe-Trading Swarm & Backtesting Integration (v3.10.0)
 
-This document summarizes the changes made to implement the AI-powered Market News Summary Widget in the Cost-Aware Market Insights Engine.
+This document summarizes the state of the codebase following the completion of Phase 11: Multi-Agent Swarm Research & Backtesting Integration using the HKUDS Vibe-Trading architecture.
 
 ## Current Project State
-The project has been upgraded with a new executive-level news summary dashboard panel on the Discover tab.
+The project now features a containerized Vibe-Trading Model Context Protocol (MCP) server, an interactive Research Lab panel on the dashboard with a context-aware chatbot, strategy exporters (Pine Script, MT5 code, and PDF/Markdown reports), and a 3-month daily-picks backtester visualization inside the Costs tab.
 
 ### What Was Built (Latest Pass)
-1. **AI News Summary API Endpoint (`src/routes/discover.py`)**
-   - Implemented `GET /discover/news-summary` that synthesizes the top 10 news headlines.
-   - Outputs a highly structured JSON contract containing:
-     - `tldr` (detailed 3-4 sentence paragraph overview of the market sentiment)
-     - `drivers` (exactly 3 long, detailed, multi-sentence paragraph strings explaining the "why" and context of market drivers)
-     - `metrics` (exactly 3 long, detailed, multi-sentence paragraph strings explaining the context and implications of extracted financial stats)
-     - `risks_catalysts` (exactly 3 long, detailed, multi-sentence paragraph strings explaining upcoming risk events and mechanisms of impact)
-     - `sentiment` (overall sentiment rating)
-     - `mentioned_tickers` (list of matching tickers paired with 1-sentence reasons why they are mentioned).
-   - Added an in-memory cache `_news_summary_cache` with a **4-hour TTL** to enforce token limits.
-   - Built a dynamic extraction helper `_extract_mentioned_tickers` that scans headlines for uppercase ticker codes and maps common company names (e.g. "Micron" -> `MU`, "Eli Lilly" -> `LLY`).
-   - Enhanced prompt instructions to strictly enforce paragraph-length, detailed contextual explanations (exactly 3 items per section) instead of brief bullet points.
-
-2. **Frontend UI & Presentation (`static/`)**
-   - **HTML (`index.html`):** Configured `#discover-news-summary-section` above the raw headlines feed.
-   - **CSS (`style.css`):** Styled the card with glassmorphism, accent hover glows, category tags, and custom loading skeletons (`pulse-animation`).
-   - **JS (`app.js`):** Implemented `fetchDiscoverNewsSummary()` to fetch, parse, and render structured details along with interactive clickable ticker badges that link to `openDiscoverAssetModal`. Removed the legacy thematic tags.
-
-3. **Documentation Updates**
-   - `CHANGELOG.md`: Added version entry `[3.9.2] - 2026-05-31`.
-   - `dev-blog/DEVELOPMENT_BLOG.md`: Added Entry 80 detailing the AI Summary architecture.
+1. **Containerized Vibe-Trading MCP Server (`docker-compose.yml`)**
+   - Configured the new container service `vibe-trading-mcp` communicating over SSE transport protocol on port `8010`.
+   - Developed `src/clients/vibe_mcp.py` (`VibeMcpClient`) to query and direct analyst swarms.
+2. **Interactive Research Lab UI & API**
+   - **Backend Route (`src/routes/chat.py`):** Implemented `/api/v1/chat` and `/api/v1/artifacts/export` endpoints.
+   - **Frontend View (`static/index.html`):** Added a dedicated **Research Lab** menu tab containing Analyst Swarms selectors, Artifact Export downloads, and the Chatbot interface.
+   - **JS Bindings (`static/app.js`):** Implemented `initResearchLab()` mapping actions for swarm choices, chat inputs, dialogue clearings, and download actions.
+3. **Portfolio Strategy Backtesting**
+   - **LangGraph Discovery Node (`src/dag/discovery_graph.py`):** Added `backtest_picks_node` running a 3-month simulation of picks via the MCP backtest tool, persisting results directly in DynamoDB.
+   - **Visual Observability Panel:** Embedded a Discovery Picks Backtesting visual summary in the Costs tab, hydrated dynamically by `fetchDailyPicks()`.
+4. **FinOps Limits Settings Toggle**
+   - Introduced `enable_finops_limits` setting (defaults to `False`) to bypass budget gating checks in local dev or high-intensity research cycles.
 
 ---
 
 ## File Map & Coordinates
-- **News Summary definitions and fetching logic**: [discover.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/routes/discover.py)
-- **UI layout container**: [index.html](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/static/index.html)
-- **Rendering controllers**: [app.js](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/static/app.js)
-- **Release notes**: [CHANGELOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/CHANGELOG.md)
-- **Implementation narrative**: [dev-blog/DEVELOPMENT_BLOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/dev-blog/DEVELOPMENT_BLOG.md)
+- **Vibe MCP Client**: [vibe_mcp.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/clients/vibe_mcp.py)
+- **Chat & Exporters API**: [chat.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/routes/chat.py)
+- **LangGraph Orchestrator**: [discovery_graph.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/dag/discovery_graph.py)
+- **FinOps Gate Check**: [nodes.py](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/src/dag/nodes.py)
+- **UI Presentation**: [index.html](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/static/index.html) and [app.js](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/static/app.js)
+- **Release logs**: [CHANGELOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/CHANGELOG.md)
+- **Development narrative**: [dev-blog/DEVELOPMENT_BLOG.md](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/dev-blog/DEVELOPMENT_BLOG.md)
 
 ---
 
 ## Technical Instructions for Next Agent
-- The endpoint relies on `call_llm` inside `src/synthesis/llm.py` which prioritizes `ollama` locally and defaults to Bedrock/OpenAI/Anthropic in production.
-- Make sure to enforce the budget checkpoint logic: if the daily budget is hit, prevent LLM synthesis and fall back gracefully to raw headlines.
-- Recommended verification: `bash scripts/syntax_check.sh`.
+- **MCP Communications**: Ensure the `vibe-trading-mcp` service is running in Docker (`docker-compose ps`). It serves tools over SSE on `http://vibe-trading-mcp:8010`.
+- **Environment Run**: Verify python code builds and runs using `./scripts/syntax_check.sh`.
+- **Bedrock / Ollama fallback**: Both `/api/v1/chat` and backtesting fall back cleanly to local/Bedrock LLM models if the premium models are constrained.

@@ -35,7 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from src.clients.dynamo import init_tables
-from src.routes import health, insights, costs, tickers, market, v2_dag, meta, discover, screener
+from src.routes import health, insights, costs, tickers, market, v2_dag, meta, discover, screener, chat
 from src.ingestion.service import ingest_market_data
 from src.ingestion.financials import run_qmj_pipeline
 from src.synthesis.service import synthesize_insights
@@ -210,6 +210,8 @@ app.include_router(v2_dag.router, prefix="/api/v2/tickers")
 app.include_router(meta.router, prefix="/api/v1")
 app.include_router(discover.router, prefix="/api/v1")
 app.include_router(screener.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
+
 
 @app.get("/api/v1/logs")
 def get_logs():

@@ -25,5 +25,21 @@ services:
     ports:
       - "8001:8000"
 
+  vibe-trading-mcp:
+    build: .
+    command: vibe-trading-mcp
+    environment:
+      - FASTMCP_TRANSPORT=sse
+      - FASTMCP_PORT=8010
+      - FASTMCP_HOST=0.0.0.0
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=us-east-1
+      - LLM_PROVIDER=mock
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./scratch:/app/scratch
+
 volumes:
   dynamodb-data:

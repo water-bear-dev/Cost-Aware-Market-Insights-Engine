@@ -84,6 +84,7 @@
                 <button class="tab-btn" data-tab="discover-view">Discover</button>
                 <button class="tab-btn" data-tab="screener-view">QMJ Screener</button>
                 <button class="tab-btn" data-tab="search-compare-view">Search & Compare</button>
+                <button class="tab-btn" data-tab="research-lab-view">Research Lab</button>
                 <span class="tab-nav-spacer"></span>
                 <button class="tab-btn" data-tab="finops-view">Costs</button>
                 <button class="tab-btn" data-tab="how-view">How it works</button>
@@ -801,6 +802,91 @@
             </div>
         </section>
 
+        <!-- Research Lab Section -->
+        <section id="research-lab-view" class="tab-content">
+            <div class="research-lab-container" style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; height: calc(100vh - 200px); min-height: 550px;">
+                
+                <!-- Left Control Panel: Analyst Teams & Artifacts -->
+                <div class="glass flex-column" style="padding: 1.5rem; gap: 1.5rem; height: 100%; justify-content: flex-start; overflow-y: auto;">
+                    <div>
+                        <h3 style="font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem;">🤖 Analyst Teams</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Select a specialized agent team to run collaborative reviews.</p>
+                        
+                        <div class="analyst-teams-list" style="display: flex; flex-direction: column; gap: 0.50rem;">
+                            <button class="glass-btn team-btn active" data-team="investment" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">💼</span> Investment Review
+                            </button>
+                            <button class="glass-btn team-btn" data-team="quant" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">📊</span> Quantitative Review
+                            </button>
+                            <button class="glass-btn team-btn" data-team="crypto" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">🪙</span> Crypto Review
+                            </button>
+                            <button class="glass-btn team-btn" data-team="macro" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">🌐</span> Macro Review
+                            </button>
+                            <button class="glass-btn team-btn" data-team="risk" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">🛡️</span> Risk Workflow
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem; margin-top: auto;">
+                        <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">📦 Export Artifact</h3>
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Export strategy code or reports for the active stock.</p>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <input type="text" id="export-ticker-input" placeholder="Ticker (e.g. AAPL)" class="glass-input" style="font-size: 0.8rem; padding: 0.5rem;" />
+                            <button id="export-pinescript-btn" class="glass-btn primary" style="font-size: 0.8rem; padding: 0.5rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                                📉 Download Pine Script v5
+                            </button>
+                            <button id="export-mt5-btn" class="glass-btn" style="font-size: 0.8rem; padding: 0.5rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                                ⚙️ Download MetaTrader 5 (MQL5)
+                            </button>
+                            <button id="export-report-btn" class="glass-btn" style="font-size: 0.8rem; padding: 0.5rem; width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.4rem;">
+                                📰 Download Markdown Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Chat Interface -->
+                <div class="glass flex-column" style="padding: 1.5rem; height: 100%; overflow: hidden;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; margin-bottom: 1rem;">
+                        <div>
+                            <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin: 0;">💬 Interactive Research Chatbot</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.25rem 0 0 0;">Ask questions using tools, documents, and real-time market data.</p>
+                        </div>
+                        <button id="clear-chat-btn" class="glass-btn" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">Clear Context</button>
+                    </div>
+
+                    <!-- Chat Messages Window -->
+                    <div id="chat-messages-container" style="flex: 1; overflow-y: auto; padding: 0.5rem; display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem;" class="custom-scrollbar">
+                        <!-- Welcome message -->
+                        <div class="chat-msg system" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 1rem; border-radius: 12px; font-size: 0.85rem; line-height: 1.6; color: var(--text-secondary);">
+                            👋 Welcome to the **Vibe-Trading Research Lab**! 
+                            <br/><br/>
+                            This interactive chat workspace is connected directly to your local **Vibe-Trading MCP client**. 
+                            You can query market data, run strategy ideas, backtest portfolios, or generate complex mathematical breakdowns.
+                            <br/><br/>
+                            **Try asking:**
+                            - *"Should I buy Apple (AAPL) based on technical crossovers?"*
+                            - *"Analyze the correlation between META and GOOGL"*
+                            - *"Suggest a short-term volatility strategy for NVDA"*
+                        </div>
+                    </div>
+
+                    <!-- Input bar -->
+                    <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--glass-border); padding-top: 1rem;">
+                        <input type="text" id="chat-input" placeholder="Type your trading question..." class="glass-input" style="flex: 1; font-size: 0.9rem; padding: 0.75rem 1rem;" />
+                        <button id="send-chat-btn" class="glass-btn primary" style="padding: 0.75rem 1.5rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>Send</span>
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <!-- FinOps Section -->
         <section id="finops-view" class="tab-content">
@@ -890,6 +976,36 @@
                     <div style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                         <strong>Hard Limits Active:</strong> AWS Bedrock invocation is automatically disabled if daily budget exceeds 100%. Fallbacks to cached data ensure uninterrupted service.
+                    </div>
+                </div>
+
+                <!-- Portfolio Backtesting Analytics -->
+                <h3 style="margin-top: 3rem; margin-bottom: 1.5rem; font-weight: 500; font-size: 1.2rem; color: var(--text-secondary); text-transform: uppercase;">📈 Discovery Picks Backtesting</h3>
+                <div class="glass" style="padding: 2rem;">
+                    <p style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                        This panel displays the historical backtest performance of the active **Daily Discovery Picks** portfolio over the last 3-Month period. Backtests are generated using Vibe-Trading's quant backtester.
+                    </p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem;">
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px; text-align: center;">
+                            <h4 style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Sharpe Ratio</h4>
+                            <p style="font-size: 1.8rem; font-weight: 800; color: var(--accent);" id="backtest-sharpe-val">1.85</p>
+                            <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Risk-adjusted return</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px; text-align: center;">
+                            <h4 style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Max Drawdown</h4>
+                            <p style="font-size: 1.8rem; font-weight: 800; color: #f43f5e;" id="backtest-drawdown-val">-6.5%</p>
+                            <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Peak-to-trough decline</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px; text-align: center;">
+                            <h4 style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Cumulative Return</h4>
+                            <p style="font-size: 1.8rem; font-weight: 800; color: var(--positive);" id="backtest-return-val">+12.4%</p>
+                            <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Total 3M return</p>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); padding: 1.2rem; border-radius: 12px; text-align: center;">
+                            <h4 style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Portfolio Beta</h4>
+                            <p style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary);" id="backtest-beta-val">0.95</p>
+                            <p style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">Systemic risk factor</p>
+                        </div>
                     </div>
                 </div>
             </div>
