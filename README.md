@@ -230,6 +230,18 @@ The engine is designed for **Multi-LLM portability**, allowing you to run powerf
 | **Cloud (Anthropic)** | `anthropic` | Claude 3.x | Pay-as-you-go | Low |
 | **Local (Zero-Effort)** | `mock` | Static Mock | Free | Zero |
 
+### Switching to a Cloud Model (Fixing Local Tool-Calling Issues)
+If you are running locally but notice the Swarm Analyst generating placeholder templates (e.g., `[current date]`) instead of actually retrieving market data, it means your local model is struggling with tool-calling. To fix this, you can configure the swarm to use a cloud model:
+1. Open your `.env` file.
+2. Change the main app provider to Bedrock (if you have AWS configured): `LLM_PROVIDER=bedrock`
+3. Add the following lines for the Swarm MCP Server (using OpenAI as an example):
+   ```env
+   LANGCHAIN_PROVIDER=openai
+   LANGCHAIN_MODEL_NAME=gpt-4o
+   OPENAI_API_KEY=your_actual_api_key_here
+   ```
+4. Restart your containers: `docker-compose down && docker-compose up -d`
+
 ---
 
 ## Quick Start (Running Locally with Ollama)
