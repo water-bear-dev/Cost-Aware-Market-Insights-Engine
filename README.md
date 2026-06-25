@@ -197,25 +197,30 @@ To ensure the engine runs successfully in a local or cloud environment, verify t
 
 ### 1. Core Runtime
 - **Python 3.11+**: The application leverages modern typing features and async patterns.
-- **Docker & Docker Compose**: Essential for orchestrating the local DynamoDB ledger and the FastAPI container.
+- **Docker & Docker Compose**: Essential for orchestrating the DynamoDB ledger, FastAPI container, and Vibe-Trading MCP service.
 - **Node.js (Optional)**: Only required if you intend to run standalone frontend build tools.
 
 ### 2. AWS Infrastructure (Production)
 - **AWS Account**: Required for DynamoDB (Insights/Market) and Bedrock.
 - **AWS CLI (`aws`)**: Configured with valid credentials (`aws configure`) and appropriate IAM permissions for DynamoDB, S3, and Bedrock.
-- **Bedrock Model Access**: **CRITICAL.** You must manually request access to the `Anthropic Claude 3 Haiku` model in the AWS Bedrock console (e.g., in `us-east-1` or `us-west-2`). Access is typically granted within minutes but is not enabled by default. The engine uses the **Bedrock Converse API** (`converse` endpoint) — ensure your IAM role has `bedrock:InvokeModel` and `bedrock:Converse` permissions.
+- **Bedrock Model Access**: **CRITICAL.** You must manually request access to the `Anthropic Claude 3 Haiku` model in the AWS Bedrock console (e.g., in `us-east-1` or `us-west-2`). Access is typically granted within minutes but is not enabled default. The engine uses the **Bedrock Converse API** (`converse` endpoint) — ensure your IAM role has `bedrock:InvokeModel` and `bedrock:Converse` permissions.
 
 ### 3. Local Intelligence (Development)
 - **Ollama**: Required if running without AWS Bedrock.
 - **Llama 3.2**: The default recommended model for the Discovery Agent logic. Ensure you have run `ollama pull llama3.2` before starting the app.
 
-### 4. Financial Data Access
-- **Network Access**: The application requires outbound HTTPS access to `query1.finance.yahoo.com` for real-time ingestion. No API keys are required for `yfinance`.
+### 4. Financial Data Access & Internet Connectivity
+- **Active Internet Connection**: **CRITICAL.** Even when running in local offline development using Ollama, the application requires outbound HTTPS access to `query1.finance.yahoo.com` and other web APIs for data ingestion, global news feed parsing, and running MCP strategy backtests. Outbound connections must not be blocked by network firewalls.
 
 
 ## Environment & LLM Support
 
 The engine is designed for **Multi-LLM portability**, allowing you to run powerful open-source models locally during development and scale to enterprise-grade models in the cloud.
+
+> [!NOTE]
+> **Environment Context Rule**:
+> - **Local Runs**: Defaults to using the local model (`ollama` / `Llama 3.2`) to save costs, but **still requires active internet connectivity** to fetch market data and perform backtests.
+> - **Cloud Deployments**: Automatically maps to the cloud model (`bedrock` / `Claude 3 Haiku`) for high-availability enterprise synthesis.
 
 | Environment | LLM Provider | Model | Cost | Setup Complexity |
 | :--- | :--- | :--- | :--- | :--- |
@@ -242,19 +247,30 @@ To run the engine on your local machine using an open-source LLM:
    cd Cost-Aware-Market-Insights-Engine
    ```
 4. **Configure for Local Run**:
-   Edit `docker-compose.yml` and ensure `LLM_PROVIDER` is set to `ollama`.
+   - **Main App**: Set `LLM_PROVIDER=ollama` and `OLLAMA_MODEL=llama3.2` in your local `.env` file.
+   - **Vibe-Trading MCP Swarms**: Edit the `vibe-trading-mcp` service environment block in [docker-compose.yml](file:///Users/andrewpham/Documents/GitHub/Cost-Aware-Market-Insights-Engine/docker-compose.yml) to swap the default `mock` settings:
+     ```yaml
+           - LANGCHAIN_PROVIDER=ollama
+           - LANGCHAIN_MODEL_NAME=llama3.2
+           - OLLAMA_BASE_URL=http://host.docker.internal:11434
+     ```
 5. **Start the containers**:
    ```bash
    docker-compose up -d --build
    ```
-6. **Initialize the QMJ Screener**:
+6. **Verify Container Health**:
+   Ensure both the core FastAPI app and the `vibe-trading-mcp` service are up and healthy:
+   ```bash
+   docker-compose ps
+   ```
+7. **Initialize the QMJ Screener**:
    The engine uses dbt Core to calculate analytical scores. Run the following once to set up your local DuckDB instance:
    ```bash
    cd src/dbt_qmj
    dbt run
    cd ../..
    ```
-7. **Access the Dashboard**: [http://localhost:8000](http://localhost:8000)
+8. **Access the Dashboard**: [http://localhost:8000](http://localhost:8000)
 
 ---
 
@@ -278,19 +294,39 @@ To enable the cloud-scale warehouse:
 
 ## AWS Production Deployment (Cloud)
 
-To deploy to AWS using Amazon Bedrock and Claude 3 Haiku:
+To deploy the stack to AWS using Amazon Bedrock for the main app and a cloud provider (e.g. OpenAI, Gemini, or DeepSeek) for the multi-agent swarms:
 
 1. **Prerequisites**:
    - AWS Account with **Amazon Bedrock** access requested for `Claude 3 Haiku`.
    - AWS CLI configured (`aws configure`).
-2. **Configure for Cloud**:
-   Set `LLM_PROVIDER=bedrock` in your production environment variables.
-3. **Deploy Infrastructure**:
+2. **Configure Core App**:
+   Set `LLM_PROVIDER=bedrock` in your production environment variables (e.g. in your task definition or container environment).
+3. **Configure Vibe-Trading MCP (Cloud)**:
+   Since the `vibe-trading-mcp` service leverages standard LangChain model factories requiring OpenAI-compatible or direct cloud API connections, configure its environment variables for a cloud LLM provider:
+   - **For OpenAI**:
+     ```yaml
+     - LANGCHAIN_PROVIDER=openai
+     - LANGCHAIN_MODEL_NAME=gpt-4o-mini
+     - OPENAI_API_KEY=your_openai_api_key
+     ```
+   - **For Gemini**:
+     ```yaml
+     - LANGCHAIN_PROVIDER=gemini
+     - LANGCHAIN_MODEL_NAME=gemini-1.5-flash
+     - GEMINI_API_KEY=your_gemini_api_key
+     ```
+   - **For DeepSeek**:
+     ```yaml
+     - LANGCHAIN_PROVIDER=deepseek
+     - LANGCHAIN_MODEL_NAME=deepseek-chat
+     - DEEPSEEK_API_KEY=your_deepseek_api_key
+     ```
+4. **Deploy Infrastructure**:
    ```bash
    sh scripts/deploy.sh
    ```
    *This builds an ARM64-optimized production image, pushes it to ECR, and updates the CloudFormation stack (Fargate + DynamoDB).*
-4. **Teardown**:
+5. **Teardown**:
    ```bash
    sh scripts/teardown.sh
    ```

@@ -7505,6 +7505,42 @@ function initResearchLab() {
     const messagesContainer = document.getElementById('chat-messages-container');
     const clearBtn = document.getElementById('clear-chat-btn');
     
+    const agentUIMap = {
+        // Investment presets
+        'bull_analyst': { name: '🐂 Bull Analyst', color: '#10b981' },
+        'bear_analyst': { name: '🐻 Bear Analyst', color: '#ef4444' },
+        'risk_officer': { name: '🛡️ Risk Officer', color: '#f59e0b' },
+        'portfolio_manager': { name: '💼 Chief Portfolio Manager', color: '#0ea5e9' },
+        
+        // Macro presets
+        'global_macro_analyst': { name: '🌍 Global Macro Analyst', color: '#8b5cf6' },
+        'rates_strategist': { name: '📈 Rates & FX Strategist', color: '#ec4899' },
+        'policy_analyst': { name: '🏛️ Policy Analyst', color: '#6b7280' },
+        'chief_strategist': { name: '🎓 Chief Macro Strategist', color: '#3b82f6' },
+
+        // Quant presets
+        'quant_analyst': { name: '🔢 Quant Strategy Researcher', color: '#14b8a6' },
+        'factor_researcher': { name: '📊 Factor Scientist', color: '#06b6d4' },
+        'backtest_engineer': { name: '⚙️ Backtest Engineer', color: '#64748b' },
+        'risk_auditor': { name: '🔍 Quantitative Risk Auditor', color: '#f43f5e' },
+    };
+
+    function getSenderInfo(sender) {
+        if (sender === 'user') return { name: 'You', color: '#0ea5e9' };
+        if (sender === 'assistant') return { name: '🤖 Swarm Consensus', color: 'var(--accent)' };
+        
+        const key = sender.toLowerCase().trim();
+        if (agentUIMap[key]) {
+            return agentUIMap[key];
+        }
+        
+        // Auto-formatting fallback
+        const formatted = sender
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
+        return { name: `🤖 ${formatted}`, color: 'var(--accent)' };
+    }
+    
     if (!messagesContainer) return;
 
     let activeTeam = 'investment';
@@ -7515,11 +7551,40 @@ function initResearchLab() {
     // 1. Team selection
     document.querySelectorAll('.team-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.team-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeTeam = btn.dataset.team;
+            const team = btn.dataset.team;
+            if (activeTeam === team) {
+                // Already active, do not repeat system message or re-trigger feedback
+                return;
+            }
             
-            appendSystemMessage(`🤖 <strong>${btn.textContent.trim()} Active</strong>: Your queries will now be processed by the specialized multi-agent analyst swarm workflow.`);
+            activeTeam = team;
+            
+            // Update active state class and indicators on all buttons
+            document.querySelectorAll('.team-btn').forEach(b => {
+                b.classList.remove('active');
+                const ind = b.querySelector('.active-indicator');
+                if (ind) {
+                    ind.remove();
+                }
+            });
+            
+            btn.classList.add('active');
+            
+            // Append checkmark/dot feedback to the active button
+            const indicator = document.createElement('span');
+            indicator.className = 'active-indicator';
+            indicator.style.marginLeft = 'auto';
+            indicator.style.color = 'var(--positive)';
+            indicator.style.fontSize = '0.75rem';
+            indicator.style.fontWeight = 'bold';
+            indicator.style.lineHeight = '1';
+            indicator.innerHTML = '●';
+            btn.appendChild(indicator);
+            
+            const cleanName = btn.textContent.trim().replace('●', '').trim();
+            showToast(`${cleanName} Activated`, "success");
+            
+            appendSystemMessage(`🤖 <strong>${cleanName} Active</strong>: Your queries will now be processed by the specialized multi-agent analyst swarm workflow.`);
         });
     });
 
@@ -7555,7 +7620,13 @@ function initResearchLab() {
 
             if (res.ok) {
                 const data = await res.json();
-                appendMessage(data.response, 'assistant');
+                if (data.messages && data.messages.length > 0) {
+                    for (const msg of data.messages) {
+                        appendMessage(msg.text, msg.sender);
+                    }
+                } else {
+                    appendMessage(data.response, 'assistant');
+                }
             } else {
                 appendMessage("Sorry, I encountered an error communicating with the analyst swarm server.", 'assistant');
             }
@@ -7629,6 +7700,7 @@ function initResearchLab() {
         msgDiv.className = `chat-msg ${sender}`;
         
         let displayHTML = formatMarkdown(text);
+        const info = getSenderInfo(sender);
         
         if (sender === 'user') {
             msgDiv.style.alignSelf = 'flex-end';
@@ -7652,8 +7724,8 @@ function initResearchLab() {
             msgDiv.style.fontSize = '0.88rem';
             msgDiv.style.lineHeight = '1.6';
             msgDiv.innerHTML = `
-                <div style="font-weight:700; color:var(--accent); font-size:0.75rem; text-transform:uppercase; margin-bottom:0.4rem; display:flex; align-items:center; gap:0.4rem;">
-                    <span>🤖 Swarm Analyst Response</span>
+                <div style="font-weight:700; color:${info.color}; font-size:0.75rem; text-transform:uppercase; margin-bottom:0.4rem; display:flex; align-items:center; gap:0.4rem;">
+                    <span>${info.name}</span>
                 </div>
                 <div>${displayHTML}</div>
             `;
@@ -7708,17 +7780,76 @@ function initResearchLab() {
 
     function formatMarkdown(text) {
         if (!text) return '';
-        
-        let html = text
+
+        // 1. Parse multi-line code blocks first to protect their formatting and newlines
+        const codeBlocks = [];
+        let html = text.replace(/```(?:[a-zA-Z]*)\n([\s\S]*?)\n```/g, (match, code) => {
+            const placeholder = `__CODE_BLOCK_PLACEHOLDER_${codeBlocks.length}__`;
+            // Escape HTML characters inside the raw code before wrapping in pre tags
+            const escapedCode = code
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+            codeBlocks.push(`<pre style="background:rgba(0,0,0,0.35); padding:1rem; border-radius:8px; font-family:monospace; font-size:0.8rem; overflow-x:auto; margin:0.75rem 0; border:1px solid var(--glass-border); white-space:pre-wrap; word-break:break-all; line-height:1.5; color:var(--text-primary);">${escapedCode}</pre>`);
+            return placeholder;
+        });
+
+        // 2. Escape HTML special characters for the rest of the text
+        html = html
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
-            
+
+        // Restore code blocks (since they are already fully styled and escaped)
+        codeBlocks.forEach((block, index) => {
+            html = html.replace(`__CODE_BLOCK_PLACEHOLDER_${index}__`, block);
+        });
+
+        // 3. Parse LaTeX math formulas (block and inline)
+        const cleanFormula = (formula) => {
+            return formula
+                .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+                .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)')
+                .replace(/\\times/g, ' × ')
+                .replace(/\\pm/g, ' ± ')
+                .replace(/\\sigma/g, 'σ')
+                .replace(/\\mu/g, 'μ')
+                .replace(/\\alpha/g, 'α')
+                .replace(/\\beta/g, 'β')
+                .replace(/\\/g, '') // remove standalone backslashes
+                .replace(/_([a-zA-Z0-9]+)/g, '<sub>$1</sub>') // subscripts (e.g. VIX_NVDA)
+                .replace(/_\{([^}]+)\}/g, '<sub>$1</sub>') // subscripts with braces (e.g. Bollinger_{2\sigma})
+                .replace(/\{/g, '') // remove leftover curly braces
+                .replace(/\}/g, '');
+        };
+
+        // Block formulas: \[ ... \]
+        html = html.replace(/\\\[([\s\S]*?)\\\]/g, (match, formula) => {
+            return `<div style="text-align:center; padding:0.5rem; margin:0.75rem 0; font-family:serif; font-size:1.1rem; color:var(--link); background:rgba(255,255,255,0.01); border-radius:6px; border:1px dashed rgba(255,255,255,0.05);"><i>${cleanFormula(formula)}</i></div>`;
+        });
+
+        // Inline formulas: \( ... \)
+        html = html.replace(/\\\(([\s\S]*?)\\\)/g, (match, formula) => {
+            return `<i style="font-family:serif; font-size:1rem; color:var(--link);">${cleanFormula(formula)}</i>`;
+        });
+
+        // 4. Formatting inline Markdown styles (bold, code, lists)
         html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         html = html.replace(/`(.*?)`/g, '<code style="background:rgba(255,255,255,0.06); padding:0.1rem 0.3rem; border-radius:4px; font-family:monospace; font-size:0.8rem;">$1</code>');
         html = html.replace(/^\s*[\-\*]\s+(.*)$/gm, '<li style="margin-left:1rem; margin-top:0.3rem;">$1</li>');
         html = html.replace(/(<li.*?>.*?<\/li>)+/g, '<ul style="margin: 0.5rem 0;">$&</ul>');
-        html = html.split('\n\n').map(p => p.trim() ? `<p style="margin-bottom:0.5rem;">${p}</p>` : '').join('');
+        
+        // 5. Separate paragraphs (ignoring pre blocks to avoid double spacing them)
+        const parts = html.split('\n\n');
+        html = parts.map(p => {
+            const trimmed = p.trim();
+            if (!trimmed) return '';
+            // If it is a pre block or block equation, return directly
+            if (trimmed.startsWith('<pre') || trimmed.startsWith('<div style="text-align:center;')) {
+                return trimmed;
+            }
+            return `<p style="margin-bottom:0.5rem;">${trimmed}</p>`;
+        }).join('');
         
         return html;
     }

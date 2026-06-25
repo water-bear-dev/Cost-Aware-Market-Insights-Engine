@@ -27,7 +27,10 @@ services:
 
   vibe-trading-mcp:
     build: .
+    user: root
     command: vibe-trading-mcp
+    env_file:
+      - .env
     environment:
       - FASTMCP_TRANSPORT=sse
       - FASTMCP_PORT=8010
@@ -35,11 +38,15 @@ services:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_DEFAULT_REGION=us-east-1
-      - LLM_PROVIDER=mock
+      - LANGCHAIN_PROVIDER=${LLM_PROVIDER:-ollama}
+      - LANGCHAIN_MODEL_NAME=${OLLAMA_MODEL:-llama3.2}
+      - OLLAMA_BASE_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
     ports:
       - "8010:8010"
     volumes:
       - ./scratch:/app/scratch
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   dynamodb-data:

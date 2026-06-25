@@ -99,10 +99,10 @@ flowchart TB
     class DDB_Costs,DDB_Tracked,DDB_QMJ cost;
     class Presentation presentation;
 ```
-The engine leverages a distributed agentic architecture (Alpha-DAG) combined with a high-performance analytical warehouse.
-
 *   **Orchestration**: LangGraph (Alpha-DAG) for stateful multi-agent workflows.
 *   **AI Synthesis**: AWS Bedrock (Claude 3 Haiku) or local Ollama (Llama 3.2).
+    *   *Local Dev*: Invokes the local model (`ollama`), but **requires active internet connectivity** to perform market data ingestion, fetch news feeds, and execute MCP strategy backtesting.
+    *   *Cloud Prod*: Invokes the cloud model (`bedrock`) for synthesis.
 *   **Analytical Warehouse**: dbt Core + DuckDB (Local) / AWS Athena (Cloud).
 *   **Screener Model**: Quality Minus Junk (QMJ) 5-Factor Z-Score Analysis.
 *   **Persistence**: DynamoDB (Tables: MarketData, TrackedAssets, QMJUniverse, Insights, CostTracking).

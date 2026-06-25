@@ -35,4 +35,12 @@ The project now features a containerized Vibe-Trading Model Context Protocol (MC
 ## Technical Instructions for Next Agent
 - **MCP Communications**: Ensure the `vibe-trading-mcp` service is running in Docker (`docker-compose ps`). It serves tools over SSE on `http://vibe-trading-mcp:8010`.
 - **Environment Run**: Verify python code builds and runs using `./scripts/syntax_check.sh`.
-- **Bedrock / Ollama fallback**: Both `/api/v1/chat` and backtesting fall back cleanly to local/Bedrock LLM models if the premium models are constrained.
+- **LLM Environment Routing Rules**: 
+  - **Local Runs**: 
+    - **Main App**: Set `LLM_PROVIDER=ollama` and pull `llama3.2` locally.
+    - **Vibe-Trading MCP**: Set `LANGCHAIN_PROVIDER=ollama`, `LANGCHAIN_MODEL_NAME=llama3.2`, and `OLLAMA_BASE_URL=http://host.docker.internal:11434`.
+    - **CRITICAL**: The docker containers require an active internet connection to download yfinance market data, headlines, and trigger backtests.
+  - **Cloud Runs**: 
+    - **Main App**: Set `LLM_PROVIDER=bedrock` to call Claude 3 Haiku over AWS Bedrock Converse API.
+    - **Vibe-Trading MCP**: Since the MCP server's underlying package does not support Bedrock natively, configure it with an OpenAI-compatible cloud provider (e.g. OpenAI, Gemini, or DeepSeek) using `LANGCHAIN_PROVIDER`, `LANGCHAIN_MODEL_NAME`, and the corresponding API key (e.g. `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`).
+- **Chatbot Swarm Tool Routing**: The `vibe-trading-mcp` server does not expose an `ask_question` tool. To handle chat queries, `/api/v1/chat` maps user queries to valid swarm presets (`investment_committee`, `quant_strategy_desk`, `macro_strategy_forum`, `risk_committee`) by executing a structured variable extraction parser using `call_llm`, invoking `run_swarm` with the arguments on success, and falling back to direct LLM completion for general queries.

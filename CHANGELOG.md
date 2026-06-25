@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.10.1] - 2026-06-24
+
+### Added
+- **Multi-LLM Swarm Deployment Guide** — Documented local installation steps using Ollama models and cloud deployment configurations for `vibe-trading-mcp`.
+
+### Fixed
+- **Chatbot Tool Routing Resolution** — Resolved chatbot execution error (`Unknown tool: 'ask_question'`) on the `vibe-trading-mcp` server. Implemented a dynamic LLM-driven router that automatically parses user queries, extracts required parameters, and maps them to the appropriate multi-agent swarm presets (`investment_committee`, `quant_strategy_desk`, `macro_strategy_forum`, `risk_committee`) via the `run_swarm` tool, falling back to direct LLM response generation for general queries.
+
+
 ## [3.10.0] - 2026-06-23
 
 ### Added

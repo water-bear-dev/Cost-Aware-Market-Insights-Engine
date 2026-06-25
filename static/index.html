@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css?v=8">
+    <link rel="stylesheet" href="/static/style.css?v=9">
     <link rel="stylesheet" href="/static/screener.css?v=1">
 </head>
 
@@ -813,19 +813,19 @@
                         <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">Select a specialized agent team to run collaborative reviews.</p>
                         
                         <div class="analyst-teams-list" style="display: flex; flex-direction: column; gap: 0.50rem;">
-                            <button class="glass-btn team-btn active" data-team="investment" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
-                                <span style="margin-right: 0.5rem;">💼</span> Investment Review
+                            <button class="glass-btn team-btn active has-tooltip" data-team="investment" data-tooltip="Investment Review: Multi-agent research committee for security analysis, valuation, and thesis generation." style="display: flex; align-items: center; text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                                <span style="margin-right: 0.5rem;">💼</span> Investment Review <span class="active-indicator" style="margin-left: auto; color: var(--positive); font-size: 0.75rem; font-weight: bold; line-height: 1;">●</span>
                             </button>
-                            <button class="glass-btn team-btn" data-team="quant" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                            <button class="glass-btn team-btn has-tooltip" data-team="quant" data-tooltip="Quantitative Review: Swarm of quantitative researchers focusing on strategy development, signal math, and backtest targets." style="display: flex; align-items: center; text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
                                 <span style="margin-right: 0.5rem;">📊</span> Quantitative Review
                             </button>
-                            <button class="glass-btn team-btn" data-team="crypto" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                            <button class="glass-btn team-btn has-tooltip" data-team="crypto" data-tooltip="Crypto Review: Specialized swarm focusing on crypto asset metrics, tokenomics, and market dynamics." style="display: flex; align-items: center; text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
                                 <span style="margin-right: 0.5rem;">🪙</span> Crypto Review
                             </button>
-                            <button class="glass-btn team-btn" data-team="macro" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                            <button class="glass-btn team-btn has-tooltip" data-team="macro" data-tooltip="Macro Review: Macro strategy forum assessing interest rates, inflation, commodities, and global economic cycles." style="display: flex; align-items: center; text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
                                 <span style="margin-right: 0.5rem;">🌐</span> Macro Review
                             </button>
-                            <button class="glass-btn team-btn" data-team="risk" style="text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
+                            <button class="glass-btn team-btn has-tooltip" data-team="risk" data-tooltip="Risk Workflow: Risk committee analyzing portfolio stress, volatility, VaR, and hedging strategies." style="display: flex; align-items: center; text-align: left; justify-content: flex-start; padding: 0.6rem 0.8rem; font-size: 0.8rem; width: 100%;">
                                 <span style="margin-right: 0.5rem;">🛡️</span> Risk Workflow
                             </button>
                         </div>
@@ -1604,6 +1604,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=8"></script>
+    <script src="/static/app.js?v=10"></script>
 </body>
 </html>
