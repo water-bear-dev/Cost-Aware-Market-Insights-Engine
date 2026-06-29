@@ -38,7 +38,7 @@ The project now features a containerized Vibe-Trading Model Context Protocol (MC
 - **LLM Environment Routing Rules**: 
   - **Local Runs**: 
     - **Main App**: Set `LLM_PROVIDER=ollama` and pull `llama3.2` locally.
-    - **Vibe-Trading MCP**: Set `LANGCHAIN_PROVIDER=ollama`, `LANGCHAIN_MODEL_NAME=llama3.2`, and `OLLAMA_BASE_URL=http://host.docker.internal:11434`.
+    - **Vibe-Trading MCP**: Set `LANGCHAIN_PROVIDER=ollama`, `LANGCHAIN_MODEL_NAME=llama3.2`, and `OLLAMA_BASE_URL=http://host.docker.internal:11434`. *(Note: If the local model hallucinates placeholder templates instead of calling tools, switch the MCP to a cloud provider like OpenAI).*
     - **CRITICAL**: The docker containers require an active internet connection to download yfinance market data, headlines, and trigger backtests.
   - **Cloud Runs**: 
     - **Main App**: Set `LLM_PROVIDER=bedrock` to call Claude 3 Haiku over AWS Bedrock Converse API.
