@@ -1,0 +1,102 @@
+[
+  {
+    "id": "investment_aapl",
+    "query": "[Team: investment] Analyze AAPL for a US long",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"target\": \"AAPL\", \"market\": \"US\"}, \"reason\": \"ticker research\"}",
+    "expect_team": "investment",
+    "expect_user_text": "Analyze AAPL for a US long",
+    "expect_preset": "investment_committee",
+    "expect_should_run": true,
+    "expect_variables": {"target": "AAPL", "market": "US"},
+    "expect_valid": true
+  },
+  {
+    "id": "risk_portfolio",
+    "query": "[Team: risk] Assess 60/40 drawdown risk",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"goal\": \"Assess 60/40 portfolio drawdown risk\"}, \"reason\": \"risk assessment\"}",
+    "expect_team": "risk",
+    "expect_user_text": "Assess 60/40 drawdown risk",
+    "expect_preset": "risk_committee",
+    "expect_should_run": true,
+    "expect_variables": {"goal": "Assess 60/40 portfolio drawdown risk"},
+    "expect_valid": true
+  },
+  {
+    "id": "quant_mean_reversion",
+    "query": "[Team: quant] Mean-reversion on US liquid names",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"market\": \"US\", \"goal\": \"Mean-reversion on liquid names\"}, \"reason\": \"quant research\"}",
+    "expect_team": "quant",
+    "expect_user_text": "Mean-reversion on US liquid names",
+    "expect_preset": "quant_strategy_desk",
+    "expect_should_run": true,
+    "expect_variables": {"market": "US", "goal": "Mean-reversion on liquid names"},
+    "expect_valid": true
+  },
+  {
+    "id": "macro_us_quarterly",
+    "query": "[Team: macro] US outlook next quarter",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"market\": \"US\", \"horizon\": \"quarterly\"}, \"reason\": \"macro forum\"}",
+    "expect_team": "macro",
+    "expect_user_text": "US outlook next quarter",
+    "expect_preset": "macro_strategy_forum",
+    "expect_should_run": true,
+    "expect_variables": {"market": "US", "horizon": "quarterly"},
+    "expect_valid": true
+  },
+  {
+    "id": "crypto_btc",
+    "query": "[Team: crypto] Thesis on BTC",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"target\": \"BTC\", \"market\": \"\"}, \"reason\": \"crypto thesis\"}",
+    "expect_team": "crypto",
+    "expect_user_text": "Thesis on BTC",
+    "expect_preset": "investment_committee",
+    "expect_should_run": true,
+    "expect_variables": {"target": "BTC", "market": ""},
+    "expect_valid": true,
+    "expect_force_crypto_market": true
+  },
+  {
+    "id": "general_sharpe",
+    "query": "What is Sharpe ratio?",
+    "router_llm_text": "{\"should_run_swarm\": false, \"variables\": {}, \"reason\": \"definitional question\"}",
+    "expect_team": "investment",
+    "expect_user_text": "What is Sharpe ratio?",
+    "expect_preset": "investment_committee",
+    "expect_should_run": false,
+    "expect_variables": {},
+    "expect_valid": true
+  },
+  {
+    "id": "empty_target_bypass",
+    "query": "[Team: investment] Analyze that stock",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"target\": \"\", \"market\": \"US\"}, \"reason\": \"ambiguous ticker\"}",
+    "expect_team": "investment",
+    "expect_user_text": "Analyze that stock",
+    "expect_preset": "investment_committee",
+    "expect_should_run": true,
+    "expect_variables": {"target": "", "market": "US"},
+    "expect_valid": false
+  },
+  {
+    "id": "markdown_fenced_json",
+    "query": "[Team: investment] Look at NVDA",
+    "router_llm_text": "```json\n{\"should_run_swarm\": true, \"variables\": {\"target\": \"NVDA\", \"market\": \"US\"}, \"reason\": \"ticker\"}\n```",
+    "expect_team": "investment",
+    "expect_user_text": "Look at NVDA",
+    "expect_preset": "investment_committee",
+    "expect_should_run": true,
+    "expect_variables": {"target": "NVDA", "market": "US"},
+    "expect_valid": true
+  },
+  {
+    "id": "list_variable_sanitize",
+    "query": "[Team: investment] Compare AAPL and MSFT",
+    "router_llm_text": "{\"should_run_swarm\": true, \"variables\": {\"target\": [\"AAPL\", \"MSFT\"], \"market\": \"US\"}, \"reason\": \"multi\"}",
+    "expect_team": "investment",
+    "expect_user_text": "Compare AAPL and MSFT",
+    "expect_preset": "investment_committee",
+    "expect_should_run": true,
+    "expect_variables": {"target": "AAPL, MSFT", "market": "US"},
+    "expect_valid": true
+  }
+]

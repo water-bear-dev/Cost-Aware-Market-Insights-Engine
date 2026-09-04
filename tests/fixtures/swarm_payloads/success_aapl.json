@@ -1,0 +1,20 @@
+{
+  "final_report": "Investment committee consensus on AAPL: Apple remains a high-quality compounder with strong services margins and a resilient balance sheet. Near-term catalysts include product cycle momentum; key risks include China demand and regulatory pressure on the App Store.",
+  "tasks": [
+    {
+      "agent_id": "macro_analyst",
+      "status": "completed",
+      "summary": "Macro backdrop for AAPL is supportive with stable rates and healthy consumer spending."
+    },
+    {
+      "agent_id": "risk_analyst",
+      "status": "completed",
+      "summary": "Volatility for AAPL is moderate; position sizing should account for sector beta."
+    },
+    {
+      "agent_id": "catalyst_analyst",
+      "status": "failed",
+      "error": "Headline feed timeout"
+    }
+  ]
+}

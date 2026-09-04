@@ -1,5 +1,45 @@
 # Development Blog
 
+## Entry 82: Chatbot Factual Correctness Test Harness & mock_fallback Hardening (2026-09-04)
+
+In this entry, we document the first automated test suite for the Research Lab chatbot. The goal is not to prove the model is “always right,” but to lock down the paths that make factual answers *possible*: correct routing, required-variable gates, real MCP swarm payloads (never fabricated mocks), and optional live groundedness checks against golden fixtures.
+
+### 1. Why This Mattered
+The chat endpoint can answer via three very different paths:
+1. **Swarm** (`run_swarm` on `vibe-trading-mcp`) — tool-grounded research.
+2. **Direct LLM** — parametric knowledge only (higher hallucination risk).
+3. **MCP `mock_fallback`** — hardcoded offline consensus text when the container is unreachable.
+
+Before this pass, path (3) could surface as a successful swarm reply (`Investment Swarm Consensus: Bullish…`), which is the worst failure mode for “factual correctness”: invented content that looks authoritative. We also had no regression net for router JSON parsing, empty-variable bypasses, or team→preset mapping.
+
+### 2. Testability Refactor in `src/routes/chat.py`
+We extracted pure helpers so routing logic can be unit-tested without spinning the full FastAPI lifespan (DynamoDB / scheduler):
+- `parse_team_prefix`, `preset_for_team`, `build_router_prompt`
+- `parse_router_llm_text` (markdown fence strip + variable sanitize)
+- `validate_swarm_variables`, `format_swarm_messages`
+
+**Behavioral hardening:** when MCP returns `status=mock_fallback`, the endpoint now **falls through to the direct LLM path** instead of returning the mock consensus as a swarm success. Offline tests assert the forbidden mock string never appears in that scenario.
+
+### 3. Offline Suite (Default `pytest`)
+Scaffolded `requirements-dev.txt`, `pytest.ini`, and `tests/conftest.py` with a minimal FastAPI app that only mounts the chat router.
+- **`tests/test_chat_router.py`** — table-driven cases from `tests/fixtures/chat_router_cases.json` (investment/risk/quant/macro/crypto, empty target bypass, fenced JSON, list-variable sanitize).
+- **`tests/test_chat_endpoint.py`** — path integrity with mocked `call_llm` / `vibe_mcp_client`: swarm happy path, empty-var MCP skip, mock_fallback fall-through, direct LLM, crypto market force, AAPL-only MCP arg contract.
+- **`tests/chat_assertions.py`** — shared anti-placeholder / anti-mock checks (`[current date]`, `TODO`, `Mock reply`, hardcoded bullish mock string) plus ticker presence helpers.
+
+### 4. Optional Live Golden Eval
+`tests/eval/test_chat_groundedness.py` is marked `@pytest.mark.integration` and skipped unless `RUN_CHAT_EVAL=1`. It loads ~10 cases from `tests/fixtures/chat_golden.json` and scores identity + no-placeholder + no-mock (not live prices, which are too flaky for v1).
+
+```bash
+pytest
+RUN_CHAT_EVAL=1 pytest tests/eval -m integration
+```
+
+### 5. Known Limits (v1)
+Cross-entity router mistakes (e.g. extracting `SONY` for an AAPL query) are **not** auto-corrected yet — only contract-tested that MCP args match whatever the router emitted. Auto-repair remains future work, in the spirit of Entry 52’s “algorithm selects, AI writes” separation for Discovery.
+
+Release notes: CHANGELOG `3.10.2`. Ops notes: `agent_handoff.md` and README Testing section.
+
+
 ## Entry 81: Phase 11 — HKUDS Vibe-Trading Swarm, Backtesting Integration, and Strategy Artifact Export (2026-06-23)
 
 In this entry, we document the implementation of Phase 11, which integrates the HKUDS Vibe-Trading repository capabilities. This introduces collaborative multi-agent analyst swarms (Macro, Investment, Quant, Crypto, Risk), strategy artifact exporters (TradingView Pine Script v5, MT5 MQL5 code, and Markdown reports), an interactive research chatbot tab in the UI, and a 3-month portfolio backtesting engine whose results are embedded in the Costs tab of the dashboard.

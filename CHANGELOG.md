@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 
 
+## [3.10.2] - 2026-09-04
+
+### Added
+- **Chatbot Test Harness** — Introduced pytest offline suite for Research Lab routing, empty-variable gates, swarm response formatting, and path integrity (`tests/`), plus an optional `RUN_CHAT_EVAL=1` live groundedness eval against golden fixtures.
+- **Dev Dependencies** — Added `requirements-dev.txt` and `pytest.ini` for local test runs.
+
+### Changed
+- **Chat Route Helpers** — Extracted pure routing/validation/format helpers from `src/routes/chat.py` for deterministic unit testing.
+- **MCP mock_fallback Hardening** — `/api/v1/chat` no longer returns fabricated MCP mock consensus as a successful swarm report; `mock_fallback` falls through to the direct LLM path.
+
+
 ## [3.10.1] - 2026-06-24
 
 ### Added

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "aapl_investment",
+    "team": "investment",
+    "query": "Provide an investment committee thesis on AAPL for the US market",
+    "must_mention": ["AAPL", "Apple"],
+    "must_not_mention": ["Sony", "SONY", "ASML"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "nvda_investment",
+    "team": "investment",
+    "query": "Analyze NVDA as a US equity for a long-term holder",
+    "must_mention": ["NVDA"],
+    "must_not_mention": ["AAPL", "Apple Inc"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "msft_investment",
+    "team": "investment",
+    "query": "Research MSFT for investment committee review",
+    "must_mention": ["MSFT"],
+    "must_not_mention": ["GOOGL", "Alphabet"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "btc_crypto",
+    "team": "crypto",
+    "query": "Investment thesis on BTC in crypto markets",
+    "must_mention": ["BTC"],
+    "must_not_mention": ["AAPL"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "risk_6040",
+    "team": "risk",
+    "query": "Assess drawdown and volatility risk for a classic 60/40 equity-bond portfolio",
+    "must_mention": ["60", "40"],
+    "must_not_mention": [],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "quant_mean_reversion",
+    "team": "quant",
+    "query": "Design a mean-reversion research goal for liquid US equities",
+    "must_mention": ["mean", "US"],
+    "must_not_mention": [],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "macro_us_quarterly",
+    "team": "macro",
+    "query": "Provide a quarterly macro outlook focused on the US market",
+    "must_mention": ["US"],
+    "must_not_mention": [],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "fake_ticker",
+    "team": "investment",
+    "query": "Analyze ZZZZFAKE as a US long idea",
+    "must_mention": ["ZZZZFAKE"],
+    "must_not_mention": ["Investment Swarm Consensus: Bullish"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  },
+  {
+    "id": "definition_no_swarm",
+    "team": "investment",
+    "query": "What is a Sharpe ratio in plain English?",
+    "must_mention": ["Sharpe"],
+    "must_not_mention": ["Investment Swarm Consensus: Bullish"],
+    "forbid_placeholders": true,
+    "expect_swarm": false
+  },
+  {
+    "id": "no_placeholders_tsla",
+    "team": "investment",
+    "query": "Give a concise investment view on TSLA",
+    "must_mention": ["TSLA"],
+    "must_not_mention": ["[current date]", "TODO"],
+    "forbid_placeholders": true,
+    "expect_swarm": true
+  }
+]

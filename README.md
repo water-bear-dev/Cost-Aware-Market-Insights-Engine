@@ -244,6 +244,20 @@ If you are running locally but notice the Swarm Analyst generating placeholder t
 
 ---
 
+## Testing
+
+Chatbot routing and response-integrity tests live under `tests/`.
+
+```bash
+pip install -r requirements-dev.txt
+pytest                 # offline unit + mocked integration (default)
+RUN_CHAT_EVAL=1 pytest tests/eval -m integration   # optional live MCP/LLM groundedness
+```
+
+Offline tests mock `call_llm` and `vibe_mcp_client`. The live eval is skipped unless `RUN_CHAT_EVAL=1` and requires a working LLM plus `vibe-trading-mcp` for swarm cases. Known risk: wrong router tickers are not auto-corrected in v1 (contract tests only assert MCP args match the router output).
+
+---
+
 ## Quick Start (Running Locally with Ollama)
 
 To run the engine on your local machine using an open-source LLM:
